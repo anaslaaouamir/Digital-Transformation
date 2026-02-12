@@ -1,8 +1,8 @@
-package com.stage.admin.controller;
+package com.stage.admin.controllers;
 
 import com.stage.admin.dto.LoginRequest;
 import com.stage.admin.dto.LoginResponse;
-import com.stage.admin.service.AuthService;
+import com.stage.admin.services.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

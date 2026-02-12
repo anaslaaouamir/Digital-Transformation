@@ -1,4 +1,4 @@
-package com.stage.admin.entity;
+package com.stage.admin.entities;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

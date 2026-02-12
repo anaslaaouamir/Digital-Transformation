@@ -49,4 +49,16 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf().disable()
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/admin/**").authenticated()
+                .anyRequest().permitAll()
+            )
+            .httpBasic(); // ou JWT si tu l’as configuré
+        return http.build();
+    }
+
 }

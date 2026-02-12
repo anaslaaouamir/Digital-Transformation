@@ -1,7 +1,7 @@
 package com.stage.admin.config;
 
-import com.stage.admin.entity.Admin;
-import com.stage.admin.repository.AdminRepository;
+import com.stage.admin.entities.Admin;
+import com.stage.admin.repositories.AdminRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
