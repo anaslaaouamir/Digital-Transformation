@@ -1,6 +1,6 @@
-package com.stage.admin.repository;
+package com.stage.admin.repositories;
 
-import com.stage.admin.entity.Admin;
+import com.stage.admin.entities.Admin;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
