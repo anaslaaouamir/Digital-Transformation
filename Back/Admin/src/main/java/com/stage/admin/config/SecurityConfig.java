@@ -24,8 +24,6 @@ public class SecurityConfig {
 
 
  */
-<<<<<<< HEAD
+
 }
-=======
-}
->>>>>>> 42435a6cc9330037c1f46d7d27f932edbd8e5cf0
+
