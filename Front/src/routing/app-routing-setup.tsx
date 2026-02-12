@@ -12,7 +12,6 @@ import {
   AccountCompanyProfilePage,
   AccountCurrentSessionsPage,
   AccountDeviceManagementPage,
-  AccountEnterprisePage,
   AccountGetStartedPage,
   AccountHistoryPage,
   AccountImportMembersPage,
@@ -99,9 +98,15 @@ export function AppRoutingSetup() {
     <Routes>
       <Route element={<Demo1Layout />}>
         <Route
-              path="/account/home/get-started"
-              element={<AccountGetStartedPage />}
-            />
+          path="/account/home/get-started"
+          element={<AccountGetStartedPage />}
+        />
+        <Route path="/account/billing/basic" element={<AccountBasicPage />} />
+        <Route path="/account/billing/plans" element={<AccountPlansPage />} />
+        <Route
+          path="/account/billing/history"
+          element={<AccountHistoryPage />}
+        />
       </Route>
       <Route element={<RequireAuth />}>
         <Route element={<Demo1Layout />}>
@@ -203,10 +208,6 @@ export function AppRoutingSetup() {
             element={<AccountSettingsModalPage />}
           />
           <Route path="/account/billing/basic" element={<AccountBasicPage />} />
-          <Route
-            path="/account/billing/enterprise"
-            element={<AccountEnterprisePage />}
-          />
           <Route path="/account/billing/plans" element={<AccountPlansPage />} />
           <Route
             path="/account/billing/history"

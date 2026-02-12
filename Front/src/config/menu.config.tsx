@@ -143,40 +143,8 @@ export const MENU_SIDEBAR: MenuConfig = [
         title: 'Billing',
         children: [
           { title: 'Billing - Basic', path: '/account/billing/basic' },
-          {
-            title: 'Billing - Enterprise',
-            path: '/account/billing/enterprise',
-          },
           { title: 'Plans', path: '/account/billing/plans' },
           { title: 'Billing History', path: '/account/billing/history' },
-        ],
-      },
-      {
-        title: 'Security',
-        children: [
-          { title: 'Get Started', path: '/account/security/get-started' },
-          { title: 'Security Overview', path: '/account/security/overview' },
-          {
-            title: 'Allowed IP Addresses',
-            path: '/account/security/allowed-ip-addresses',
-          },
-          {
-            title: 'Privacy Settings',
-            path: '/account/security/privacy-settings',
-          },
-          {
-            title: 'Device Management',
-            path: '/account/security/device-management',
-          },
-          {
-            title: 'Backup & Recovery',
-            path: '/account/security/backup-and-recovery',
-          },
-          {
-            title: 'Current Sessions',
-            path: '/account/security/current-sessions',
-          },
-          { title: 'Security Log', path: '/account/security/security-log' },
         ],
       },
       {
@@ -202,20 +170,7 @@ export const MENU_SIDEBAR: MenuConfig = [
           },
         ],
       },
-      { title: 'Integrations', path: '/account/integrations' },
-      { title: 'Notifications', path: '/account/notifications' },
-      { title: 'API Keys', path: '/account/api-keys' },
-      {
-        title: 'More',
-        collapse: true,
-        collapseTitle: 'Show less',
-        expandTitle: 'Show 3 more',
-        children: [
-          { title: 'Appearance', path: '/account/appearance' },
-          { title: 'Invite a Friend', path: '/account/invite-a-friend' },
-          { title: 'Activity', path: '/account/activity' },
-        ],
-      },
+      { title: 'Activity', path: '/account/activity' },
     ],
   },
   {
@@ -531,10 +486,6 @@ export const MENU_SIDEBAR_COMPACT: MenuConfig = [
         title: 'Billing',
         children: [
           { title: 'Billing - Basic', path: '/account/billing/basic' },
-          {
-            title: 'Billing - Enterprise',
-            path: '/account/billing/enterprise',
-          },
           { title: 'Plans', path: '/account/billing/plans' },
           { title: 'Billing History', path: '/account/billing/history' },
         ],
@@ -935,7 +886,6 @@ export const MENU_MEGA: MenuConfig = [
             title: 'Billing',
             children: [
               { title: 'Basic Billing', path: '/account/billing/basic' },
-              { title: 'Enterprise', path: '/account/billing/enterprise' },
               { title: 'Plans', path: '/account/billing/plans' },
               { title: 'Billing History', path: '/account/billing/history' },
               { title: 'Tax Info', disabled: true },
@@ -1338,7 +1288,6 @@ export const MENU_MEGA_MOBILE: MenuConfig = [
             title: 'Billing',
             children: [
               { title: 'Basic Billing', path: '/account/billing/basic' },
-              { title: 'Enterprise', path: '/account/billing/enterprise' },
               { title: 'Plans', path: '/account/billing/plans' },
               { title: 'Billing History', path: '/account/billing/history' },
               { title: 'Tax Info', disabled: true },

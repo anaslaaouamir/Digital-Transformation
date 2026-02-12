@@ -24,7 +24,7 @@ export function Breadcrumb() {
         return (
           <Fragment key={`root-${index}`}>
             <span
-              className={cn(active ? 'text-mono' : 'text-secondary-foreground')}
+              className={cn(active ? 'text-primary' : 'text-mono')}
               key={`item-${index}`}
             >
               {item.title}

@@ -22,13 +22,6 @@ const Integrations = () => {
       actions: <Switch id="size-sm" size="sm" defaultChecked />,
     },
     {
-      logo: 'inferno.svg',
-      path: '/account/billing/enterprise',
-      name: 'Inferno',
-      description: 'Ensures healthcare app compatibility with FHIR standards.',
-      actions: <Switch id="size-sm" size="sm" />,
-    },
-    {
       logo: 'evernote.svg',
       path: '/account/billing/plans',
       name: 'Evernote',

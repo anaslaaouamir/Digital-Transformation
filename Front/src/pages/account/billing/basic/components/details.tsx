@@ -11,10 +11,10 @@ type IDetailsItems = Array<IDetailsItem>;
 
 const Details = () => {
   const tables: IDetailsItems = [
-    { status: 'Company Name', info: 'KeenThemes' },
+    { status: 'Company Name', info: 'ELBAHI.NET' },
     {
       status: 'Address',
-      info: 'Keizersgracht 136, 1015 CW Amsterdam, Netherlands',
+      info: 'Avenue My Hassan, SIBAM 2 - Gueliz, Marrakech',
     },
     { status: 'Contact', info: 'Jason Tatum' },
     { status: 'VAT ID', info: 'NL123456789B01' },
@@ -23,7 +23,7 @@ const Details = () => {
   const renderItem = (table: IDetailsItem, index: number) => {
     return (
       <TableRow key={index} className="border-0">
-        <TableCell className="text-sm text-secondary-foreground min-w-36 pb-5 pe-6 py-2">
+        <TableCell className="text-sm text-secondary min-w-36 pb-5 pe-6 py-2">
           {table.status}
         </TableCell>
         <TableCell className="text-sm text-foreground pb-5 py-2">

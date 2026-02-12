@@ -1,7 +1,5 @@
-import { DropdownMenu3 } from '@/partials/dropdown-menu/dropdown-menu-3';
-import { EllipsisVertical, LucideIcon } from 'lucide-react';
+import { LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
 interface IOptionsItem {
@@ -14,39 +12,28 @@ type IOptionsItems = Array<IOptionsItem>;
 
 interface IOptionsProps {
   items: IOptionsItems;
-  dropdown: boolean;
 }
 
-const Options = ({ items, dropdown }: IOptionsProps) => {
+const Options = ({ items }: IOptionsProps) => {
   const renderProject = (item: IOptionsItem, index: number) => {
     return (
-      <Card key={index} className="p-5 lg:p-7.5 lg:pt-7">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-2">
-            <item.icon className="text-xl text-blue-500" />
-            {dropdown && (
-              <DropdownMenu3
-                trigger={
-                  <Button variant="ghost" mode="icon">
-                    <EllipsisVertical />
-                  </Button>
-                }
-              />
-            )}
+      <Link to={`${item.path}`}>
+        <Card key={index} className="p-5 lg:p-7.5 lg:pt-7">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-2">
+              <item.icon className="text-xl text-primary" />
+            </div>
+            <div className="flex flex-col gap-3">
+              <span className="text-base font-medium leading-none text-mono hover:text-primary-active">
+                {item.title}
+              </span>
+              <span className="text-sm text-secondary leading-5">
+                {item.desc}
+              </span>
+            </div>
           </div>
-          <div className="flex flex-col gap-3">
-            <Link
-              to={`${item.path}`}
-              className="text-base font-medium leading-none text-mono hover:text-primary-active"
-            >
-              {item.title}
-            </Link>
-            <span className="text-sm text-secondary-foreground leading-5">
-              {item.desc}
-            </span>
-          </div>
-        </div>
-      </Card>
+        </Card>
+      </Link>
     );
   };
 

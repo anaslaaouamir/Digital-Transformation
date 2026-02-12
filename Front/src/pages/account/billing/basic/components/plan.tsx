@@ -35,7 +35,7 @@ const Plan = () => {
         <span className="text-mono text-base leading-none font-medium">
           {statistic.total}
         </span>
-        <span className="text-secondary-foreground text-sm">
+        <span className="text-secondary text-sm">
           {statistic.description}
         </span>
       </div>
@@ -54,7 +54,7 @@ const Plan = () => {
                   Monthly
                 </Badge>
               </div>
-              <p className="text-sm text-secondary-foreground">
+              <p className="text-sm text-secondary">
                 Essential Features for Startups and Individuals
               </p>
             </div>
@@ -73,7 +73,7 @@ const Plan = () => {
             })}
           </div>
           <div className="flex flex-col gap-3.5">
-            <span className="text-sm text-secondary-foreground">
+            <span className="text-sm text-secondary">
               Usage (32 of 40 users)
             </span>
             <Slider defaultValue={[80]} max={100} step={1}></Slider>

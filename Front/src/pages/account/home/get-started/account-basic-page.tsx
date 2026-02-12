@@ -30,7 +30,7 @@ export function AccountGetStartedPage() {
                   </span>
                   <Link
                     to="mailto:jaytatum@ktstudio.com"
-                    className="text-secondary-foreground hover:text-primary"
+                    className="text-secondary hover:text-primary"
                   >
                     jaytatum@ktstudio.com
                   </Link>

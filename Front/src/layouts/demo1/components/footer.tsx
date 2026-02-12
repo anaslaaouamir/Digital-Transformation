@@ -11,7 +11,7 @@ export function Footer() {
           <div className="flex order-2 md:order-1  gap-2 font-normal text-sm">
             <span className="text-muted-foreground">{currentYear} &copy;</span>
             <a
-              href="https://keenthemes.com"
+              href="https://elbahi.net/"
               target="_blank"
               className="text-secondary hover:text-primary"
             >

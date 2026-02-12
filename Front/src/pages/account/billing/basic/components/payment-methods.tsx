@@ -54,7 +54,7 @@ const PaymentMethods = () => {
             >
               {item.title}
             </Link>
-            <span className="text-sm text-secondary-foreground">
+            <span className="text-sm text-secondary">
               {item.email}
             </span>
           </div>

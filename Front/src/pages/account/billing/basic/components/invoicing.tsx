@@ -85,7 +85,7 @@ const Invoicing = () => {
         </TableCell>
         <TableCell>
           <Button variant="ghost" mode="icon">
-            <Download className="text-blue-500" />
+            <Download className='text-muted-foreground/70' />
           </Button>
         </TableCell>
       </TableRow>
@@ -104,7 +104,7 @@ const Invoicing = () => {
       <CardContent className="kt-scrollable-x-auto p-0">
         <Table>
           <TableHeader>
-            <TableRow className="bg-accent/60">
+            <TableRow className="bg-muted/50">
               <TableHead className="min-w-52 h-10">Invoice</TableHead>
               <TableHead className="min-w-24 text-end h-10">Status</TableHead>
               <TableHead className="min-w-32 text-end h-10">Date</TableHead>
