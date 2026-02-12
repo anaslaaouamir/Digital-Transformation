@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:16-alpine
+    platform: linux/amd64
+    container_name: dt-postgres
+    environment:
+      POSTGRES_DB: digital_transformation
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d digital_transformation"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./Back/Admin
+    platform: linux/amd64
+    container_name: dt-backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/digital_transformation
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+      SERVER_PORT: "8080"
+      APP_JWT_SECRET: jahsjgdJHJWEYWDBYU127357352548SSG
+      APP_JWT_EXPIRATION: "86400000"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
