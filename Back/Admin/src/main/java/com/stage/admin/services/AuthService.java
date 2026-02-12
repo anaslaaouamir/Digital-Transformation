@@ -1,9 +1,9 @@
-package com.stage.admin.service;
+package com.stage.admin.services;
 
 import com.stage.admin.dto.LoginRequest;
 import com.stage.admin.dto.LoginResponse;
-import com.stage.admin.entity.Admin;
-import com.stage.admin.repository.AdminRepository;
+import com.stage.admin.entities.Admin;
+import com.stage.admin.repositories.AdminRepository;
 import com.stage.admin.security.JwtProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
