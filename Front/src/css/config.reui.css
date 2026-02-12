@@ -1,0 +1,135 @@
+/** Custom Color Palette **/
+:root {
+  /* Your custom colors */
+  --custom-primary: #66C39E;
+  --custom-secondary: #072E33;
+  --custom-text: #213443;
+  --custom-text-alt: #334155;
+  --custom-accent: #E3FFCC;
+  --custom-light: #F7F7F7;
+  --custom-border: #DDE4EE;
+}
+
+/** Colors **/
+:root {
+  --background: #ffffff;
+  --foreground: var(--custom-text);
+  
+  --card: #ffffff;
+  --card-foreground: var(--custom-text);
+  
+  --popover: #ffffff;
+  --popover-foreground: var(--custom-text);
+  
+  --primary: var(--custom-primary);
+  --primary-foreground: #ffffff;
+  
+  --secondary: var(--custom-secondary);
+  --secondary-foreground: #ffffff;
+  
+  --muted: var(--custom-light);
+  --muted-foreground: var(--custom-text-alt);
+  
+  --accent: var(--custom-accent);
+  --accent-foreground: var(--custom-secondary);
+  
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  
+  --chart-1: var(--custom-primary);
+  --chart-2: #66C39E;
+  --chart-3: #E3FFCC;
+  --chart-4: #dc2626;
+  --chart-5: #072E33;
+  
+  --border: var(--custom-border);
+  --input: var(--custom-border);
+  --ring: var(--custom-primary);
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: var(--custom-secondary);
+  --foreground: #f8fafc;
+  
+  --card: #0a3943;
+  --card-foreground: #f8fafc;
+  
+  --popover: #0a3943;
+  --popover-foreground: #f8fafc;
+  
+  --primary: var(--custom-primary);
+  --primary-foreground: var(--custom-secondary);
+  
+  --secondary: #0f4550;
+  --secondary-foreground: #f8fafc;
+  
+  --muted: #0f4550;
+  --muted-foreground: #94a3b8;
+  
+  --accent: #1a5a66;
+  --accent-foreground: var(--custom-accent);
+  
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  
+  --chart-1: var(--custom-primary);
+  --chart-2: #7fd4b3;
+  --chart-3: #E3FFCC;
+  --chart-4: #ef4444;
+  --chart-5: #66C39E;
+  
+  --border: #1a5a66;
+  --input: #1a5a66;
+  --ring: var(--custom-primary);
+}
+
+/** Theme Setup **/
+@theme inline {
+  /** Base Colors **/
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-mono: var(--mono);
+  --color-mono-foreground: var(--mono-foreground);
+
+  /** Base Styles **/
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+/** Custom Font Size **/
+@theme {
+  --text-2sm: 0.8125rem;
+  --text-2sm--line-height: calc(1.075 / 0.8125);
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: calc(0.825 / 0.6875);
+}
