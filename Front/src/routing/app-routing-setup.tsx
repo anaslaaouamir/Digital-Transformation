@@ -93,6 +93,8 @@ import {
 } from '@/pages/store-client';
 import { Navigate, Route, Routes } from 'react-router';
 
+import { AddTiers } from '@/pages/tiers/add_tiers/company-profile/add_tiers';
+import EditTiers from "@/pages/tiers/edit_tiers/company-profile/edit_tiers";
 export function AppRoutingSetup() {
   return (
     <Routes>
@@ -108,8 +110,24 @@ export function AppRoutingSetup() {
           element={<AccountHistoryPage />}
         />
       </Route>
-      <Route element={<RequireAuth />}>
+      < Route element={<RequireAuth />}>
         <Route element={<Demo1Layout />}>
+
+
+
+
+          {/* Routes for Adding and editing tiers */}
+
+          <Route
+            path="/add_tiers"
+            element={<AddTiers />}
+          />
+
+          <Route path="/edit_tiers/:id" element={<EditTiers />} />
+
+
+
+
           <Route path="/" element={<DefaultPage />} />
           <Route path="/dark-sidebar" element={<Demo1DarkSidebarPage />} />
           <Route
@@ -387,6 +405,9 @@ export function AppRoutingSetup() {
             element={<AllProductsPage />}
           />
           <Route path="/auth/get-started" element={<AccountGetStartedPage />} />
+
+          
+
         </Route>
       </Route>
       <Route path="error/*" element={<ErrorRouting />} />
