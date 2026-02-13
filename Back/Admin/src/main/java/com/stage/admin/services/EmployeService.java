@@ -2,6 +2,7 @@ package com.stage.admin.services;
 
 import com.stage.admin.entities.Employe;
 import com.stage.admin.repositories.EmployeRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -10,9 +11,11 @@ import java.util.List;
 public class EmployeService {
 
     private final EmployeRepository employeRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public EmployeService(EmployeRepository employeRepository) {
+    public EmployeService(EmployeRepository employeRepository, PasswordEncoder passwordEncoder) {
         this.employeRepository = employeRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public Employe findById(Long id) {
@@ -34,7 +37,7 @@ public class EmployeService {
         employeRepository.deleteById(id);
     }
 
-    // ✅ POST: Add employee
+    //  POST: Add employee
     public Employe create(Employe employe) {
         if (employe.getEmail() == null || employe.getEmail().isBlank()) {
             throw new RuntimeException("EMAIL_REQUIRED");
@@ -54,10 +57,16 @@ public class EmployeService {
             throw new RuntimeException("PASSWORD_REQUIRED");
         }
 
+        // Validate password strength
+        validatePasswordStrength(employe.getMotDePasse());
+
+        // Encrypt password with BCrypt
+        employe.setMotDePasse(passwordEncoder.encode(employe.getMotDePasse()));
+
         return employeRepository.save(employe);
     }
 
-    // ✅ PUT: Update employee
+    //  PUT: Update employee
     public Employe update(Long id, Employe data) {
         Employe existing = employeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("NOT_FOUND"));
@@ -82,9 +91,28 @@ public class EmployeService {
 
         // update password only if provided
         if (data.getMotDePasse() != null && !data.getMotDePasse().isBlank()) {
-            existing.setMotDePasse(data.getMotDePasse());
+            // Validate password strength
+            validatePasswordStrength(data.getMotDePasse());
+            // Encrypt password with BCrypt
+            existing.setMotDePasse(passwordEncoder.encode(data.getMotDePasse()));
         }
 
         return employeRepository.save(existing);
+    }
+
+    // Password strength validation
+    private void validatePasswordStrength(String password) {
+        if (password.length() < 8) {
+            throw new RuntimeException("PASSWORD_TOO_SHORT");
+        }
+        if (!password.matches(".*[A-Z].*")) {
+            throw new RuntimeException("PASSWORD_MISSING_UPPERCASE");
+        }
+        if (!password.matches(".*[a-z].*")) {
+            throw new RuntimeException("PASSWORD_MISSING_LOWERCASE");
+        }
+        if (!password.matches(".*\\d.*")) {
+            throw new RuntimeException("PASSWORD_MISSING_DIGIT");
+        }
     }
 }
