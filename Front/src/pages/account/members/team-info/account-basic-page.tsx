@@ -30,7 +30,7 @@ export function AccountTeamInfoPage() {
             </ToolbarHeading>
             <ToolbarActions>
               <Button variant="outline">
-                <Link to="#">Roles</Link>
+                <Link to="#">Add field</Link>
               </Button>
             </ToolbarActions>
           </Toolbar>
