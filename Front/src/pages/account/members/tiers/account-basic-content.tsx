@@ -1,8 +1,9 @@
 'use client';
-
+import { Link } from 'react-router';
 import { useState } from 'react';
 import { TiersTable } from './components/tiers-table';
 import { TiersDetailView } from './components/tiers-detail-view';
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -13,6 +14,7 @@ import type { ITiers } from './types';
 
 export function AccountTiersContent() {
   const [selectedTier, setSelectedTier] = useState<ITiers | null>(null);
+  const navigate = useNavigate();
   const [showDetail, setShowDetail] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
@@ -24,7 +26,7 @@ export function AccountTiersContent() {
 
   const handleEdit = (tier: ITiers) => {
     setSelectedTier(tier);
-    setShowEdit(true);
+    navigate(`/edit_tiers/${tier.id}`);
   };
   // ──────────────────────────────────────────────────────────────────────────
 

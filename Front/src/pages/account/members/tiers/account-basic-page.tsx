@@ -34,11 +34,7 @@ export function AccountTiersPage() {
               </ToolbarDescription>
 
             </ToolbarHeading>
-            <ToolbarActions>
-              <Button asChild>
-                <Link to="/account/members/tiers//tiers-form">Add Tier</Link>
-              </Button>
-            </ToolbarActions>
+          
           </Toolbar>
         </Container>
       )}

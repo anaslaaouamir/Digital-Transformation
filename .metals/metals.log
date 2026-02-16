@@ -74,3 +74,7 @@ WARNING: Unmatched cancel notification for request id 51
 2026.02.16 10:05:59 INFO  no build target found for C:\Users\T470\Desktop\Digital-Transformation\Back\Admin\src\main\java\com\stage\admin\controllers\AdminController.java. Using fallback presentation compiler.
 2026.02.16 10:09:24 INFO  no build target found for C:\Users\T470\Desktop\Digital-Transformation\Back\Admin\src\main\java\com\stage\admin\controllers\AdminController.java. Using fallback presentation compiler.
 2026.02.16 10:14:56 INFO  no build target found for C:\Users\T470\Desktop\Digital-Transformation\Back\Admin\src\main\java\com\stage\admin\controllers\AdminController.java. Using fallback presentation compiler.
+févr. 16, 2026 12:53:02 PM org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+févr. 16, 2026 12:54:47 PM org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
