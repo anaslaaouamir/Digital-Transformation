@@ -3,6 +3,9 @@ import {
   FileText,
   IdCard,
   LineChart,
+  TrendingUp,
+  User,
+  UserCheck,
   Users,
 } from 'lucide-react';
 import { Link } from 'react-router';
@@ -14,7 +17,7 @@ export function AccountGetStartedContent() {
     {
       icon: IdCard,
       title: 'Personal info',
-      desc: "We're open to partnerships, guest posts, promo bannersand more.",
+      desc: "We're open to partnerships, guest posts, promo banners and more.",
       path: '/account/members/team-info',
     },
     {
@@ -28,6 +31,12 @@ export function AccountGetStartedContent() {
       title: 'Members, Teams & Roles',
       desc: 'Efficient management of members, teams, and available roles.',
       path: '/account/members/roles',
+    },
+    {
+      icon: UserCheck,
+      title: 'Tiers Management',
+      desc: 'Track, organize, and follow up with your tiers.',
+      path: '/account/members/tiers',
     },
     {
       icon: LineChart,

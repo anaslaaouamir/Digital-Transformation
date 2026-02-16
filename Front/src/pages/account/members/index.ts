@@ -7,3 +7,4 @@ export * from './team-members/account-basic-page';
 export * from './teams/account-basic-page';
 export * from './team-info/account-basic-page';
 export * from './team-starter/account-basic-page';
+export * from './tiers/account-basic-page';

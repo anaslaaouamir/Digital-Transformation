@@ -357,29 +357,38 @@ const buttonVariants = cva(
   },
 );
 
-function Button({
-  className,
-  selected,
-  variant,
-  shape,
-  appearance,
-  mode,
-  size,
-  autoHeight,
-  underlined,
-  underline,
-  asChild = false,
-  placeholder = false,
-  ...props
-}: React.ComponentProps<'button'> &
-  VariantProps<typeof buttonVariants> & {
-    selected?: boolean;
-    asChild?: boolean;
-  }) {
+// ✅ Use forwardRef so Radix UI triggers (Popover, Dialog, Sheet, DropdownMenu)
+// can attach refs to Button when used as asChild trigger children.
+const Button = React.forwardRef<
+  HTMLButtonElement,
+  React.ComponentProps<'button'> &
+    VariantProps<typeof buttonVariants> & {
+      selected?: boolean;
+      asChild?: boolean;
+    }
+>(function Button(
+  {
+    className,
+    selected,
+    variant,
+    shape,
+    appearance,
+    mode,
+    size,
+    autoHeight,
+    underlined,
+    underline,
+    asChild = false,
+    placeholder = false,
+    ...props
+  },
+  ref,
+) {
   const Comp = asChild ? SlotPrimitive.Slot : 'button';
   return (
     <Comp
       data-slot="button"
+      ref={ref}
       className={cn(
         buttonVariants({
           variant,
@@ -399,10 +408,12 @@ function Button({
       {...props}
     />
   );
-}
+});
+
+Button.displayName = 'Button';
 
 interface ButtonArrowProps extends React.SVGProps<SVGSVGElement> {
-  icon?: LucideIcon; // Allows passing any Lucide icon
+  icon?: LucideIcon;
 }
 
 function ButtonArrow({ icon: Icon = ChevronDown, className, ...props }: ButtonArrowProps) {

@@ -15,10 +15,10 @@ interface IOptionsProps {
 }
 
 const Options = ({ items }: IOptionsProps) => {
-  const renderProject = (item: IOptionsItem, index: number) => {
+  const renderProject = (item: IOptionsItem) => {
     return (
       <Link to={`${item.path}`}>
-        <Card key={index} className="p-5 lg:p-7.5 lg:pt-7">
+        <Card className="p-5 lg:p-7.5 lg:pt-7">
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-2">
               <item.icon className="text-xl text-primary" />
@@ -39,8 +39,12 @@ const Options = ({ items }: IOptionsProps) => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5 lg:gap-7.5">
-      {items.map((item, index) => {
-        return renderProject(item, index);
+      {items.map((item) => {
+        return (
+          <div key={item.path}>
+            {renderProject(item)}
+          </div>
+        );
       })}
     </div>
   );
