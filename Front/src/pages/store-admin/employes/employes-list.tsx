@@ -8,16 +8,13 @@ type Employe = {
   email?: string;
   telephone?: string;
   role?: string;
-  password?: string; // ✅ NEW
+  password?: string;
 };
 
 export default function EmployesListPage() {
   const [loading, setLoading] = useState(false);
   const [employes, setEmployes] = useState<Employe[]>([]);
   const [error, setError] = useState<string | null>(null);
-
-  // ✅ show/hide password per employee id
-  const [showPwd, setShowPwd] = useState<Record<number, boolean>>({});
 
   const fetchEmployes = async () => {
     setLoading(true);
@@ -44,18 +41,9 @@ export default function EmployesListPage() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setEmployes((prev) => prev.filter((e) => e.id !== id));
-      setShowPwd((prev) => {
-        const copy = { ...prev };
-        delete copy[id];
-        return copy;
-      });
     } catch (e: any) {
       alert(e?.message || 'Échec de la suppression');
     }
-  };
-
-  const togglePwd = (id: number) => {
-    setShowPwd((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   useEffect(() => {
@@ -173,28 +161,10 @@ export default function EmployesListPage() {
           color: '#9ca3af',
         },
 
-        pwdCell: {
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          whiteSpace: 'nowrap',
-        },
-
         pwdText: {
           fontFamily:
             'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
           letterSpacing: 0.5,
-        },
-
-        eyeBtn: {
-          border: '1px solid #e5e7eb',
-          background: 'white',
-          borderRadius: 10,
-          padding: '6px 10px',
-          cursor: 'pointer',
-          fontWeight: 700,
-          color: '#111827',
-          lineHeight: 1,
         },
       }) as { [key: string]: React.CSSProperties },
     []
@@ -237,49 +207,28 @@ export default function EmployesListPage() {
             </thead>
 
             <tbody>
-              {employes.map((e) => {
-                const visible = !!showPwd[e.id];
-                const pwd = e.password ?? '';
-                const masked = pwd ? '********' : '-';
+              {employes.map((e) => (
+                <tr key={e.id}>
+                  <td style={styles.td}>{e.nom || '-'}</td>
+                  <td style={styles.td}>{e.prenom || '-'}</td>
+                  <td style={styles.td}>{e.email || '-'}</td>
+                  <td style={styles.td}>{e.telephone || '-'}</td>
+                  <td style={styles.td}>
+                    <span style={styles.roleBadge}>{e.role || '-'}</span>
+                  </td>
 
-                return (
-                  <tr key={e.id}>
-                    <td style={styles.td}>{e.nom || '-'}</td>
-                    <td style={styles.td}>{e.prenom || '-'}</td>
-                    <td style={styles.td}>{e.email || '-'}</td>
-                    <td style={styles.td}>{e.telephone || '-'}</td>
-                    <td style={styles.td}>
-                      <span style={styles.roleBadge}>{e.role || '-'}</span>
-                    </td>
+                  {/* ✅ password shown directly (no eye) */}
+                  <td style={styles.td}>
+                    <span style={styles.pwdText}>{e.password || '-'}</span>
+                  </td>
 
-                    <td style={styles.td}>
-                      <div style={styles.pwdCell}>
-                        <span style={styles.pwdText}>
-                          {pwd ? (visible ? pwd : masked) : '-'}
-                        </span>
-
-                        {/* ✅ eye toggle */}
-                        <button
-                          type="button"
-                          onClick={() => togglePwd(e.id)}
-                          style={styles.eyeBtn}
-                          disabled={!pwd}
-                          aria-label={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-                          title={visible ? 'Masquer' : 'Afficher'}
-                        >
-                          {visible ? '🙈' : '👁️'}
-                        </button>
-                      </div>
-                    </td>
-
-                    <td style={{ ...styles.td, textAlign: 'right' }}>
-                      <button onClick={() => deleteEmploye(e.id)} style={styles.deleteBtn}>
-                        Supprimer
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+                  <td style={{ ...styles.td, textAlign: 'right' }}>
+                    <button onClick={() => deleteEmploye(e.id)} style={styles.deleteBtn}>
+                      Supprimer
+                    </button>
+                  </td>
+                </tr>
+              ))}
 
               {!loading && employes.length === 0 && (
                 <tr>
