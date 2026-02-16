@@ -38,6 +38,7 @@ import {
   AccountTeamMembersPage,
   AccountTeamsPage,
   AccountTeamsStarterPage,
+  AccountTiersPage,
   AccountUserProfilePage,
 } from '@/pages/account';
 import {
@@ -293,6 +294,7 @@ export function AppRoutingSetup() {
             element={<AccountImportMembersPage />}
           />
           <Route path="/account/members/roles" element={<AccountRolesPage />} />
+          <Route path="/account/members/tiers" element={<AccountTiersPage />} />
           <Route
             path="/account/members/permissions-toggle"
             element={<AccountPermissionsTogglePage />}
