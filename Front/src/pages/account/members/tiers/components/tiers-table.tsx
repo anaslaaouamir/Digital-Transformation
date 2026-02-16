@@ -349,7 +349,7 @@ export function TiersTable({ onView, onEdit }: TiersTableProps = {}) {
             </Popover>
 
             <Button size="sm" asChild>
-              <Link to="/account/members/tiers/new">
+              <Link to="/add_tiers">
                 <Plus className="mr-2 h-4 w-4" /> Add Tier
               </Link>
             </Button>
