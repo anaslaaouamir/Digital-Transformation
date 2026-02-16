@@ -1,3 +1,14 @@
+error id: file:///C:/Users/T470/Desktop/Digital-Transformation/Back/Admin/src/main/java/com/stage/admin/entities/Employe.java:jakarta/persistence/GenerationType#
+file:///C:/Users/T470/Desktop/Digital-Transformation/Back/Admin/src/main/java/com/stage/admin/entities/Employe.java
+empty definition using pc, found symbol in pc: jakarta/persistence/GenerationType#
+empty definition using semanticdb
+empty definition using fallback
+non-local guesses:
+
+offset: 282
+uri: file:///C:/Users/T470/Desktop/Digital-Transformation/Back/Admin/src/main/java/com/stage/admin/entities/Employe.java
+text:
+```scala
 package com.stage.admin.entities;
 
 import java.time.LocalDateTime;
@@ -6,7 +17,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
+import jakarta.persistence.GenerationTy@@pe;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
@@ -102,3 +113,10 @@ public void setCreatedAt(LocalDateTime createdAt) {
 
 }
 
+
+```
+
+
+#### Short summary: 
+
+empty definition using pc, found symbol in pc: jakarta/persistence/GenerationType#
