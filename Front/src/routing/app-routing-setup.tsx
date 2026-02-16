@@ -2,6 +2,9 @@ import { AuthRouting } from '@/auth/auth-routing';
 import { RequireAuth } from '@/auth/require-auth';
 import { ErrorRouting } from '@/errors/error-routing';
 import { Demo1Layout } from '@/layouts/demo1/layout';
+import EmployesListPage from '@/pages/store-admin/employes/employes-list';
+import EmployeAddPage from '@/pages/store-admin/employes/employe-add';
+
 import {
   AccountActivityPage,
   AccountAllowedIPAddressesPage,
@@ -114,7 +117,8 @@ export function AppRoutingSetup() {
             element={<AccountTeamInfoPage />}
           />
       </Route>
-      < Route element={<RequireAuth />}>
+      <Route element={<RequireAuth />}>
+
         <Route element={<Demo1Layout />}>
 
 
@@ -408,6 +412,10 @@ export function AppRoutingSetup() {
             path="/store-admin/inventory/all-products"
             element={<AllProductsPage />}
           />
+          {/* EMPLOYES - ADMIN ONLY */}
+          <Route path="/store-admin/employes" element={<EmployesListPage />} />
+          <Route path="/store-admin/employes/add" element={<EmployeAddPage />} />
+
           <Route path="/auth/get-started" element={<AccountGetStartedPage />} />
 
           
