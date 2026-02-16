@@ -112,6 +112,10 @@ export function AppRoutingSetup() {
           path="/account/billing/history"
           element={<AccountHistoryPage />}
         />
+        <Route
+            path="/account/members/team-info"
+            element={<AccountTeamInfoPage />}
+          />
       </Route>
       <Route element={<RequireAuth />}>
 
