@@ -117,7 +117,7 @@ export function AppRoutingSetup() {
             element={<AccountTeamInfoPage />}
           />
       </Route>
-      <Route element={<RequireAuth />}>
+      {/*<Route element={<RequireAuth />}>*/}
 
         <Route element={<Demo1Layout />}>
 
@@ -421,7 +421,7 @@ export function AppRoutingSetup() {
           
 
         </Route>
-      </Route>
+      {/*</Route>*/}
       <Route path="error/*" element={<ErrorRouting />} />
       <Route path="auth/*" element={<AuthRouting />} />
       <Route path="*" element={<Navigate to="/error/404" />} />

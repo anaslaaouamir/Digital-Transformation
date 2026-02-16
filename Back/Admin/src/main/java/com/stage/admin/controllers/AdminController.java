@@ -1,5 +1,6 @@
 package com.stage.admin.controllers;
 
+import com.stage.admin.dto.AdminUpdateRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.stage.admin.dto.AdminResponse;
@@ -38,7 +39,7 @@ public class AdminController {
         return ResponseEntity.ok(mapToResponse(admin));
     }
 
-    @PutMapping("/me")
+    /*@PutMapping("/me")
     public ResponseEntity<?> updateMe(@RequestBody Admin admin) {
         try {
             Admin updated = adminService.updateCurrentAdmin(admin);
@@ -60,6 +61,20 @@ public class AdminController {
                 return ResponseEntity.status(400).body("{\"error\":\"Password must contain at least one digit\"}");
             }
             return ResponseEntity.status(400).body("{\"error\":\"Bad request: " + e.getMessage() + "\"}");
+        }
+    }*/
+
+    @PutMapping("/update")
+    public ResponseEntity<?> updateAdmin(@RequestBody AdminUpdateRequest request) {
+        try {
+            Admin updated = adminService.updateCurrentAdmin(request);
+            return ResponseEntity.ok(mapToResponse(updated));
+        } catch (RuntimeException e) {
+            if ("INVALID_CURRENT_PASSWORD".equals(e.getMessage())) {
+                return ResponseEntity.status(403).body("{\"error\": \"Incorrect current password\"}");
+            }
+            // Handle other errors (PASSWORD_TOO_SHORT, etc.)
+            return ResponseEntity.badRequest().body("{\"error\": \"" + e.getMessage() + "\"}");
         }
     }
 }
