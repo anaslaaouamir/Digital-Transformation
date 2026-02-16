@@ -25,25 +25,51 @@ export default function EmployeAddPage() {
   const hasError = (key: keyof typeof form) => submitted && String(form[key]).trim() === '';
 
   const submit = async () => {
-    setSubmitted(true);
-    if (!isFormValid) return;
+  setSubmitted(true);
+  if (!isFormValid) return;
 
-    setSaving(true);
-    try {
-      const res = await fetch('http://localhost:8080/api/employes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
+  setSaving(true);
+  try {
+    // ✅ Map frontend -> backend
+    const payload = {
+      nom: form.nom,
+      prenom: form.prenom,
+      email: form.email,
+      telephone: form.telephone,
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      navigate('/store-admin/employes');
-    } catch (e: any) {
-      alert(e?.message || 'Add failed');
-    } finally {
-      setSaving(false);
+      // ⚠️ OPTION A: backend expects role as string/enum
+      role: form.role,
+
+      // ⚠️ OPTION B (common): backend expects role object like { id: 1 }
+      // role: { id: form.role === 'Commercial' ? 1 : 2 },
+
+      // ✅ password naming (common in french backends)
+      motDePasse: form.password,
+      // If backend expects "password" keep: password: form.password
+      // If backend expects "mdp" use: mdp: form.password
+    };
+
+    console.log('✅ payload envoyé =>', payload);
+
+    const res = await fetch('http://localhost:8080/api/employes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const text = await res.text(); // show real reason
+      throw new Error(text || `HTTP ${res.status}`);
     }
-  };
+
+    navigate('/store-admin/employes');
+  } catch (e: any) {
+    alert(e?.message || 'Add failed');
+  } finally {
+    setSaving(false);
+  }
+};
+
 
   const styles = useMemo(() => {
     const border = '1px solid rgba(15, 23, 42, 0.12)';
