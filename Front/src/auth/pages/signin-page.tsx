@@ -79,30 +79,33 @@ export function SignInPage() {
     try {
       setIsProcessing(true);
       setError(null);
-
-      console.log('Attempting to sign in with email:', values.email);
-
-      // Simple validation
-      if (!values.email.trim() || !values.password) {
-        setError('Email and password are required');
-        return;
+  
+      const response = await fetch('http://localhost:8080/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // CHANGED: Use 'motDePasse' to match your Java Entity/DTO
+        body: JSON.stringify({
+          email: values.email,
+          motDePasse: values.password 
+        }),
+      });
+  
+      const data = await response.json();
+  
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
       }
-
-      // Sign in using the auth context
-      await login(values.email, values.password);
-
-      // Get the 'next' parameter from URL if it exists
-      const nextPath = searchParams.get('next') || '/';
-
-      // Use navigate for navigation
-      navigate(nextPath);
+  
+      // Success! Store your token/session
+      localStorage.setItem('auth_token', data.token); 
+      console.log('success: ', data.token);
+      
+      // Redirect to dashboard
+      navigate('/add_tiers'); 
     } catch (err) {
-      console.error('Unexpected sign-in error:', err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'An unexpected error occurred. Please try again.',
-      );
+      setError(err instanceof Error ? err.message : 'Connection failed');
     } finally {
       setIsProcessing(false);
     }

@@ -30,7 +30,7 @@ export function AccountGetStartedContent() {
       icon: Users,
       title: 'Members, Teams & Roles',
       desc: 'Efficient management of members, teams, and available roles.',
-      path: '/account/members/roles',
+      path: '/store-admin/employes',
     },
     {
       icon: UserCheck,
