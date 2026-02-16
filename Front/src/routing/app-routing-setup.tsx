@@ -2,6 +2,9 @@ import { AuthRouting } from '@/auth/auth-routing';
 import { RequireAuth } from '@/auth/require-auth';
 import { ErrorRouting } from '@/errors/error-routing';
 import { Demo1Layout } from '@/layouts/demo1/layout';
+import EmployesListPage from '@/pages/store-admin/employes/employes-list';
+import EmployeAddPage from '@/pages/store-admin/employes/employe-add';
+
 import {
   AccountActivityPage,
   AccountAllowedIPAddressesPage,
@@ -94,6 +97,8 @@ import {
 } from '@/pages/store-client';
 import { Navigate, Route, Routes } from 'react-router';
 
+import { AddTiers } from '@/pages/tiers/add_tiers/company-profile/add_tiers';
+import EditTiers from "@/pages/tiers/edit_tiers/company-profile/edit_tiers";
 export function AppRoutingSetup() {
   return (
     <Routes>
@@ -108,9 +113,30 @@ export function AppRoutingSetup() {
           path="/account/billing/history"
           element={<AccountHistoryPage />}
         />
+        <Route
+            path="/account/members/team-info"
+            element={<AccountTeamInfoPage />}
+          />
       </Route>
-      <Route element={<RequireAuth />}>
+      {/*<Route element={<RequireAuth />}>*/}
+
         <Route element={<Demo1Layout />}>
+
+
+
+
+          {/* Routes for Adding and editing tiers */}
+
+          <Route
+            path="/add_tiers"
+            element={<AddTiers />}
+          />
+
+          <Route path="/edit_tiers/:id" element={<EditTiers />} />
+
+
+
+
           <Route path="/" element={<DefaultPage />} />
           <Route path="/dark-sidebar" element={<Demo1DarkSidebarPage />} />
           <Route
@@ -388,9 +414,16 @@ export function AppRoutingSetup() {
             path="/store-admin/inventory/all-products"
             element={<AllProductsPage />}
           />
+          {/* EMPLOYES - ADMIN ONLY */}
+          <Route path="/store-admin/employes" element={<EmployesListPage />} />
+          <Route path="/store-admin/employes/add" element={<EmployeAddPage />} />
+
           <Route path="/auth/get-started" element={<AccountGetStartedPage />} />
+
+          
+
         </Route>
-      </Route>
+      {/*</Route>*/}
       <Route path="error/*" element={<ErrorRouting />} />
       <Route path="auth/*" element={<AuthRouting />} />
       <Route path="*" element={<Navigate to="/error/404" />} />

@@ -11,9 +11,9 @@ import { Link } from 'react-router';
 import { useSettings } from '@/providers/settings-provider';
 import { Button } from '@/components/ui/button';
 import { Container } from '@/components/common/container';
-import { AccountTeamInfoContent } from '.';
+import { AccountCompanyProfileContent } from '.';
 
-export function AccountTeamInfoPage() {
+export function AddTiers() {
   const { settings } = useSettings();
 
   return (
@@ -22,22 +22,15 @@ export function AccountTeamInfoPage() {
       {settings?.layout === 'demo1' && (
         <Container>
           <Toolbar>
-            <ToolbarHeading>
-              <ToolbarPageTitle />
-              <ToolbarDescription>
-                Efficient team organization with real-time updates
-              </ToolbarDescription>
-            </ToolbarHeading>
-            <ToolbarActions>
-              <Button variant="outline">
-                <Link to="#">Add field</Link>
-              </Button>
-            </ToolbarActions>
+          <ToolbarHeading>
+            <h1 className="text-xl font-bold text-gray-900">Ajouter un Tiers</h1>
+          </ToolbarHeading>
+            
           </Toolbar>
         </Container>
       )}
       <Container>
-        <AccountTeamInfoContent />
+        <AccountCompanyProfileContent />
       </Container>
     </Fragment>
   );
