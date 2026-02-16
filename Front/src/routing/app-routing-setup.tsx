@@ -112,8 +112,12 @@ export function AppRoutingSetup() {
           path="/account/billing/history"
           element={<AccountHistoryPage />}
         />
+        <Route
+            path="/account/members/team-info"
+            element={<AccountTeamInfoPage />}
+          />
       </Route>
-      <Route element={<RequireAuth />}>
+      {/*<Route element={<RequireAuth />}>*/}
 
         <Route element={<Demo1Layout />}>
 
@@ -417,7 +421,7 @@ export function AppRoutingSetup() {
           
 
         </Route>
-      </Route>
+      {/*</Route>*/}
       <Route path="error/*" element={<ErrorRouting />} />
       <Route path="auth/*" element={<AuthRouting />} />
       <Route path="*" element={<Navigate to="/error/404" />} />
