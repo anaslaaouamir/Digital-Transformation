@@ -183,8 +183,8 @@ const EditTiers = () => {
       });
 
       if (response.ok) {
-        alert("Tiers modifié avec succès !");
-        navigate(`/edit_tiers/${id}`); 
+        //alert("Tiers modifié avec succès !");
+        navigate(`/account/members/tiers`); 
       } else {
         const data = await response.json();
         setError(data.error || "Erreur lors de la modification");

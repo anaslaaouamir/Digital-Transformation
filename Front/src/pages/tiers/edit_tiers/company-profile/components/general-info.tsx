@@ -179,8 +179,8 @@ const PAYS_LIST = [
       });
 
       if (response.ok) {
-        alert("Tiers créé avec succès !");
-        navigate('/tiers'); // Redirect to list
+        //alert("Tiers créé avec succès !");
+        navigate('/account/members/tiers'); // Redirect to list
       } else {
         const data = await response.json();
         setError(data.error || "Erreur lors de la création");
