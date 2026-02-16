@@ -103,7 +103,7 @@ export function SignInPage() {
       console.log('success: ', data.token);
       
       // Redirect to dashboard
-      navigate('/add_tiers'); 
+      navigate('/account/home/get-started'); 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Connection failed');
     } finally {
