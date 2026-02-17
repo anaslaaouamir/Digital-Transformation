@@ -335,10 +335,9 @@ export function TiersTable({ onView, onEdit }: TiersTableProps = {}) {
                         className="w-full h-8 rounded border border-gray-300 px-2 text-sm"
                       >
                         <option value="">Tous les statuts</option>
-                        <option value="Ouvert">Actif (Ouvert)</option>
-                        <option value="Actif">Actif (Actif)</option>
-                        <option value="Fermé">Fermé</option>
-                        <option value="Suspendu">Suspendu</option>
+                        <option value="ouvert">Ouvert</option>
+                        <option value="ferme">Fermé</option>
+                        
                       </select>
                     </div>
                   </div>
