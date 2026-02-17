@@ -4,6 +4,8 @@ import { ErrorRouting } from '@/errors/error-routing';
 import { Demo1Layout } from '@/layouts/demo1/layout';
 import EmployesListPage from '@/pages/store-admin/employes/employes-list';
 import EmployeAddPage from '@/pages/store-admin/employes/employe-add';
+import EmployeEditPage from '@/pages/store-admin/employes/employe-edit';
+
 
 import {
   AccountActivityPage,
@@ -417,6 +419,7 @@ export function AppRoutingSetup() {
           {/* EMPLOYES - ADMIN ONLY */}
           <Route path="/store-admin/employes" element={<EmployesListPage />} />
           <Route path="/store-admin/employes/add" element={<EmployeAddPage />} />
+<Route path="/store-admin/employes/edit/:id" element={<EmployeEditPage />} />
 
           <Route path="/auth/get-started" element={<AccountGetStartedPage />} />
 

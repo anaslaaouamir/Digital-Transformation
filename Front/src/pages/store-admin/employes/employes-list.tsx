@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 type Employe = {
   id: number;
@@ -8,13 +8,17 @@ type Employe = {
   email?: string;
   telephone?: string;
   role?: string;
-  password?: string;
 };
 
 export default function EmployesListPage() {
   const [loading, setLoading] = useState(false);
   const [employes, setEmployes] = useState<Employe[]>([]);
   const [error, setError] = useState<string | null>(null);
+const navigate = useNavigate();
+
+  // ✅ NEW: filters
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'Tous' | string>('Tous');
 
   const fetchEmployes = async () => {
     setLoading(true);
@@ -50,6 +54,31 @@ export default function EmployesListPage() {
     fetchEmployes();
   }, []);
 
+  // ✅ NEW: role options based on data (unique)
+  const roleOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of employes) {
+      const r = (e.role || '').trim();
+      if (r) set.add(r);
+    }
+    return ['Tous', ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+  }, [employes]);
+
+  // ✅ NEW: filtered list
+  const filteredEmployes = useMemo(() => {
+    const q = search.trim().toLowerCase();
+
+    return employes.filter((e) => {
+      const fullName = `${e.nom ?? ''} ${e.prenom ?? ''}`.trim().toLowerCase();
+      const nameMatch = !q || fullName.includes(q);
+
+      const role = (e.role ?? '').trim();
+      const roleMatch = roleFilter === 'Tous' || role === roleFilter;
+
+      return nameMatch && roleMatch;
+    });
+  }, [employes, search, roleFilter]);
+
   const styles = useMemo(
     () =>
       ({
@@ -69,8 +98,8 @@ export default function EmployesListPage() {
         header: {
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 20,
+          alignItems: 'flex-start',
+          marginBottom: 16,
           gap: 12,
           flexWrap: 'wrap',
         },
@@ -82,10 +111,45 @@ export default function EmployesListPage() {
         },
 
         subtitle: {
-          margin: 0,
+          margin: '4px 0 0',
           fontSize: 13,
           color: '#6b7280',
         },
+
+        controlsWrap: {
+          display: 'flex',
+          gap: 10,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+        } as React.CSSProperties,
+
+        input: {
+          height: 38,
+          padding: '0 12px',
+          borderRadius: 10,
+          border: '1px solid #e5e7eb',
+          outline: 'none',
+          fontSize: 14,
+          background: '#fff',
+        } as React.CSSProperties,
+
+        select: {
+          height: 38,
+          padding: '0 12px',
+          borderRadius: 10,
+          border: '1px solid #e5e7eb',
+          outline: 'none',
+          fontSize: 14,
+          background: '#fff',
+          cursor: 'pointer',
+        } as React.CSSProperties,
+
+        buttonRow: {
+          display: 'flex',
+          gap: 10,
+          alignItems: 'center',
+        } as React.CSSProperties,
 
         table: {
           width: '100%',
@@ -118,15 +182,16 @@ export default function EmployesListPage() {
           fontWeight: 600,
           display: 'inline-flex',
           alignItems: 'center',
+          whiteSpace: 'nowrap',
         },
 
         refreshBtn: {
           background: '#e5e7eb',
           border: 'none',
           padding: '8px 14px',
-          borderRadius: 8,
+          borderRadius: 10,
           cursor: 'pointer',
-          fontWeight: 600,
+          fontWeight: 700,
         },
 
         addBtn: {
@@ -134,9 +199,9 @@ export default function EmployesListPage() {
           color: 'white',
           border: 'none',
           padding: '8px 16px',
-          borderRadius: 8,
+          borderRadius: 10,
           cursor: 'pointer',
-          fontWeight: 600,
+          fontWeight: 700,
         },
 
         deleteBtn: {
@@ -144,15 +209,24 @@ export default function EmployesListPage() {
           color: 'white',
           border: 'none',
           padding: '6px 12px',
-          borderRadius: 8,
+          borderRadius: 10,
           cursor: 'pointer',
-          fontWeight: 600,
+          fontWeight: 700,
         },
+editBtn: {
+  background: '#f59e0b',
+  color: 'white',
+  border: 'none',
+  padding: '6px 12px',
+  borderRadius: 10,
+  cursor: 'pointer',
+  fontWeight: 700,
+},
 
         error: {
           marginBottom: 12,
           color: '#b91c1c',
-          fontWeight: 600,
+          fontWeight: 700,
         },
 
         empty: {
@@ -161,11 +235,18 @@ export default function EmployesListPage() {
           color: '#9ca3af',
         },
 
-        pwdText: {
-          fontFamily:
-            'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-          letterSpacing: 0.5,
-        },
+        pill: {
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '6px 10px',
+          borderRadius: 999,
+          border: '1px solid #e5e7eb',
+          background: '#f8fafc',
+          color: '#334155',
+          fontSize: 12,
+          fontWeight: 700,
+        } as React.CSSProperties,
       }) as { [key: string]: React.CSSProperties },
     []
   );
@@ -179,14 +260,41 @@ export default function EmployesListPage() {
             <p style={styles.subtitle}>Liste complète des employés enregistrés</p>
           </div>
 
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={fetchEmployes} disabled={loading} style={styles.refreshBtn}>
-              {loading ? 'Chargement...' : 'Rafraîchir'}
-            </button>
+          <div style={styles.controlsWrap}>
+            {/* 🔎 Search by name */}
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher par nom ou prénom..."
+              style={{ ...styles.input, width: 260 }}
+            />
 
-            <Link to="/store-admin/employes/add" style={{ textDecoration: 'none' }}>
-              <button style={styles.addBtn}>+ Ajouter</button>
-            </Link>
+            {/* 🎛️ Filter by role */}
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              style={{ ...styles.select, minWidth: 170 }}
+            >
+              {roleOptions.map((r) => (
+                <option key={r} value={r}>
+                  {r === 'Tous' ? 'Tous les rôles' : r}
+                </option>
+              ))}
+            </select>
+
+            <span style={styles.pill}>
+              Résultats: {filteredEmployes.length}
+            </span>
+
+            <div style={styles.buttonRow}>
+              <button onClick={fetchEmployes} disabled={loading} style={styles.refreshBtn}>
+                {loading ? 'Chargement...' : 'Rafraîchir'}
+              </button>
+
+              <Link to="/store-admin/employes/add" style={{ textDecoration: 'none' }}>
+                <button style={styles.addBtn}>+ Ajouter</button>
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -201,13 +309,12 @@ export default function EmployesListPage() {
                 <th style={styles.th}>Email</th>
                 <th style={styles.th}>Téléphone</th>
                 <th style={styles.th}>Rôle</th>
-                <th style={styles.th}>Mot de passe</th>
                 <th style={{ ...styles.th, textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
 
             <tbody>
-              {employes.map((e) => (
+              {filteredEmployes.map((e) => (
                 <tr key={e.id}>
                   <td style={styles.td}>{e.nom || '-'}</td>
                   <td style={styles.td}>{e.prenom || '-'}</td>
@@ -217,22 +324,28 @@ export default function EmployesListPage() {
                     <span style={styles.roleBadge}>{e.role || '-'}</span>
                   </td>
 
-                  {/* ✅ password shown directly (no eye) */}
-                  <td style={styles.td}>
-                    <span style={styles.pwdText}>{e.password || '-'}</span>
-                  </td>
+               <td style={{ ...styles.td, textAlign: 'right' }}>
+  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+    <button
+      type="button"
+      onClick={() => navigate(`/store-admin/employes/edit/${e.id}`)}
+      style={styles.editBtn}
+    >
+      Modifier
+    </button>
 
-                  <td style={{ ...styles.td, textAlign: 'right' }}>
-                    <button onClick={() => deleteEmploye(e.id)} style={styles.deleteBtn}>
-                      Supprimer
-                    </button>
-                  </td>
+    <button type="button" onClick={() => deleteEmploye(e.id)} style={styles.deleteBtn}>
+      Supprimer
+    </button>
+  </div>
+</td>
+
                 </tr>
               ))}
 
-              {!loading && employes.length === 0 && (
+              {!loading && filteredEmployes.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={styles.empty}>
+                  <td colSpan={6} style={styles.empty}>
                     Aucun employé trouvé.
                   </td>
                 </tr>
