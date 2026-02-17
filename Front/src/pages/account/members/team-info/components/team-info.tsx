@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
+import api from '@/api/axios';
 
 // Types matching your Backend DTO
 interface AdminData {
@@ -51,14 +52,11 @@ const TeamInfo = () => {
 
   const fetchAdminData = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/admin/me');
-      if (response.ok) {
-        const result = await response.json();
-        setData(result);
-      }
-    } catch (error) {
+      const response = await api.get<AdminData>('/admin/me');
+      setData(response.data);
+    } catch (error: any) {
       console.error('Error fetching admin data:', error);
-      setError("Impossible de charger les données du serveur.");
+      setError("Impossible de charger les données du serveur (authentification requise ?).");
     } finally {
       setLoading(false);
     }
@@ -128,34 +126,24 @@ const TeamInfo = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:8080/api/admin/update', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        // Translate Backend Errors to French
-        const errorTranslations: Record<string, string> = {
-          "INVALID_CURRENT_PASSWORD": "Le mot de passe actuel est incorrect.",
-          "PASSWORD_TOO_SHORT": "Le mot de passe est trop court (min 8 caractères).",
-          "PASSWORD_MISSING_UPPERCASE": "Le mot de passe doit contenir une majuscule.",
-          "PASSWORD_MISSING_LOWERCASE": "Le mot de passe doit contenir une minuscule.",
-          "PASSWORD_MISSING_DIGIT": "Le mot de passe doit contenir un chiffre.",
-          "NEW_PASSWORD_SAME_AS_OLD": "Le nouveau mot de passe doit être différent de l'ancien."
-        };
-        
-        // Set the error message
-        setError(errorTranslations[result.error] || result.error || "Erreur lors de la mise à jour");
-      } else {
-        setData(result); // Update UI
-        handleCancel();
-      }
-    } catch (error) {
+      const response = await api.put('/admin/update', payload);
+      const result = response.data as any;
+      setData(result); // Update UI
+      handleCancel();
+    } catch (error: any) {
       console.error(error);
-      setError("Erreur de connexion au serveur");
+      // Axios error with response from backend
+      const backendError = error?.response?.data || {};
+      const code = backendError.error;
+      const errorTranslations: Record<string, string> = {
+        "INVALID_CURRENT_PASSWORD": "Le mot de passe actuel est incorrect.",
+        "PASSWORD_TOO_SHORT": "Le mot de passe est trop court (min 8 caractères).",
+        "PASSWORD_MISSING_UPPERCASE": "Le mot de passe doit contenir une majuscule.",
+        "PASSWORD_MISSING_LOWERCASE": "Le mot de passe doit contenir une minuscule.",
+        "PASSWORD_MISSING_DIGIT": "Le mot de passe doit contenir un chiffre.",
+        "NEW_PASSWORD_SAME_AS_OLD": "Le nouveau mot de passe doit être différent de l'ancien."
+      };
+      setError(errorTranslations[code] || code || "Erreur lors de la mise à jour");
     } finally {
       setIsSaving(false);
     }

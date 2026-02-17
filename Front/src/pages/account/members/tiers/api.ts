@@ -4,9 +4,11 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080
 
 function getAuthToken(): string {
   return (
+    localStorage.getItem('auth_token') ||
     localStorage.getItem('authToken') ||
     localStorage.getItem('access_token') ||
     localStorage.getItem('token') ||
+    sessionStorage.getItem('auth_token') ||
     sessionStorage.getItem('authToken') ||
     sessionStorage.getItem('access_token') ||
     sessionStorage.getItem('token') ||

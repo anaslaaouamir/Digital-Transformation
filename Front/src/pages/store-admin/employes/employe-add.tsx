@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '@/api/axios';
 
 export default function EmployeAddPage() {
   const navigate = useNavigate();
@@ -51,16 +52,7 @@ export default function EmployeAddPage() {
 
     console.log('✅ payload envoyé =>', payload);
 
-    const res = await fetch('http://localhost:8080/api/employes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const text = await res.text(); // show real reason
-      throw new Error(text || `HTTP ${res.status}`);
-    }
+    await api.post('/employes', payload);
 
     navigate('/store-admin/employes');
   } catch (e: any) {
