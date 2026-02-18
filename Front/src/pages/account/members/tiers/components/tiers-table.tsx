@@ -89,11 +89,11 @@ export function TiersTable({ onView, onEdit }: TiersTableProps = {}) {
   const deleteTierMutation = useDeleteTierMutation();
 
   const handleViewTier = useCallback((tier: ITiers) => {
-    if (onView) onView(tier); else toast.info(`Viewing ${tier.nom}`);
+    if (onView) onView(tier); else toast.info(`Affichage de ${tier.nom}`);
   }, [onView]);
 
   const handleEditTier = useCallback((tier: ITiers) => {
-    if (onEdit) onEdit(tier); else toast.info(`Editing ${tier.nom}`);
+    if (onEdit) onEdit(tier); else toast.info(`Modification de ${tier.nom}`);
   }, [onEdit]);
 
   const handleDeleteTier = useCallback((id: number) => {
@@ -118,6 +118,16 @@ export function TiersTable({ onView, onEdit }: TiersTableProps = {}) {
     });
   }, [data, filterClient, filterFournisseur, filterProspect, filterEtat]);
 
+  // If backend does not paginate (returns full list), slice on the client.
+  // Heuristic: when total <= returned data length, we assume no server-side pagination.
+  const tableData = useMemo(() => {
+    const isServerPaginated = total > data.length;
+    if (isServerPaginated) return viewData;
+    const start = pagination.pageIndex * pagination.pageSize;
+    const end = start + pagination.pageSize;
+    return viewData.slice(start, end);
+  }, [total, data.length, viewData, pagination.pageIndex, pagination.pageSize]);
+
   const columns: ColumnDef<ITiers>[] = useMemo(() => [
     {
       id: 'select',
@@ -127,11 +137,11 @@ export function TiersTable({ onView, onEdit }: TiersTableProps = {}) {
       enableHiding: false,
       size: 51,
     },
-    // ── Name ────────────────────────────────────────────────────────────────
+    // ── Nom ─────────────────────────────────────────────────────────────────
     {
       accessorKey: 'nom',
       header: ({ column }) => (
-        <DataGridColumnHeader column={column} title="Name" className={titleClass} />
+        <DataGridColumnHeader column={column} title="Nom" className={titleClass} />
       ),
       cell: ({ row }) => (
         <div className="flex flex-col">
@@ -156,51 +166,50 @@ export function TiersTable({ onView, onEdit }: TiersTableProps = {}) {
         return (
           <div className="flex gap-1 flex-wrap">
             {t.estClient      && <Badge variant="secondary">Client</Badge>}
-            {t.estFournisseur && <Badge variant="secondary">Supplier</Badge>}
+            {t.estFournisseur && <Badge variant="secondary">Fournisseur</Badge>}
             {t.estProspect    && <Badge variant="secondary">Prospect</Badge>}
           </div>
         );
       },
     },
-    // ── Email ───────────────────────────────────────────────────────────────
+    // ── E-mail ──────────────────────────────────────────────────────────────
     {
       accessorKey: 'email',
       header: ({ column }) => (
-        <DataGridColumnHeader column={column} title="Email" className={titleClass} />
+        <DataGridColumnHeader column={column} title="E-mail" className={titleClass} />
       ),
       cell: ({ row }) => row.original.email || <span className="text-gray-400">—</span>,
     },
-    // ── Phone ───────────────────────────────────────────────────────────────
+    // ── Téléphone ───────────────────────────────────────────────────────────
     {
       accessorKey: 'telephone',
       header: ({ column }) => (
-        <DataGridColumnHeader column={column} title="Phone" className={titleClass} />
+        <DataGridColumnHeader column={column} title="Téléphone" className={titleClass} />
       ),
-      cell: ({ row }) => row.original.telephone || <span className="text-gray-400">—</span>,
+      cell: ({ row }) => (row.original.telephone || row.original.mobile) || <span className="text-gray-400">—</span>,
     },
-    // ── City ────────────────────────────────────────────────────────────────
+    // ── Ville ───────────────────────────────────────────────────────────────
     {
       accessorKey: 'ville',
       header: ({ column }) => (
-        <DataGridColumnHeader column={column} title="City" className={titleClass} />
+        <DataGridColumnHeader column={column} title="Ville" className={titleClass} />
       ),
       cell: ({ row }) => row.original.ville || <span className="text-gray-400">—</span>,
     },
-    // ── Status ──────────────────────────────────────────────────────────────
+    // ── Statut ──────────────────────────────────────────────────────────────
     {
       accessorKey: 'etat',
       header: ({ column }) => (
-        <DataGridColumnHeader column={column} title="Status" className={titleClass} />
+        <DataGridColumnHeader column={column} title="Statut" className={titleClass} />
       ),
       cell: ({ row }) => {
         const etat = row.original.etat;
         const label =
-          etat === 'Ouvert'   ? 'Active'    :
-          etat === 'Actif'    ? 'Active'    :
-          etat === 'Fermé'    ? 'Closed'    :
-          etat === 'Suspendu' ? 'Suspended' :
+          etat === 'ouvert'   ? 'ouvert'     :
+          etat === 'Fermé'    ? 'Fermé'     :
+         
           etat ?? '—';
-        const isActive = etat === 'Ouvert' || etat === 'Actif';
+        const isActive = etat === 'ouvert' ;
         return <Badge variant={isActive ? 'success' : 'warning'}>{label}</Badge>;
       },
     },
@@ -215,23 +224,23 @@ export function TiersTable({ onView, onEdit }: TiersTableProps = {}) {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
+                <span className="sr-only">Ouvrir le menu</span>
                 <EllipsisVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => handleViewTier(tier)}>
-                <Eye className="mr-2 h-4 w-4" /> View Details
+                <Eye className="mr-2 h-4 w-4" /> Voir les détails
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleEditTier(tier)}>
-                <Edit2 className="mr-2 h-4 w-4" /> Edit
+                <Edit2 className="mr-2 h-4 w-4" /> Modifier
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => handleDeleteTier(tier.id)}
                 className="text-red-600"
               >
-                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                <Trash2 className="mr-2 h-4 w-4" /> Supprimer
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -241,7 +250,7 @@ export function TiersTable({ onView, onEdit }: TiersTableProps = {}) {
   ], [handleViewTier, handleEditTier, handleDeleteTier]);
 
   const table = useReactTable({
-    data: viewData,
+    data: tableData,
     columns,
     state: { sorting, pagination, columnVisibility, globalFilter: searchInput },
     manualPagination: true,
@@ -262,7 +271,7 @@ export function TiersTable({ onView, onEdit }: TiersTableProps = {}) {
   return (
     <Card>
       <CardHeader className="sticky top-0 z-10">
-        <CardHeading>Tiers Management</CardHeading>
+        <CardHeading>Gestion des tiers</CardHeading>
 
         {error && (
           <Alert variant="destructive" className="mt-4">
@@ -278,7 +287,7 @@ export function TiersTable({ onView, onEdit }: TiersTableProps = {}) {
             <div className="flex flex-auto items-center gap-2">
               <Search className="size-5 shrink-0 text-gray-500" />
               <Input
-                placeholder="Search by name, email, phone…"
+                placeholder="Rechercher par nom, e-mail, téléphone…"
                 value={searchInput}
                 onChange={(e) => { setSearchInput(e.target.value); resetPage(); }}
                 className="h-9 max-w-64"
@@ -290,12 +299,12 @@ export function TiersTable({ onView, onEdit }: TiersTableProps = {}) {
               <PopoverTrigger asChild>
                 <Button variant={hasActiveFilters ? 'default' : 'outline'} size="sm">
                   <Filter className="mr-2 h-4 w-4" />
-                  Filters{hasActiveFilters && ' (active)'}
+                  Filtres{hasActiveFilters && ' (actifs)'}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-72">
                 <div className="space-y-4">
-                  <h4 className="font-medium text-sm">Filter by</h4>
+                  <h4 className="font-medium text-sm">Filtrer par</h4>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm">Client</Label>
@@ -305,7 +314,7 @@ export function TiersTable({ onView, onEdit }: TiersTableProps = {}) {
                       />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm">Supplier</Label>
+                      <Label className="text-sm">Fournisseur</Label>
                       <Switch
                         checked={filterFournisseur}
                         onCheckedChange={(v) => handleFilterChange(() => setFilterFournisseur(v))}
@@ -319,17 +328,16 @@ export function TiersTable({ onView, onEdit }: TiersTableProps = {}) {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-sm">Status</Label>
+                      <Label className="text-sm">Statut</Label>
                       <select
                         value={filterEtat}
                         onChange={(e) => handleFilterChange(() => setFilterEtat(e.target.value))}
                         className="w-full h-8 rounded border border-gray-300 px-2 text-sm"
                       >
-                        <option value="">All statuses</option>
-                        <option value="Ouvert">Active (Ouvert)</option>
-                        <option value="Actif">Active (Actif)</option>
-                        <option value="Fermé">Closed</option>
-                        <option value="Suspendu">Suspended</option>
+                        <option value="">Tous les statuts</option>
+                        <option value="ouvert">Ouvert</option>
+                        <option value="ferme">Fermé</option>
+                        
                       </select>
                     </div>
                   </div>
@@ -342,7 +350,7 @@ export function TiersTable({ onView, onEdit }: TiersTableProps = {}) {
                       setFilterEtat('');
                     })}
                   >
-                    Reset Filters
+                    Réinitialiser les filtres
                   </Button>
                 </div>
               </PopoverContent>
@@ -350,7 +358,7 @@ export function TiersTable({ onView, onEdit }: TiersTableProps = {}) {
 
             <Button size="sm" asChild>
               <Link to="/add_tiers">
-                <Plus className="mr-2 h-4 w-4" /> Add Tier
+                <Plus className="mr-2 h-4 w-4" /> Ajouter un tiers
               </Link>
             </Button>
 
@@ -358,7 +366,7 @@ export function TiersTable({ onView, onEdit }: TiersTableProps = {}) {
               table={table}
               trigger={
                 <Button variant="outline" size="sm">
-                  <Settings2 className="mr-2 h-4 w-4" /> Columns
+                  <Settings2 className="mr-2 h-4 w-4" /> Colonnes
                 </Button>
               }
             />
@@ -415,7 +423,7 @@ export function TiersTable({ onView, onEdit }: TiersTableProps = {}) {
 
         {!isLoading && data.length === 0 && !error && (
           <div className="flex flex-col justify-center items-center h-40 gap-2">
-            <p className="text-gray-500">No tiers found</p>
+            <p className="text-gray-500">Aucun tiers trouvé</p>
             {hasActiveFilters && (
               <Button variant="ghost" size="sm"
                 onClick={() => handleFilterChange(() => {
@@ -423,7 +431,7 @@ export function TiersTable({ onView, onEdit }: TiersTableProps = {}) {
                   setFilterProspect(false); setFilterEtat('');
                   setSearchInput('');
                 })}>
-                Clear filters
+                Effacer les filtres
               </Button>
             )}
           </div>

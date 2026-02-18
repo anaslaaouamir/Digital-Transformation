@@ -9,7 +9,10 @@ export function useTiersQuery(params?: ITiersApiParams) {
   return useQuery<ITiersResponse, Error>({
     queryKey: [TIERS_QUERY_KEY, params],
     queryFn: () => fetchTiers(params),
-    staleTime: 5 * 60 * 1000,
+    // Always treat cached data as stale so lists refresh when returning from create/edit pages
+    staleTime: 0,
+    // Ensure a refetch whenever the component mounts or remounts
+    refetchOnMount: 'always',
     gcTime: 10 * 60 * 1000,
     placeholderData: (prev) => prev,
     retry: 2,

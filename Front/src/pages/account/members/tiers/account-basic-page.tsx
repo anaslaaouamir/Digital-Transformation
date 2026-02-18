@@ -27,14 +27,14 @@ export function AccountTiersPage() {
             <ToolbarHeading>
               <ToolbarPageTitle />
               <ToolbarDescription>
-                Track, organize, and follow up with your tiers (clients, fournisseurs, prospects).
+                  <span className="text-gray-700 font-medium">
+                  Track, organize, and follow up with your tiers (clients, fournisseurs, prospects).
+                  </span>
+    
               </ToolbarDescription>
+
             </ToolbarHeading>
-            <ToolbarActions>
-              <Button asChild>
-                <Link to="/account/members/tiers/tiers-form">Add Tier</Link>
-              </Button>
-            </ToolbarActions>
+          
           </Toolbar>
         </Container>
       )}

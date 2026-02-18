@@ -108,8 +108,8 @@ export function TiersDetailView({ tierId, onClose }: TiersDetailViewProps) {
 
           <section>
             <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Status</p>
-            <Badge variant={tier.etat === 'Ouvert' ? 'success' : 'warning'}>
-              {tier.etat === 'Ouvert' ? 'Active' : tier.etat}
+            <Badge variant={tier.etat === 'ouvert' ? 'success' : 'warning'}>
+              {tier.etat === 'ouvert' ? 'Active' : tier.etat}
             </Badge>
           </section>
 

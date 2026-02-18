@@ -24,11 +24,12 @@ public class AuthService {
     public LoginResponse login(LoginRequest request) {
         // Check if admin exists by email
         Admin admin = adminRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Admin not found with email: " + request.getEmail()));
+                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
         
         // Validate password
         if (!passwordEncoder.matches(request.getMotDePasse(), admin.getMotDePasse())) {
-            throw new RuntimeException("Invalid password");
+            // Use a generic message to avoid user enumeration
+            throw new RuntimeException("Invalid credentials");
         }
         
         // Generate JWT token

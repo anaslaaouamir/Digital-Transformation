@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api from '@/api/axios';
 
 type Employe = {
   id: number;
@@ -24,9 +25,8 @@ const navigate = useNavigate();
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('http://localhost:8080/api/employes');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as Employe[];
+      const res = await api.get<Employe[]>('/employes');
+      const data = res.data;
       setEmployes(data);
     } catch (e: any) {
       setError(e?.message || 'Impossible de charger les employés');
@@ -40,10 +40,7 @@ const navigate = useNavigate();
     if (!ok) return;
 
     try {
-      const res = await fetch(`http://localhost:8080/api/employes/${id}`, {
-        method: 'DELETE',
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await api.delete(`/employes/${id}`);
       setEmployes((prev) => prev.filter((e) => e.id !== id));
     } catch (e: any) {
       alert(e?.message || 'Échec de la suppression');

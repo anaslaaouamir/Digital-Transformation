@@ -73,6 +73,7 @@ public class TiersService {
 
         // Update simple fields
         existing.setNom(updatedTiers.getNom());
+        existing.setEtat(updatedTiers.getEtat());
         existing.setAdresse(updatedTiers.getAdresse());
         existing.setVille(updatedTiers.getVille());
         existing.setPays(updatedTiers.getPays());

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import api from '@/api/axios';
 
 type Employe = {
   id: number;
@@ -27,9 +28,8 @@ export default function EmployeEditPage() {
   useEffect(() => {
     const fetchEmploye = async () => {
       try {
-        const res = await fetch(`http://localhost:8080/api/employes/${id}`);
-        if (!res.ok) throw new Error('Erreur chargement');
-        const data = await res.json();
+        const res = await api.get<Employe>(`/employes/${id}`);
+        const data = res.data;
         setForm(data);
       } catch (err) {
         alert('Impossible de charger l’employé');
@@ -44,13 +44,7 @@ export default function EmployeEditPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:8080/api/employes/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-
-      if (!res.ok) throw new Error('Erreur modification');
+      await api.put(`/employes/${id}`, form);
 
       navigate('/store-admin/employes');
     } catch (err) {
