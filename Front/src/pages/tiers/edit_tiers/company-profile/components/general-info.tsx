@@ -171,7 +171,7 @@ const PAYS_LIST = [
         : null
     };
 
-    try {
+    try { 
       const response = await fetch('http://localhost:8080/api/tiers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
