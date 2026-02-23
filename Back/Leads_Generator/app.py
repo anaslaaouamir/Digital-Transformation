@@ -248,4 +248,4 @@ if __name__ == "__main__":
         print("  ✓  Google API Key detected.\n")
 
     threading.Timer(1.2, lambda: webbrowser.open("http://localhost:5000")).start()
-    app.run(debug=False, port=5000)
+    app.run(host="0.0.0.0", debug=False, port=5000)

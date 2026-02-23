@@ -11,6 +11,8 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      # Mounts the script to auto-create the lead_management database
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d digital_transformation"]
       interval: 10s
@@ -56,6 +58,46 @@ services:
       - "3000:80"
     depends_on:
       - backend
+    restart: unless-stopped
+
+  discovery:
+    build:
+      context: ./Back/Discovery
+    platform: linux/amd64
+    container_name: dt-discovery
+    ports:
+      - "8761:8761"
+    restart: unless-stopped
+
+  lead-intelligence:
+    build:
+      context: ./Back/Lead-Intelligence-System
+    platform: linux/amd64
+    container_name: dt-lead-intelligence
+    environment:
+      # Overrides application.properties to point to the Docker network
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/lead_management
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres 
+      DISCOVERY_SERVICE_URL: http://discovery:8761/eureka
+    depends_on:
+      db:
+        condition: service_healthy
+      discovery:
+        condition: service_started
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  leads-generator:
+    build:
+      context: ./Back/Leads_Generator
+    platform: linux/amd64
+    container_name: dt-leads-generator
+    env_file:
+      - ./Back/Leads_Generator/.env
+    ports:
+      - "5000:5000"
     restart: unless-stopped
 
 volumes:
