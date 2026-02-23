@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prospection Agent</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- ── HEADER ── -->
+    <header>
+      <div class="header-inner">
+        <div class="logo-icon">🎯</div>
+        <div>
+          <h1>Prospection <span>Agent</span></h1>
+          <p class="subtitle">Google Maps → Lead Scoring → CSV Export</p>
+        </div>
+        <div id="apiBadge" class="api-badge missing">⚠ API KEY MISSING</div>
+      </div>
+    </header>
+
+    <!-- ── MAIN LAYOUT ── -->
+    <div class="main-grid">
+
+      <!-- LEFT: Controls + Legend -->
+      <aside>
+
+        <div class="panel">
+          <div class="panel-header"><span class="dot"></span>Search Parameters</div>
+          <div class="panel-body">
+
+            <div class="field">
+              <label for="city">City</label>
+              <input id="city" type="text" placeholder="e.g. Casablanca, Paris, Dubai" />
+            </div>
+
+            <div class="field">
+              <label for="category">Business Category</label>
+              <input id="category" type="text" placeholder="e.g. hôtel, restaurant, clinique..." />
+            </div>
+
+            <div class="field">
+              <label for="maxResults">Max Leads to Scrape</label>
+              <select id="maxResults">
+                <option value="10">10 leads (fast test)</option>
+                <option value="20" selected>20 leads</option>
+                <option value="40">40 leads</option>
+                <option value="60">60 leads (max)</option>
+              </select>
+            </div>
+
+            <button class="btn-run" id="runBtn">🚀 Start Prospection</button>
+
+            <div class="error-box" id="errorBox"></div>
+
+            <!-- Progress -->
+            <div id="progressSection">
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="progressFill"></div>
+              </div>
+              <div class="log-box" id="logBox"></div>
+            </div>
+
+            <!-- Download -->
+            <div class="download-bar" id="downloadBar">
+              <div>
+                <p class="download-title">✅ Export Ready</p>
+                <p class="download-name" id="csvName"></p>
+              </div>
+              <a class="btn-download" id="downloadBtn" href="#">⬇ Download CSV</a>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Scoring legend -->
+        <div class="panel legend-panel">
+          <div class="panel-header"><span class="dot"></span>Scoring Criteria</div>
+          <div class="panel-body">
+            <ul class="legend-list">
+              <li><span>Base score</span><strong>+40</strong></li>
+              <li><span>Has website</span><strong>+12</strong></li>
+              <li><span>Rating ≥ 4.0</span><strong>+10</strong></li>
+              <li><span>Rating ≥ 3.5</span><strong>+5</strong></li>
+              <li><span>&gt;100 reviews</span><strong>+8</strong></li>
+              <li><span>&gt;30 reviews</span><strong>+5</strong></li>
+              <li><span>10–50 employees</span><strong>+12</strong></li>
+              <li><span>50+ employees</span><strong>+8</strong></li>
+              <li><span>No website</span><strong>+5 +10 +8</strong></li>
+              <li><span>Random variation</span><strong>0–5</strong></li>
+            </ul>
+            <div class="legend-badges">
+              <span class="badge HOT">HOT ≥ 80</span>
+              <span class="badge WARM">WARM 65–79</span>
+              <span class="badge COLD">COLD &lt; 65</span>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+
+      <!-- RIGHT: Results -->
+      <main>
+
+        <!-- Empty state -->
+        <div id="emptyState" class="empty-state">
+          <div class="empty-icon">🗺️</div>
+          <p>Enter a city and category,<br />then click <strong>Start Prospection</strong>.<br /><br />
+          The agent scrapes Google Maps automatically,<br />scores every lead, and ranks them here.</p>
+        </div>
+
+        <!-- Results (hidden until job done) -->
+        <div id="resultsSection" class="hidden">
+
+          <!-- Stats -->
+          <div class="stats-row">
+            <div class="stat-card total">
+              <div class="stat-num" id="statTotal">0</div>
+              <div class="stat-label">Total Leads</div>
+            </div>
+            <div class="stat-card hot">
+              <div class="stat-num" id="statHot">0</div>
+              <div class="stat-label">🔥 HOT</div>
+            </div>
+            <div class="stat-card warm">
+              <div class="stat-num" id="statWarm">0</div>
+              <div class="stat-label">🌡 WARM</div>
+            </div>
+            <div class="stat-card cold">
+              <div class="stat-num" id="statCold">0</div>
+              <div class="stat-label">❄ COLD</div>
+            </div>
+          </div>
+
+          <!-- Table -->
+          <div class="panel">
+            <div class="panel-header"><span class="dot"></span>Ranked Leads</div>
+            <div class="panel-body">
+
+              <div class="filter-bar">
+                <button class="filter-btn active" data-filter="ALL">All</button>
+                <button class="filter-btn" data-filter="HOT">🔥 HOT</button>
+                <button class="filter-btn" data-filter="WARM">🌡 WARM</button>
+                <button class="filter-btn" data-filter="COLD">❄ COLD</button>
+                <input class="filter-search" id="searchFilter" type="text" placeholder="Search name..." />
+              </div>
+
+              <div class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Business</th>
+                      <th>Score</th>
+                      <th>Status</th>
+                      <th>Rating</th>
+                      <th>Reviews</th>
+                      <th>Phone</th>
+                      <th>Website</th>
+                    </tr>
+                  </thead>
+                  <tbody id="leadsTable"></tbody>
+                </table>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </main>
+
+    </div>
+  </div>
+
+  <script src="/static/main.js"></script>
+</body>
+</html>

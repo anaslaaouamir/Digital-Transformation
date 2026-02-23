@@ -1,0 +1,11 @@
+﻿rank,name,score,temperature,address,phone,website,rating,reviews,price_level,google_maps_url,types,city,category
+1,Riad Marco Andaluz,98,HOT,"27 Mekteb Tiyal، سلا 11150, Maroc",06 68 78 95 89,,4.3,146,,https://maps.google.com/?cid=10887639634002688287,"establishment, lodging, point_of_interest",Rabat,Hotel
+2,Az Hotel Rabat Centre,94,HOT,"65, Rue Jeddah, Centre Ville, hassan, Rabat 10000, Maroc",05 37 26 22 02,,4.2,66,,https://maps.google.com/?cid=5784262698236329191,"establishment, lodging, point_of_interest",Rabat,Hotel
+3,Imperial Hôtel Rabat,84,HOT,"Angle Rue Al Mariniyine &, Rue Mekka, Rabat 10000, Maroc",05 37 72 20 18,https://imperial-hotel-rabat.top/,4.1,484,,https://maps.google.com/?cid=1514120733099232227,"establishment, lodging, point_of_interest",Rabat,Hotel
+4,Braat Hotel,82,HOT,"46 Av. Patrice Lumumba, Rabat 10010, Maroc",05 38 00 58 58,https://www.braat.ma/,4.8,129,,https://maps.google.com/?cid=11257379328021637064,"establishment, lodging, point_of_interest",Rabat,Hotel
+5,Hôtel Rabat,79,WARM,"21، شارع شالة حسان, Rabat 10000, Maroc",05 37 70 00 71,http://www.hotelrabat.ma/,3.8,700,,https://maps.google.com/?cid=3537097795868635154,"establishment, lodging, point_of_interest",Rabat,Hotel
+6,Hôtel Lutece,78,WARM,"29 Av. de la Résistance, Rabat 10000, Maroc",05 37 72 62 63,https://hotellutecerabat.com/,3.8,696,,https://maps.google.com/?cid=16049476873727542897,"cafe, establishment, food, lodging, point_of_interest",Rabat,Hotel
+7,DAR SAAD,76,WARM,"13 Rue Jirari, Rabat 10030, Maroc",06 61 80 41 69,,5,3,,https://maps.google.com/?cid=12893142250470582912,"establishment, lodging, point_of_interest",Rabat,Hotel
+8,Maison Hôtel Hiba,76,WARM,"Rabat, Maroc",06 90 17 13 81,,5,4,,https://maps.google.com/?cid=9030075374915772638,"establishment, lodging, point_of_interest",Rabat,Hotel
+9,Hotel balima,73,WARM,"2, Rabat, Maroc",,,5,4,,https://maps.google.com/?cid=12290322247966512341,"establishment, lodging, point_of_interest",Rabat,Hotel
+10,Chic hôtel,62,COLD,"3 Rue Ghafsa, Rabat, Maroc",05 37 70 65 38,http://www.chic-hotel.ma/,4.7,19,,https://maps.google.com/?cid=10339881094493343607,"establishment, lodging, point_of_interest",Rabat,Hotel
