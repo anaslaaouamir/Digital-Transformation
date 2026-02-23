@@ -1,5 +1,6 @@
 export * from './activity/account-basic-page';
 export * from './api-keys/account-basic-page';
+export * from './crm/leads';
 export * from './appearance/account-basic-page';
 export * from './billing';
 export * from './home';
