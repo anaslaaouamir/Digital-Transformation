@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import axios from 'axios';
 import {
   Card,
   CardContent,
@@ -30,17 +31,90 @@ const Fa = ({ icon, className = '' }: { icon: string; className?: string }) => (
 );
 
 // ── Config ───────────────────────────────────────────────────────────────────
-const MOROCCAN_REGIONS: Record<string, { cities: string[] }> = {
-  'Casablanca-Settat':        { cities: ['Casablanca', 'Mohammedia', 'El Jadida', 'Settat', 'Berrechid', 'Benslimane'] },
-  'Rabat-Salé-Kénitra':      { cities: ['Rabat', 'Salé', 'Kénitra', 'Témara', 'Skhirat'] },
-  'Marrakech-Safi':           { cities: ['Marrakech', 'Safi', 'Essaouira', 'El Kelaa des Sraghna'] },
-  'Fès-Meknès':               { cities: ['Fès', 'Meknès', 'Ifrane', 'Sefrou', 'Taza'] },
-  'Tanger-Tétouan-Al Hoceima':{ cities: ['Tanger', 'Tétouan', 'Al Hoceima', 'Larache', 'Chefchaouen'] },
-  'Souss-Massa':              { cities: ['Agadir', 'Inezgane', 'Tiznit', 'Taroudant'] },
-  'Oriental':                 { cities: ['Oujda', 'Nador', 'Berkane', 'Taourirt'] },
-  'Drâa-Tafilalet':           { cities: ['Ouarzazate', 'Errachidia', 'Zagora', 'Tinghir'] },
+const MOROCCAN_REGIONS: Record<string, { cities: { name: string; postalCode: string }[] }> = {
+  'Casablanca-Settat': {
+    cities: [
+      { name: 'Casablanca',   postalCode: '20000' },
+      { name: 'Mohammedia',   postalCode: '28800' },
+      { name: 'El Jadida',    postalCode: '24000' },
+      { name: 'Settat',       postalCode: '26000' },
+      { name: 'Berrechid',    postalCode: '26100' },
+      { name: 'Benslimane',   postalCode: '13000' },
+    ],
+  },
+  'Rabat-Salé-Kénitra': {
+    cities: [
+      { name: 'Rabat',    postalCode: '10000' },
+      { name: 'Salé',     postalCode: '11000' },
+      { name: 'Kénitra',  postalCode: '14000' },
+      { name: 'Témara',   postalCode: '12000' },
+      { name: 'Skhirat',  postalCode: '12010' },
+    ],
+  },
+  'Marrakech-Safi': {
+    cities: [
+      { name: 'Marrakech',              postalCode: '40000' },
+      { name: 'Safi',                   postalCode: '46000' },
+      { name: 'Essaouira',              postalCode: '44000' },
+      { name: 'El Kelaa des Sraghna',   postalCode: '43000' },
+    ],
+  },
+  'Fès-Meknès': {
+    cities: [
+      { name: 'Fès',    postalCode: '30000' },
+      { name: 'Meknès', postalCode: '50000' },
+      { name: 'Ifrane', postalCode: '53000' },
+      { name: 'Sefrou', postalCode: '31000' },
+      { name: 'Taza',   postalCode: '35000' },
+    ],
+  },
+  'Tanger-Tétouan-Al Hoceima': {
+    cities: [
+      { name: 'Tanger',       postalCode: '90000' },
+      { name: 'Tétouan',      postalCode: '93000' },
+      { name: 'Al Hoceima',   postalCode: '32000' },
+      { name: 'Larache',      postalCode: '92000' },
+      { name: 'Chefchaouen',  postalCode: '91000' },
+    ],
+  },
+  'Souss-Massa': {
+    cities: [
+      { name: 'Agadir',     postalCode: '80000' },
+      { name: 'Inezgane',   postalCode: '80350' },
+      { name: 'Tiznit',     postalCode: '85000' },
+      { name: 'Taroudant',  postalCode: '83000' },
+    ],
+  },
+  'Oriental': {
+    cities: [
+      { name: 'Oujda',    postalCode: '60000' },
+      { name: 'Nador',    postalCode: '62000' },
+      { name: 'Berkane',  postalCode: '63300' },
+      { name: 'Taourirt', postalCode: '63000' },
+    ],
+  },
+  'Drâa-Tafilalet': {
+    cities: [
+      { name: 'Ouarzazate', postalCode: '45000' },
+      { name: 'Errachidia', postalCode: '52000' },
+      { name: 'Zagora',     postalCode: '47900' },
+      { name: 'Tinghir',    postalCode: '45800' },
+    ],
+  },
 };
-const ALL_CITIES = Object.values(MOROCCAN_REGIONS).flatMap((r) => r.cities).sort();
+
+// Helper: flat city list per region
+const citiesForRegion = (region: string) =>
+  region ? (MOROCCAN_REGIONS[region]?.cities ?? []) : [];
+
+// Helper: get postal code for a city
+const postalCodeForCity = (cityName: string): string => {
+  for (const region of Object.values(MOROCCAN_REGIONS)) {
+    const found = region.cities.find(c => c.name === cityName);
+    if (found) return found.postalCode;
+  }
+  return '';
+};
 
 const SECTORS: Record<string, { faIcon: string; googleType: string }> = {
   Restauration:    { faIcon: 'fa-solid fa-utensils',       googleType: 'restaurant' },
@@ -101,6 +175,9 @@ function generateMockPlaces(city: string, type: string) {
     email:       `contact@${name.toLowerCase().replace(/[^a-z]/g,'')}.ma`,
     city,
     isOpen:      Math.random() > 0.15,
+    // Apollo mock enrichment fields
+    linkedIn:    Math.random() > 0.4 ? `linkedin.com/in/${lN[i % 10].toLowerCase()}-${fN[i % 10].toLowerCase()}` : '',
+    apolloScore: Math.floor(Math.random() * 40) + 60,
   }));
 }
 
@@ -109,7 +186,7 @@ async function fetchPlaces(sector: string, city: string, _radius: number, type: 
   return generateMockPlaces(city, type);
 }
 
-function calcScore(p: { website?: string; rating?: string; reviewCount?: number }) {
+function calcScore(p: { website?: string; rating?: string; reviewCount?: number }, useApollo: boolean) {
   let s = 45;
   if (p.website)                      s += 12;
   if (Number(p.rating) >= 4.0)        s += 10;
@@ -117,6 +194,7 @@ function calcScore(p: { website?: string; rating?: string; reviewCount?: number 
   if ((p.reviewCount ?? 0) > 100)     s += 8;
   else if ((p.reviewCount ?? 0) > 30) s += 5;
   if (!p.website)                     s += 5;
+  if (useApollo)                      s += Math.floor(Math.random() * 10) + 3; // Apollo boost
   return Math.min(Math.max(s + Math.floor(Math.random() * 8), 25), 99);
 }
 
@@ -136,7 +214,46 @@ type Lead = {
   id: number; name: string; company: string; role: string; email: string;
   phone: string; city: string; address?: string; website?: string;
   rating?: string; reviewCount?: number; sector: string; score: number; status: string;
+  linkedIn?: string; apolloEnriched?: boolean;
 };
+
+// ── Toggle Component ──────────────────────────────────────────────────────────
+const Toggle = ({ value, onChange, label, sublabel, icon }: {
+  value: boolean; onChange: (v: boolean) => void;
+  label: string; sublabel?: string; icon: string;
+}) => (
+  <button
+    type="button"
+    onClick={() => onChange(!value)}
+    className={cn(
+      'flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all duration-200',
+      value
+        ? 'border-indigo-300 bg-indigo-50 shadow-sm'
+        : 'border-slate-200 bg-white hover:border-slate-300'
+    )}
+  >
+    <span className={cn(
+      'flex size-9 shrink-0 items-center justify-center rounded-lg transition-all',
+      value ? 'bg-indigo-600 shadow-md' : 'bg-slate-100'
+    )}>
+      <Fa icon={icon} className={cn('text-sm', value ? 'text-white' : 'text-slate-400')} />
+    </span>
+    <div className="flex-1 min-w-0">
+      <p className={cn('text-sm font-semibold', value ? 'text-indigo-900' : 'text-slate-700')}>{label}</p>
+      {sublabel && <p className={cn('text-[11px]', value ? 'text-indigo-500' : 'text-slate-400')}>{sublabel}</p>}
+    </div>
+    {/* Toggle pill */}
+    <div className={cn(
+      'relative flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-300',
+      value ? 'bg-indigo-600' : 'bg-slate-300'
+    )}>
+      <span className={cn(
+        'absolute size-4 rounded-full bg-white shadow-md transition-all duration-300',
+        value ? 'left-6' : 'left-1'
+      )} />
+    </div>
+  </button>
+);
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function AccountCrmLeadsContent() {
@@ -155,13 +272,43 @@ export function AccountCrmLeadsContent() {
   const [scanPhase,        setScanPhase]        = useState('');
   const [scanStep,         setScanStep]         = useState(0);
   const [scanLog,          setScanLog]          = useState<string[]>([]);
-  const [scanHistory,      setScanHistory]      = useState<{ date: string; count: number; avgScore: number }[]>([]);
+  const [scanHistory,      setScanHistory]      = useState<{ date: string; count: number; avgScore: number; apollo: boolean }[]>([]);
   const [emailSentFor,     setEmailSentFor]     = useState<number | null>(null);
 
   const [filters, setFilters] = useState({
-    sectors: [] as string[], cities: [] as string[],
-    postalCode: '', maxResults: 20, hasWebsite: '',
+    sectors:    [] as string[],
+    region:     '',
+    cities:     [] as string[],
+    postalCode: '',
+    maxResults: 20,
+    hasWebsite: '',
+    useApollo:  false,
   });
+
+  // ── Auto-update postal code based on city selection ───────────────────────
+  useEffect(() => {
+    if (filters.cities.length === 0) {
+      setFilters(p => ({ ...p, postalCode: '' }));
+    } else if (filters.cities.length === 1) {
+      setFilters(p => ({ ...p, postalCode: postalCodeForCity(filters.cities[0]) }));
+    }
+    // multiple cities: postalCode field is hidden, no update needed
+  }, [filters.cities]);
+
+  // ── Reset cities when region changes ─────────────────────────────────────
+  useEffect(() => {
+    setFilters(p => ({ ...p, cities: [], postalCode: '' }));
+  }, [filters.region]);
+
+  const availableCities = useMemo(() => citiesForRegion(filters.region), [filters.region]);
+
+  const toggleCity = (cityName: string) =>
+    setFilters(p => ({
+      ...p,
+      cities: p.cities.includes(cityName)
+        ? p.cities.filter(c => c !== cityName)
+        : [...p.cities, cityName],
+    }));
 
   const emailTemplate = { subject: 'Collaboration digitale — {{company}}', body: 'Bonjour {{firstName}},\n\nJ\'ai découvert {{company}}. Seriez-vous disponible pour un échange de 15 minutes ?\n\nCordialement,\nAbderrahim\nELBAHI.NET' };
 
@@ -177,20 +324,34 @@ export function AccountCrmLeadsContent() {
     if (!filters.sectors.length) return;
     setIsScanning(true); setScanProgress(0); setScanLog([]); setScanStep(0);
     const all: Lead[] = [];
-    const cities = filters.cities.length ? filters.cities : ['Casablanca'];
-    const total = filters.sectors.length * cities.length;
+    const targetCities = filters.cities.length ? filters.cities : ['Casablanca'];
+    const total = filters.sectors.length * targetCities.length;
     let step = 0;
 
-    setScanLog(['Système initialisé']); await new Promise(r => setTimeout(r, 400));
-    setScanStep(1); setScanLog(p => [...p, 'Connexion Google Places API...']); await new Promise(r => setTimeout(r, 300));
+    setScanLog(['Système initialisé']);
+    await new Promise(r => setTimeout(r, 400));
+    setScanStep(1);
+    setScanLog(p => [...p, filters.useApollo ? 'Connexion Google Places + Apollo.io...' : 'Connexion Google Places API...']);
+    await new Promise(r => setTimeout(r, 300));
 
     for (const sector of filters.sectors) {
-      for (const city of cities) {
+      for (const city of targetCities) {
         step++;
         setScanPhase(`${sector} — ${city}`);
         setScanProgress(Math.round((step / total) * 70));
         setScanLog(p => [...p.slice(-6), `Scan ${sector} à ${city}...`]);
         await new Promise(r => setTimeout(r, 280 + Math.random() * 140));
+        try {
+          const resp = await axios.post('http://localhost:8082/api/lead_agent/start', {
+            city,
+            category: sector,
+            max_results: filters.maxResults,
+          });
+          const jid = (resp && (resp as any).data && (resp as any).data.job_id) || '';
+          setScanLog(p => [...p.slice(-6), jid ? `Backend démarré (${jid})` : `Backend démarré`]);
+        } catch {
+          setScanLog(p => [...p.slice(-6), `Erreur de démarrage backend`]);
+        }
 
         let places = await fetchPlaces(sector, city, 0, SECTORS[sector]?.googleType || 'establishment');
         if (filters.hasWebsite === 'yes') places = places.filter(p => p.website);
@@ -198,9 +359,23 @@ export function AccountCrmLeadsContent() {
         places = places.slice(0, filters.maxResults);
         setScanLog(p => [...p.slice(-6), `${places.length} établissements à ${city}`]);
 
+        if (filters.useApollo) {
+          setScanLog(p => [...p.slice(-6), `Apollo: enrichissement de ${places.length} contacts...`]);
+          await new Promise(r => setTimeout(r, 200));
+        }
+
         for (const pl of places) {
-          const score = calcScore(pl);
-          all.push({ id: Date.now() + Math.random() * 9999, name: pl.ownerName, company: pl.name, role: pl.ownerRole, email: pl.email, phone: pl.phone, city: pl.city, address: pl.address, website: pl.website, rating: pl.rating, reviewCount: pl.reviewCount, sector, score, status: statusOf(score) });
+          const score = calcScore(pl, filters.useApollo);
+          all.push({
+            id: Date.now() + Math.random() * 9999,
+            name: pl.ownerName, company: pl.name, role: pl.ownerRole,
+            email: pl.email, phone: pl.phone, city: pl.city,
+            address: pl.address, website: pl.website,
+            rating: pl.rating, reviewCount: pl.reviewCount,
+            sector, score, status: statusOf(score),
+            linkedIn:       filters.useApollo ? pl.linkedIn : '',
+            apolloEnriched: filters.useApollo,
+          });
         }
       }
     }
@@ -210,7 +385,12 @@ export function AccountCrmLeadsContent() {
 
     const unique = all.filter((l, i, a) => a.findIndex(x => x.company === l.company) === i).sort((a, b) => b.score - a.score);
     setScanLog(p => [...p.slice(-6), `${unique.length} prospects qualifiés !`]); setScanProgress(100);
-    setScanHistory(p => [...p, { date: new Date().toLocaleString('fr-MA'), count: unique.length, avgScore: unique.length ? Math.round(unique.reduce((s, l) => s + l.score, 0) / unique.length) : 0 }]);
+    setScanHistory(p => [...p, {
+      date: new Date().toLocaleString('fr-MA'),
+      count: unique.length,
+      avgScore: unique.length ? Math.round(unique.reduce((s, l) => s + l.score, 0) / unique.length) : 0,
+      apollo: filters.useApollo,
+    }]);
     setLeads(p => { const ex = new Set(p.map(l => l.company)); return [...p, ...unique.filter(l => !ex.has(l.company))]; });
     await new Promise(r => setTimeout(r, 800));
     setIsScanning(false); setView('leads');
@@ -232,8 +412,8 @@ export function AccountCrmLeadsContent() {
 
   // ── CSV export ─────────────────────────────────────────────────────────────
   const exportCSV = () => {
-    const header = 'Entreprise,Contact,Rôle,Email,Téléphone,Ville,Secteur,Score,Statut,Site web';
-    const rows = filtered.map(l => [l.company, l.name, l.role, l.email, l.phone, l.city, l.sector, l.score, STATUS[l.status]?.label, l.website || ''].map(v => `"${v}"`).join(','));
+    const header = 'Entreprise,Contact,Rôle,Email,Téléphone,Ville,Secteur,Score,Statut,Site web,LinkedIn';
+    const rows = filtered.map(l => [l.company, l.name, l.role, l.email, l.phone, l.city, l.sector, l.score, STATUS[l.status]?.label, l.website || '', l.linkedIn || ''].map(v => `"${v}"`).join(','));
     const blob = new Blob([header + '\n' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'prospects.csv'; a.click();
   };
@@ -341,42 +521,162 @@ export function AccountCrmLeadsContent() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-5 p-4">
+
+                {/* ── Step 1: Région ──────────────────────────────────────── */}
                 <div>
                   <label className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
-                    <Fa icon="fa-solid fa-city" className="text-[10px]" /> Ville cible
+                    <Fa icon="fa-solid fa-map" className="text-[10px]" /> Région
                   </label>
-                  <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
-                    {ALL_CITIES.slice(0, 20).map(c => {
-                      const sel = filters.cities.includes(c);
+                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">
+                    {Object.keys(MOROCCAN_REGIONS).map(region => {
+                      const sel = filters.region === region;
                       return (
                         <button
-                          key={c}
-                          onClick={() => setFilters(p => ({ ...p, cities: sel ? [] : [c] }))}
+                          key={region}
+                          onClick={() => setFilters(p => ({ ...p, region: sel ? '' : region }))}
                           className={cn(
-                            'flex items-center justify-center gap-1 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-all',
-                            sel ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-400'
+                            'flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-left text-[11px] font-medium transition-all',
+                            sel
+                              ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                              : 'border-slate-200 bg-white text-slate-500 hover:border-slate-400 hover:text-slate-700'
                           )}
                         >
-                          {sel && <Fa icon="fa-solid fa-circle-dot" className="text-[8px] text-teal-400" />}
-                          {c}
+                          {sel && <Fa icon="fa-solid fa-circle-dot" className="shrink-0 text-[8px] text-teal-400" />}
+                          <span className="truncate">{region}</span>
                         </button>
                       );
                     })}
                   </div>
-                  <p className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-400">
-                    <Fa icon="fa-solid fa-circle-info" className="text-[10px]" />
-                    Une seule ville. Aucune sélection = Casablanca
-                  </p>
                 </div>
+
+                {/* ── Step 2: Villes de la région ─────────────────────────── */}
+                {filters.region && (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 transition-all">
+                    <div className="mb-2 flex items-center justify-between">
+                      <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+                        <Fa icon="fa-solid fa-city" className="text-[10px]" />
+                        Villes de {filters.region}
+                      </label>
+                      <div className="flex items-center gap-2">
+                        {filters.cities.length > 0 && (
+                          <span className="rounded-full bg-teal-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                            {filters.cities.length} sélectionnée{filters.cities.length > 1 ? 's' : ''}
+                          </span>
+                        )}
+                        {filters.cities.length > 0 && (
+                          <button
+                            onClick={() => setFilters(p => ({ ...p, cities: [] }))}
+                            className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-red-500 transition-colors"
+                          >
+                            <Fa icon="fa-solid fa-xmark" className="text-[9px]" /> Tout désélectionner
+                          </button>
+                        )}
+                        {filters.cities.length < availableCities.length && (
+                          <button
+                            onClick={() => setFilters(p => ({ ...p, cities: availableCities.map(c => c.name) }))}
+                            className="flex items-center gap-1 text-[10px] text-teal-600 hover:text-teal-800 transition-colors"
+                          >
+                            <Fa icon="fa-solid fa-check-double" className="text-[9px]" /> Tout sélectionner
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                      {availableCities.map(c => {
+                        const sel = filters.cities.includes(c.name);
+                        return (
+                          <button
+                            key={c.name}
+                            onClick={() => toggleCity(c.name)}
+                            className={cn(
+                              'relative flex flex-col rounded-lg border px-3 py-2 text-left transition-all',
+                              sel
+                                ? 'border-teal-500 bg-teal-500 shadow-sm'
+                                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400'
+                            )}
+                          >
+                            {sel && (
+                              <span className="absolute -right-1.5 -top-1.5 flex size-4 items-center justify-center rounded-full bg-teal-700 shadow-sm">
+                                <Fa icon="fa-solid fa-check" className="text-[7px] text-white" />
+                              </span>
+                            )}
+                            <span className={cn('text-[12px] font-semibold', sel ? 'text-white' : 'text-slate-700')}>{c.name}</span>
+                            <span className={cn('flex items-center gap-1 text-[10px] font-mono mt-0.5', sel ? 'text-teal-100' : 'text-slate-400')}>
+                              <Fa icon="fa-solid fa-hashtag" className="text-[8px]" />
+                              {c.postalCode}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {filters.cities.length === 0 && (
+                      <p className="mt-2 flex items-center gap-1 text-[11px] text-slate-400">
+                        <Fa icon="fa-solid fa-circle-info" className="text-[10px]" />
+                        Sélectionnez une ou plusieurs villes — multi-sélection possible
+                      </p>
+                    )}
+                    {filters.cities.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {filters.cities.map(cn_ => (
+                          <span key={cn_} className="inline-flex items-center gap-1 rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold text-teal-700">
+                            {cn_}
+                            <button onClick={() => toggleCity(cn_)} className="ml-0.5 flex size-3 items-center justify-center rounded-full bg-teal-300 hover:bg-teal-400 transition-colors">
+                              <Fa icon="fa-solid fa-xmark" className="text-[7px] text-teal-800" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Step 3: Autres filtres ───────────────────────────────── */}
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {/* Code postal */}
-                  <div>
+                  {/* Code postal — auto-filled */}
+                  <div className={cn(filters.cities.length > 1 ? 'col-span-2 sm:col-span-3' : '')}>
                     <label className="mb-1 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
                       <Fa icon="fa-solid fa-mailbox" className="text-[10px]" /> Code postal
                     </label>
-                    <input type="text" placeholder="ex. 20000" value={filters.postalCode}
-                      onChange={e => setFilters(p => ({ ...p, postalCode: e.target.value }))}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-slate-400 focus:outline-none" />
+
+                    {/* Single city → normal input */}
+                    {filters.cities.length <= 1 && (
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="ex. 20000"
+                          value={filters.postalCode}
+                          onChange={e => setFilters(p => ({ ...p, postalCode: e.target.value }))}
+                          className={cn(
+                            'w-full rounded-lg border px-3 py-2 pr-8 text-sm focus:outline-none',
+                            filters.postalCode
+                              ? 'border-teal-300 bg-teal-50 text-teal-800 focus:border-teal-500'
+                              : 'border-slate-200 bg-white text-slate-700 focus:border-slate-400'
+                          )}
+                        />
+                        {filters.postalCode && (
+                          <Fa icon="fa-solid fa-circle-check" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-teal-500" />
+                        )}
+                        {filters.cities.length === 1 && filters.postalCode && (
+                          <p className="mt-1 flex items-center gap-1 text-[10px] text-teal-600">
+                            <Fa icon="fa-solid fa-bolt" className="text-[9px]" /> Auto-rempli · {filters.cities[0]}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Multiple cities → compact tag list with codes */}
+                    {filters.cities.length > 1 && (
+                      <div className="flex flex-wrap gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2">
+                        {filters.cities.map(cityName => (
+                          <span key={cityName} className="inline-flex items-center gap-1.5 rounded-md bg-white border border-teal-200 px-2 py-1 text-[11px] font-medium text-teal-800 shadow-sm">
+                            <Fa icon="fa-solid fa-hashtag" className="text-[9px] text-teal-400" />
+                            <span className="font-semibold">{postalCodeForCity(cityName)}</span>
+                            <span className="text-teal-500">·</span>
+                            <span className="text-slate-500">{cityName}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   {/* Max results */}
                   <div>
@@ -396,10 +696,34 @@ export function AccountCrmLeadsContent() {
                     <select value={filters.hasWebsite} onChange={e => setFilters(p => ({ ...p, hasWebsite: e.target.value }))}
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-slate-400 focus:outline-none">
                       <option value="">Tous</option>
-                      <option value="yes">Avec site</option><option value="no">Sans site</option>
+                      <option value="yes">Avec site</option>
+                      <option value="no">Sans site</option>
                     </select>
                   </div>
                 </div>
+
+                {/* ── Apollo Toggle ────────────────────────────────────────── */}
+                <div>
+                  <label className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+                    <Fa icon="fa-solid fa-wand-magic-sparkles" className="text-[10px]" /> Enrichissement
+                  </label>
+                  <Toggle
+                    value={filters.useApollo}
+                    onChange={v => setFilters(p => ({ ...p, useApollo: v }))}
+                    icon="fa-solid fa-rocket"
+                    label="Enrichissement Apollo.io"
+                    sublabel={filters.useApollo ? 'Actif — LinkedIn, email pro, score boosté' : 'Inactif — données Google Places uniquement'}
+                  />
+                  {filters.useApollo && (
+                    <div className="mt-2 flex items-center gap-2 rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2">
+                      <Fa icon="fa-solid fa-circle-info" className="shrink-0 text-[11px] text-indigo-400" />
+                      <p className="text-[11px] text-indigo-600">
+                        Apollo enrichira chaque contact avec profil LinkedIn, email professionnel vérifié et données firmographiques.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
               </CardContent>
             </Card>
           </div>
@@ -415,15 +739,17 @@ export function AccountCrmLeadsContent() {
                   </p>
                   <div className="space-y-2">
                     {[
-                      { fa: 'fa-solid fa-layer-group',  label: 'Secteurs',    val: filters.sectors.join(', ') },
-                      { fa: 'fa-solid fa-city',         label: 'Ville',       val: filters.cities.length ? filters.cities[0] : 'Casablanca' },
-                      { fa: 'fa-solid fa-mailbox',      label: 'Code postal', val: filters.postalCode || '—' },
-                      { fa: 'fa-solid fa-sliders',      label: 'Max / ville', val: `${filters.maxResults} résultats` },
+                      { fa: 'fa-solid fa-layer-group',   label: 'Secteurs',    val: filters.sectors.join(', ') },
+                      { fa: 'fa-solid fa-map',            label: 'Région',      val: filters.region || '—' },
+                      { fa: 'fa-solid fa-city',           label: 'Villes',      val: filters.cities.length ? filters.cities.join(', ') : 'Casablanca' },
+                      { fa: 'fa-solid fa-mailbox',        label: 'Code postal', val: filters.cities.length > 1 ? filters.cities.map(c => postalCodeForCity(c)).join(', ') : (filters.postalCode || '—') },
+                      { fa: 'fa-solid fa-sliders',        label: 'Max / ville', val: `${filters.maxResults} résultats` },
+                      { fa: 'fa-solid fa-rocket',         label: 'Apollo',      val: filters.useApollo ? 'Oui ✓' : 'Non' },
                     ].map(row => (
                       <div key={row.label} className="flex items-start gap-2 text-sm">
-                        <Fa icon={row.fa} className="mt-0.5 w-4 shrink-0 text-center text-[12px] text-slate-400" />
+                        <Fa icon={row.fa} className={cn('mt-0.5 w-4 shrink-0 text-center text-[12px]', row.label === 'Apollo' && filters.useApollo ? 'text-indigo-400' : 'text-slate-400')} />
                         <span className="text-[11px] text-slate-400 w-20 shrink-0">{row.label}</span>
-                        <span className="font-medium text-slate-700 text-[12px]">{row.val}</span>
+                        <span className={cn('font-medium text-[12px]', row.label === 'Apollo' && filters.useApollo ? 'text-indigo-600' : 'text-slate-700')}>{row.val}</span>
                       </div>
                     ))}
                   </div>
@@ -451,11 +777,18 @@ export function AccountCrmLeadsContent() {
                     {isScanning
                       ? `${scanProgress}% complété`
                       : filters.sectors.length
-                        ? `${filters.sectors.length} secteur(s) · ${filters.cities.length ? '1 ville' : 'Casablanca'}`
+                        ? `${filters.sectors.length} secteur(s) · ${filters.cities.length > 1 ? `${filters.cities.length} villes` : (filters.cities[0] || 'Casablanca')}${filters.useApollo ? ' · Apollo ✓' : ''}`
                         : 'Sélectionnez des secteurs'}
                   </p>
                 </div>
-                <Fa icon={isScanning ? 'fa-solid fa-circle-notch fa-spin' : 'fa-solid fa-rocket'} className="text-xl text-white" />
+                <div className="flex items-center gap-2">
+                  {filters.useApollo && !isScanning && (
+                    <span className="flex items-center gap-1 rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                      <Fa icon="fa-solid fa-rocket" className="text-[8px]" /> Apollo
+                    </span>
+                  )}
+                  <Fa icon={isScanning ? 'fa-solid fa-circle-notch fa-spin' : 'fa-solid fa-rocket'} className="text-xl text-white" />
+                </div>
               </div>
               {isScanning && (
                 <div className="absolute bottom-0 left-0 h-0.5 bg-teal-400 transition-all duration-500" style={{ width: `${scanProgress}%` }} />
@@ -520,7 +853,14 @@ export function AccountCrmLeadsContent() {
                       <div className="flex items-center gap-2">
                         <Fa icon="fa-solid fa-chart-pie" className="text-slate-400 text-[11px]" />
                         <div>
-                          <p className="text-xs font-semibold text-slate-700">{h.count} prospects</p>
+                          <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                            {h.count} prospects
+                            {h.apollo && (
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-600">
+                                <Fa icon="fa-solid fa-rocket" className="text-[7px]" /> Apollo
+                              </span>
+                            )}
+                          </p>
                           <p className="text-[10px] text-slate-400">{h.date}</p>
                         </div>
                       </div>
@@ -555,10 +895,10 @@ export function AccountCrmLeadsContent() {
               {/* KPI strip */}
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
-                  { fa: 'fa-solid fa-users',        label: 'Total',     sub: 'prospects',    val: leads.length,                                                               color: 'text-slate-800' },
-                  { fa: 'fa-solid fa-fire',          label: 'Chauds',    sub: 'prioritaires', val: leads.filter(l => l.status === 'hot').length,                              color: 'text-red-600' },
-                  { fa: 'fa-solid fa-temperature-half', label: 'Tièdes', sub: 'à relancer',   val: leads.filter(l => l.status === 'warm').length,                             color: 'text-amber-600' },
-                  { fa: 'fa-solid fa-chart-simple',  label: 'Score moy',sub: '/ 100',        val: leads.length ? Math.round(leads.reduce((s,l)=>s+l.score,0)/leads.length):0, color: 'text-teal-600' },
+                  { fa: 'fa-solid fa-users',            label: 'Total',       sub: 'prospects',    val: leads.length,                                                               color: 'text-slate-800' },
+                  { fa: 'fa-solid fa-fire',              label: 'Chauds',      sub: 'prioritaires', val: leads.filter(l => l.status === 'hot').length,                              color: 'text-red-600' },
+                  { fa: 'fa-solid fa-temperature-half', label: 'Tièdes',      sub: 'à relancer',   val: leads.filter(l => l.status === 'warm').length,                             color: 'text-amber-600' },
+                  { fa: 'fa-solid fa-chart-simple',     label: 'Score moy',   sub: '/ 100',        val: leads.length ? Math.round(leads.reduce((s,l)=>s+l.score,0)/leads.length):0, color: 'text-teal-600' },
                 ].map(stat => (
                   <Card key={stat.label}>
                     <CardContent className="flex items-center gap-3 py-4">
@@ -573,6 +913,16 @@ export function AccountCrmLeadsContent() {
                   </Card>
                 ))}
               </div>
+
+              {/* Apollo enriched banner */}
+              {leads.some(l => l.apolloEnriched) && (
+                <div className="flex items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3">
+                  <Fa icon="fa-solid fa-rocket" className="text-indigo-500" />
+                  <p className="text-sm text-indigo-700">
+                    <span className="font-bold">{leads.filter(l => l.apolloEnriched).length} prospects</span> enrichis via Apollo.io — LinkedIn et emails vérifiés disponibles.
+                  </p>
+                </div>
+              )}
 
               {/* Toolbar */}
               <Card>
@@ -670,8 +1020,13 @@ export function AccountCrmLeadsContent() {
                           <tr key={l.id} onClick={() => setSelectedLead(l)} className="cursor-pointer transition-colors hover:bg-slate-50/60">
                             <td className="px-4 py-3 max-w-[180px]">
                               <div className="flex items-center gap-2 overflow-hidden">
-                                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50">
+                                <span className="relative flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50">
                                   <Fa icon={SECTORS[l.sector]?.faIcon || 'fa-solid fa-building'} className="text-[12px] text-slate-500" />
+                                  {l.apolloEnriched && (
+                                    <span className="absolute -right-1 -top-1 flex size-3 items-center justify-center rounded-full bg-indigo-500">
+                                      <Fa icon="fa-solid fa-rocket" className="text-[5px] text-white" />
+                                    </span>
+                                  )}
                                 </span>
                                 <div className="min-w-0 overflow-hidden">
                                   <p className="truncate font-semibold text-slate-800" title={l.company}>{l.company}</p>
@@ -686,10 +1041,15 @@ export function AccountCrmLeadsContent() {
                             </td>
                             <td className="px-4 py-3">
                               <p className="flex items-center gap-1.5 font-medium text-slate-700">
-                                <Fa icon="-" className="text-slate-300 text-[13px]" />
                                 {l.name}
                               </p>
-                              <p className="ml-5 text-[11px] text-slate-400">{l.role}</p>
+                              <p className="text-[11px] text-slate-400">{l.role}</p>
+                              {l.linkedIn && (
+                                <p className="mt-0.5 flex items-center gap-1 text-[10px] text-indigo-500">
+                                  <Fa icon="fa-brands fa-linkedin" className="text-[9px]" />
+                                  <span className="truncate max-w-[120px]">{l.linkedIn}</span>
+                                </p>
+                              )}
                             </td>
                             <td className="px-4 py-3">
                               <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
@@ -699,7 +1059,6 @@ export function AccountCrmLeadsContent() {
                             </td>
                             <td className="px-4 py-3">
                               <span className="inline-flex items-center gap-1 text-sm text-slate-500">
-                                <Fa icon="" className="text-[10px] text-slate-400" />
                                 {l.city}
                               </span>
                             </td>
@@ -776,12 +1135,22 @@ export function AccountCrmLeadsContent() {
             <div className="border-b border-slate-100 bg-slate-50 px-5 py-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="flex size-12 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm">
+                  <span className="relative flex size-12 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm">
                     <Fa icon={SECTORS[selectedLead.sector]?.faIcon || 'fa-solid fa-building'} className="text-lg text-slate-600" />
+                    {selectedLead.apolloEnriched && (
+                      <span className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-indigo-500 shadow">
+                        <Fa icon="fa-solid fa-rocket" className="text-[8px] text-white" />
+                      </span>
+                    )}
                   </span>
                   <div>
                     <h3 className="font-bold text-slate-900">{selectedLead.name}</h3>
                     <p className="text-sm text-slate-500">{selectedLead.role} — {selectedLead.company}</p>
+                    {selectedLead.apolloEnriched && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-600">
+                        <Fa icon="fa-solid fa-rocket" className="text-[8px]" /> Enrichi Apollo
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -816,6 +1185,13 @@ export function AccountCrmLeadsContent() {
                     <span className="min-w-0 truncate font-medium text-slate-800">{row.val}</span>
                   </div>
                 ))}
+                {selectedLead.linkedIn && (
+                  <div className="flex items-center gap-3 rounded-lg bg-indigo-50 px-3 py-2.5 text-sm">
+                    <Fa icon="fa-brands fa-linkedin" className="w-4 shrink-0 text-center text-[12px] text-indigo-500" />
+                    <span className="w-20 shrink-0 text-[11px] text-indigo-400">LinkedIn</span>
+                    <span className="min-w-0 truncate font-medium text-indigo-700">{selectedLead.linkedIn}</span>
+                  </div>
+                )}
                 {selectedLead.rating && (
                   <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2.5 text-sm">
                     <Fa icon="fa-solid fa-star" className="w-4 shrink-0 text-center text-[12px] text-amber-400" />
