@@ -36,6 +36,7 @@ import {
   AccountSettingsModalPage,
   AccountSettingsPlainPage,
   AccountSettingsSidebarPage,
+  AccountCrmLeadsPage,
   AccountTeamInfoPage,
   AccountTeamMembersPage,
   AccountTeamsPage,
@@ -118,6 +119,10 @@ export function AppRoutingSetup() {
         <Route
             path="/account/members/team-info"
             element={<AccountTeamInfoPage />}
+          />
+        <Route
+            path="/account/crm/leads"
+            element={<AccountCrmLeadsPage />}
           />
       </Route>
       {/*<Route element={<RequireAuth />}>*/}

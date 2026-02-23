@@ -44,6 +44,12 @@ export function AccountGetStartedContent() {
       desc: 'Central Hub for Personal Customization.',
       path: '/account/activity',
     },
+     {
+    icon: TrendingUp,
+    title: 'Leads',
+    desc: 'Manage and track potential clients and prospects.',
+    path: '/account/crm/leads',
+  },
   ];
 
   return (
