@@ -28,4 +28,9 @@ public class ScanController {
         return ResponseEntity.accepted().body(Map.of("job_id", jobId));
     }
 
+    @GetMapping("/results/{jobId}")
+    public ResponseEntity<Map<String, Object>> getResults(@PathVariable String jobId) {
+        Map<String, Object> status = scanService.getStatus(jobId);
+        return ResponseEntity.ok(status);
+    }
 }
