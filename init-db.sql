@@ -1,0 +1,1 @@
+CREATE DATABASE lead_management;
