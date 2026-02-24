@@ -39,6 +39,8 @@ public class MassActionService {
         // 2. Fetch leads (Adjust the repository method to match your exact fields)
         // Assuming you have a method like: findByTemperatureAndContactStatusAndEmailIsNotNull
         List<Lead> hotLeads = leadRepository.findByTemperatureAndContactStatusAndEmailIsNotNull("HOT", "NON_CONTACTE");
+        System.out.println("********************************************");
+        System.out.println(hotLeads);
 
         // 3. Loop through leads and perform the string replacement
         for (Lead lead : hotLeads) {
@@ -66,7 +68,7 @@ public class MassActionService {
             interactionRepository.save(interaction);
 
             // Update Lead Status
-            lead.setContactStatus("EMAIL_ENVOYE");
+            lead.setContactStatus("MASS_EMAIL_ENVOYE");
             leadRepository.save(lead);
 
             // 5. Add to the results list
