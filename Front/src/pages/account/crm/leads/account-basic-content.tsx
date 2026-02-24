@@ -233,13 +233,7 @@ const Toggle = ({ value, onChange, label, sublabel, icon }: {
 export function AccountCrmLeadsContent() {
   useFontAwesome();
 
-  // ── Persist leads & history in localStorage so refresh doesn't lose data ──
-  const [leads, setLeads] = useState<Lead[]>(() => {
-    try {
-      const saved = localStorage.getItem('crm_leads');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
+  const [leads, setLeads] = useState<Lead[]>([]);
 
   const [scanHistory, setScanHistory] = useState<{ date: string; count: number; avgScore: number; apollo: boolean }[]>(() => {
     try {
@@ -247,11 +241,6 @@ export function AccountCrmLeadsContent() {
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
-
-  // Sync leads to localStorage whenever they change
-  useEffect(() => {
-    try { localStorage.setItem('crm_leads', JSON.stringify(leads)); } catch {}
-  }, [leads]);
 
   // Sync history to localStorage whenever it changes
   useEffect(() => {
@@ -298,6 +287,52 @@ export function AccountCrmLeadsContent() {
 
   const availableCities = useMemo(() => citiesForRegion(filters.region), [filters.region]);
 
+  const gateway = useMemo(() => axios.create({
+    baseURL: (import.meta as any).env?.VITE_GATEWAY_BASE_URL || 'http://localhost:8081/api'
+  }), []);
+
+  const refreshLeadsFromDb = useCallback(async () => {
+    try {
+      const resp = await gateway.get('/leads');
+      const rows: any[] = resp?.data ?? [];
+      const mapped: Lead[] = rows.map(l => {
+        const temp = String(l.temperature || '').toLowerCase();
+        const status = temp === 'hot' || temp === 'warm' || temp === 'cold' ? temp : statusOf(Number(l.aiScore || 0));
+        return {
+          id: Number(l.id),
+          name: '',
+          company: l.companyName || '',
+          role: '',
+          email: '',
+          phone: l.phoneNumber || '',
+          city: l.city || '',
+          address: '',
+          website: l.website || '',
+          rating: l.googleRating != null ? String(l.googleRating) : '',
+          reviewCount: l.googleReviews != null ? Number(l.googleReviews) : undefined,
+          sector: l.secteurName || '—',
+          score: l.aiScore != null ? Number(l.aiScore) : 0,
+          status,
+          linkedIn: l.linkedinUrl || '',
+          apolloEnriched: false,
+        };
+      });
+      setLeads(mapped);
+      setView('leads');
+      return mapped.length;
+    } catch (err) {
+      console.error('[GET /leads] failed', err);
+      setLeads([]);
+      setView('scan');
+      return 0;
+    }
+  }, [gateway]);
+
+  // ── Load prospects from DB on mount ────────────────────────────────────────
+  useEffect(() => {
+    refreshLeadsFromDb();
+  }, []);
+
   const toggleCity = (cityName: string) =>
     setFilters(p => ({
       ...p,
@@ -335,7 +370,7 @@ export function AccountCrmLeadsContent() {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       await new Promise(r => setTimeout(r, intervalMs));
       try {
-        const res  = await axios.get(`/lead_agent/results/${jobId}`);
+        const res  = await gateway.get(`/lead_agent/results/${jobId}`);
         const data = res?.data;
 
         const isDone    = data?.status === 'done' || data?.status === 'completed' || data?.status === 'DONE' || data?.status === 'COMPLETED';
@@ -406,7 +441,7 @@ export function AccountCrmLeadsContent() {
         // Confirmed API: POST http://localhost:8082/api/lead_agent/start
         // Body: { city, category, max_results }
         try {
-          const resp = await axios.post('/lead_agent/start', {
+          const resp = await gateway.post('/lead_agent/start', {
             city,
             category:    sector,
             max_results: filters.maxResults,
@@ -484,7 +519,6 @@ export function AccountCrmLeadsContent() {
     setScanProgress(96);
     await new Promise(r => setTimeout(r, 300));
 
-    // Deduplicate by company name, sort by score desc
     const unique = all
       .filter((l, i, a) => a.findIndex(x => x.company === l.company) === i)
       .sort((a, b) => b.score - a.score);
@@ -501,13 +535,11 @@ export function AccountCrmLeadsContent() {
       apollo: filters.useApollo,
     }]);
 
-    // Merge with existing leads (no duplicates)
-    setLeads(prev => {
-      const existing = new Set(prev.map(l => l.company));
-      return [...prev, ...unique.filter(l => !existing.has(l.company))];
-    });
-
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 1200));
+    const count = await refreshLeadsFromDb();
+    if (count === 0 && unique.length > 0) {
+      setLeads(unique);
+    }
     setIsScanning(false);
     setView('leads');
   };
@@ -1143,18 +1175,7 @@ export function AccountCrmLeadsContent() {
                   >
                     <Fa icon="fa-solid fa-file-csv" className="text-[12px]" /> CSV
                   </button>
-                  <button
-                    onClick={() => {
-                      if (confirm('Supprimer tous les prospects ?')) {
-                        setLeads([]);
-                        localStorage.removeItem('crm_leads');
-                        localStorage.removeItem('crm_scan_history');
-                      }
-                    }}
-                    className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-500 transition hover:border-red-400 hover:bg-red-50"
-                  >
-                    <Fa icon="fa-solid fa-trash" className="text-[12px]" /> Effacer
-                  </button>
+                  
                 </CardContent>
               </Card>
 
