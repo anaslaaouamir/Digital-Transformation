@@ -82,4 +82,7 @@ public class Lead {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    // Options: NON_CONTACTE, EN_SEQUENCE, TERMINE_SANS_REPONSE, A_REPONDU, EMAIL_ENVOYE
+    private String contactStatus = "NON_CONTACTE";
+
 }
