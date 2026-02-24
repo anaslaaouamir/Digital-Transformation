@@ -11,11 +11,11 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/actions")
-public class ActionController {
+public class MassActionController {
 
     private final MassActionService massActionService;
 
-    public ActionController(MassActionService massActionService) {
+    public MassActionController(MassActionService massActionService) {
         this.massActionService = massActionService;
     }
 
@@ -24,4 +24,6 @@ public class ActionController {
         List<SimulatedEmailDto> result = massActionService.simulateMassEmails();
         return ResponseEntity.ok(result);
     }
+
+
 }
