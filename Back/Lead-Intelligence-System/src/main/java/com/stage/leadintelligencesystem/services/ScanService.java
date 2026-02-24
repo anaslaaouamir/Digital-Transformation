@@ -120,4 +120,8 @@ public class ScanService {
         leadRepository.save(lead);
     }
 
+    public Map<String, Object> getStatus(String jobId) {
+        String statusUrl = "http://leads-generator:5000/api/status/" + jobId;
+        return restTemplate.getForObject(statusUrl, Map.class);
+    }
 }
