@@ -132,6 +132,7 @@ export const MENU_SIDEBAR: MenuConfig = [
           { title: 'User Profile', path: '/account/home/user-profile' },
           { title: 'Company Profile', path: '/account/home/company-profile' },
           { title: 'tiers', path: '/account/members/tiers' },
+          { title: 'Leads', path: '/account/crm/leads' },
           {
             title: 'Settings - With Sidebar',
             path: '/account/home/settings-sidebar',
@@ -476,6 +477,7 @@ export const MENU_SIDEBAR_COMPACT: MenuConfig = [
           { title: 'User Profile', path: '/account/home/user-profile' },
           { title: 'Company Profile', path: '/account/home/company-profile' },
           { title: 'tiers', path: '/account/members/tiers' },
+          { title: 'Leads', path: '/account/crm/leads' },
           {
             title: 'Settings - With Sidebar',
             path: '/account/home/settings-sidebar',
