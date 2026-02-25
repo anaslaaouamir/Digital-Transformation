@@ -59,6 +59,242 @@ const DEFAULT_COMPOSE: ComposeState = {
   attachment: null,
 };
 
+type DashboardSeedData = {
+  leads: Lead[];
+  scanHistory: ScanHistoryEntry[];
+  apiUsage: {
+    google: number;
+    apollo: number;
+    claude: number;
+  };
+};
+
+const EMPTY_DASHBOARD_DATA: DashboardSeedData = {
+  leads: [],
+  scanHistory: [],
+  apiUsage: { google: 0, apollo: 0, claude: 0 },
+};
+
+const TMP_DASHBOARD_DATA: DashboardSeedData = {
+  leads: [
+    {
+      id: 1001,
+      name: 'Youssef Bennani',
+      company: 'Le Jardin Casablanca',
+      role: 'Gerant',
+      sector: 'Restauration',
+      city: 'Casablanca',
+      email: 'contact@lejardin.ma',
+      phone: '+212512345678',
+      website: 'lejardin.ma',
+      rating: 4.7,
+      score: 88,
+      status: 'hot',
+      employees: '20-50',
+      revenue: '3-5M MAD',
+      linkedin: 'linkedin.com/company/le-jardin-casablanca',
+      notes: '',
+      aiMessage: '',
+      lastContact: null,
+    },
+    {
+      id: 1002,
+      name: 'Fatima El Fassi',
+      company: 'La Table du Marche Rabat',
+      role: 'Gerant',
+      sector: 'Restauration',
+      city: 'Rabat',
+      email: 'contact@latabledumarche.ma',
+      phone: '+212623456789',
+      website: 'latabledumarche.ma',
+      rating: 4.5,
+      score: 82,
+      status: 'hot',
+      employees: '10-20',
+      revenue: '1-3M MAD',
+      linkedin: 'linkedin.com/company/la-table-du-marche-rabat',
+      notes: '',
+      aiMessage: '',
+      lastContact: null,
+    },
+    {
+      id: 1003,
+      name: 'Mohammed Tazi',
+      company: 'Riad Lotus Marrakech',
+      role: 'Directeur',
+      sector: 'Hotellerie',
+      city: 'Marrakesh',
+      email: 'contact@riadlotus.ma',
+      phone: '+212534567890',
+      website: 'riadlotus.ma',
+      rating: 4.2,
+      score: 77,
+      status: 'warm',
+      employees: '50-100',
+      revenue: '5-10M MAD',
+      linkedin: 'linkedin.com/company/riad-lotus-marrakech',
+      notes: '',
+      aiMessage: '',
+      lastContact: null,
+    },
+    {
+      id: 1004,
+      name: 'Sara Chraibi',
+      company: 'Hotel Kenzi Tanger',
+      role: 'Directeur',
+      sector: 'Hotellerie',
+      city: 'Tanger',
+      email: 'contact@hotelkenzi.ma',
+      phone: '+212645678901',
+      website: 'hotelkenzi.ma',
+      rating: 4.0,
+      score: 73,
+      status: 'warm',
+      employees: '20-50',
+      revenue: '3-5M MAD',
+      linkedin: 'linkedin.com/company/hotel-kenzi-tanger',
+      notes: '',
+      aiMessage: '',
+      lastContact: null,
+    },
+    {
+      id: 1005,
+      name: 'Ahmed Alaoui',
+      company: 'Century 21 Maroc Casablanca',
+      role: 'Agent Principal',
+      sector: 'Immobilier',
+      city: 'Casablanca',
+      email: 'contact@centurymaroc.ma',
+      phone: '+212556789012',
+      website: 'centurymaroc.ma',
+      rating: 4.1,
+      score: 71,
+      status: 'warm',
+      employees: '10-20',
+      revenue: '1-3M MAD',
+      linkedin: 'linkedin.com/company/century-21-maroc-casablanca',
+      notes: '',
+      aiMessage: '',
+      lastContact: null,
+    },
+    {
+      id: 1006,
+      name: 'Khadija Idrissi',
+      company: 'Immo Expert Rabat',
+      role: 'Agent Principal',
+      sector: 'Immobilier',
+      city: 'Rabat',
+      email: 'contact@immoexpert.ma',
+      phone: '+212667890123',
+      website: 'immoexpert.ma',
+      rating: 3.9,
+      score: 67,
+      status: 'warm',
+      employees: '5-10',
+      revenue: '500K-1M MAD',
+      linkedin: 'linkedin.com/company/immo-expert-rabat',
+      notes: '',
+      aiMessage: '',
+      lastContact: null,
+    },
+    {
+      id: 1007,
+      name: 'Omar Berrada',
+      company: 'Clinique Atlas Fes',
+      role: 'Medecin Chef',
+      sector: 'Sante',
+      city: 'Fes',
+      email: 'contact@cliniqueatlas.ma',
+      phone: '+212578901234',
+      website: 'cliniqueatlas.ma',
+      rating: 4.3,
+      score: 83,
+      status: 'hot',
+      employees: '50-100',
+      revenue: '5-10M MAD',
+      linkedin: 'linkedin.com/company/clinique-atlas-fes',
+      notes: '',
+      aiMessage: '',
+      lastContact: null,
+    },
+    {
+      id: 1008,
+      name: 'Salma Hakimi',
+      company: 'Cabinet Dr. Tazi Meknes',
+      role: 'Medecin Chef',
+      sector: 'Sante',
+      city: 'Meknes',
+      email: 'contact@cabinetdrtazi.ma',
+      phone: '+212689012345',
+      website: 'cabinetdrtazi.ma',
+      rating: 3.8,
+      score: 62,
+      status: 'warm',
+      employees: '10-20',
+      revenue: '1-3M MAD',
+      linkedin: 'linkedin.com/company/cabinet-dr-tazi-meknes',
+      notes: '',
+      aiMessage: '',
+      lastContact: null,
+    },
+    {
+      id: 1009,
+      name: 'Rachid Filali',
+      company: 'Salon Prestige Agadir',
+      role: 'Proprietaire',
+      sector: 'Beaute',
+      city: 'Agadir',
+      email: 'contact@salonprestige.ma',
+      phone: '+212590123456',
+      website: '',
+      rating: 3.6,
+      score: 57,
+      status: 'cold',
+      employees: '--',
+      revenue: '--',
+      linkedin: 'linkedin.com/company/salon-prestige-agadir',
+      notes: '',
+      aiMessage: '',
+      lastContact: null,
+    },
+    {
+      id: 1010,
+      name: 'Nadia Sefrioui',
+      company: 'Cabinet Fassi Oujda',
+      role: 'Associe',
+      sector: 'Juridique',
+      city: 'Oujda',
+      email: 'contact@cabinetfassi.ma',
+      phone: '+212601234567',
+      website: '',
+      rating: 3.7,
+      score: 52,
+      status: 'cold',
+      employees: '5-10',
+      revenue: '500K-1M MAD',
+      linkedin: 'linkedin.com/company/cabinet-fassi-oujda',
+      notes: '',
+      aiMessage: '',
+      lastContact: null,
+    },
+  ],
+  scanHistory: [
+    { id: 1, prospects: 5, avgScore: 74 },
+    { id: 2, prospects: 6, avgScore: 71 },
+    { id: 3, prospects: 7, avgScore: 69 },
+    { id: 4, prospects: 6, avgScore: 67 },
+  ],
+  apiUsage: { google: 62, apollo: 31, claude: 7 },
+};
+
+//? toggle this option to enable/disable temporary dashboard data display
+const IS_DASHBOARD_DATA_ENABLED = true;
+
+
+const INITIAL_DASHBOARD_DATA: DashboardSeedData = IS_DASHBOARD_DATA_ENABLED
+  ? TMP_DASHBOARD_DATA
+  : EMPTY_DASHBOARD_DATA;
+
 const scoreVariant = (score: number): 'success' | 'warning' | 'destructive' => {
   if (score >= 80) return 'success';
   if (score >= 60) return 'warning';
@@ -74,12 +310,14 @@ const statusVariant = (status: LeadStatus): 'success' | 'warning' | 'info' => {
 export function Demo1LightSidebarContent() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const [leads, setLeads] = useState<Lead[]>(INITIAL_DASHBOARD_DATA.leads);
   const [emails, setEmails] = useState<EmailLog[]>([]);
   const [compose, setCompose] = useState<ComposeState>(DEFAULT_COMPOSE);
   const [crmFilter, setCrmFilter] = useState<CrmFilter>('all');
-  const [apiUsage] = useState({ google: 0, apollo: 0, claude: 0 });
-  const [scanHistory] = useState<ScanHistoryEntry[]>([]);
+  const [apiUsage] = useState(INITIAL_DASHBOARD_DATA.apiUsage);
+  const [scanHistory] = useState<ScanHistoryEntry[]>(
+    INITIAL_DASHBOARD_DATA.scanHistory,
+  );
 
   const view = useMemo<DashboardView>(() => {
     if (location.pathname === DASHBOARD_PATHS.scan) return 'scan';
@@ -260,19 +498,6 @@ export function Demo1LightSidebarContent() {
       const sentAt = scheduled ? null : new Date(now).toISOString();
       const normalizedWhatsappNumber = options?.whatsappNumber?.trim();
       const normalizedAttachmentName = options?.attachmentName?.trim();
-      const openedAt =
-        !scheduled && channel === 'email' && Math.random() < 0.62
-          ? new Date(
-              now + (15 + Math.floor(Math.random() * 180)) * 60 * 1000,
-            ).toISOString()
-          : null;
-      const repliedAt =
-        openedAt && Math.random() < 0.28
-          ? new Date(
-              new Date(openedAt).getTime() +
-                (30 + Math.floor(Math.random() * 240)) * 60 * 1000,
-            ).toISOString()
-          : null;
 
       setEmails((previous) => [
         {
@@ -286,8 +511,8 @@ export function Demo1LightSidebarContent() {
           scheduledAt: scheduled
             ? new Date(now + 3600 * 1000).toISOString()
             : null,
-          openedAt,
-          repliedAt,
+          openedAt: null,
+          repliedAt: null,
           whatsappNumber:
             channel === 'whatsapp'
               ? normalizedWhatsappNumber || lead.phone || null
