@@ -1261,6 +1261,10 @@ export function AccountCrmLeadsContent() {
                             <td className="px-4 py-3">
                               <p className="flex items-center gap-1.5 font-medium text-slate-700">{l.name}</p>
                               <p className="text-[11px] text-slate-400">{l.role}</p>
+                              <p className="mt-0.5 flex items-center gap-1.5 text-[14px] text-slate-500">
+                                <Fa icon="" className="text-[9px]" />
+                                <span className="truncate max-w-[120px]">{l.phone || '—'}</span>
+                              </p>
                               {l.linkedIn && (
                                 <p className="mt-0.5 flex items-center gap-1 text-[10px] text-indigo-500">
                                   <Fa icon="fa-brands fa-linkedin" className="text-[9px]" />
@@ -1451,7 +1455,7 @@ export function AccountCrmLeadsContent() {
                     }}
                     className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
                   >
-                    <Fa icon="fa-solid fa-paper-plane" /> Envoyer email
+                    <Fa icon="fa-solid fa-paper-plane" /> Envoyer message
                   </button>
                 )}
                 <button
