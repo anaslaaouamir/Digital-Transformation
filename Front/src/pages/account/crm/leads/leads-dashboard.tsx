@@ -388,7 +388,22 @@ export function LeadsDashboard({
                   return (
                     <tr key={idx}>
                       <td><span className={`ld-rank ld-rank-${idx + 1}`}>{idx + 1}</span></td>
-                      <td><div className="ld-company">{l.company}</div></td>
+                      <td>
+                        <div className="ld-company">{l.company}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                          {l.website ? (
+                            <>
+                              <Fa icon="fa-solid fa-globe" style={{ fontSize: 11, color: '#0ea5e9' }} />
+                              <span className="ld-contact" style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.website}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Fa icon="fa-solid fa-ban" style={{ fontSize: 11, color: '#94a3b8' }} />
+                              <span className="ld-contact">Pas de site</span>
+                            </>
+                          )}
+                        </div>
+                      </td>
                       <td>
                         <div className="ld-contact">{l.name}</div>
                         {l.phone && (
