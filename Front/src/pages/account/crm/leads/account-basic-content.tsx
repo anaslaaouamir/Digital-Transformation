@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { LeadsDashboard } from './leads-dashboard';
 
 // ── Inject Font Awesome CDN automatically ────────────────────────────────────
 function useFontAwesome() {
@@ -247,7 +248,7 @@ export function AccountCrmLeadsContent() {
     try { localStorage.setItem('crm_scan_history', JSON.stringify(scanHistory)); } catch {}
   }, [scanHistory]);
 
-  const [view,         setView]         = useState<'scan' | 'leads'>('scan');
+  const [view,         setView]         = useState<'dashboard' | 'scan' | 'leads'>('scan');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [currentPage,  setCurrentPage]  = useState(1);
   const [sortBy,       setSortBy]       = useState<'score' | 'name' | 'city'>('score');
@@ -568,6 +569,26 @@ export function AccountCrmLeadsContent() {
   const totalPages    = Math.ceil(filtered.length / LEADS_PER_PAGE);
   const paginated     = filtered.slice((currentPage - 1) * LEADS_PER_PAGE, currentPage * LEADS_PER_PAGE);
   const uniqueSectors = useMemo(() => [...new Set(leads.map(l => l.sector))], [leads]);
+  const dashboardStats = useMemo(() => {
+    const total = leads.length;
+    const hot   = leads.filter(l => l.status === 'hot').length;
+    const warm  = leads.filter(l => l.status === 'warm').length;
+    const cold  = leads.filter(l => l.status === 'cold').length;
+    const avg   = total ? Math.round(leads.reduce((s, l) => s + l.score, 0) / total) : 0;
+    const bySector = Object.entries(
+      leads.reduce<Record<string, number>>((acc, l) => {
+        acc[l.sector] = (acc[l.sector] || 0) + 1;
+        return acc;
+      }, {})
+    ).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const byCity = Object.entries(
+      leads.reduce<Record<string, number>>((acc, l) => {
+        acc[l.city] = (acc[l.city] || 0) + 1;
+        return acc;
+      }, {})
+    ).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    return { total, hot, warm, cold, avg, bySector, byCity };
+  }, [leads]);
 
   // ── CSV export ─────────────────────────────────────────────────────────────
   const exportCSV = () => {
@@ -594,6 +615,7 @@ export function AccountCrmLeadsContent() {
         <CardContent className="p-1.5">
           <nav className="flex items-center gap-1">
             {([
+              { k: 'dashboard' as const, label: 'Dashboard', fa: 'fa-solid fa-chart-pie' },
               { k: 'scan'  as const, label: 'Scan',      fa: 'fa-solid fa-satellite-dish' },
               { k: 'leads' as const, label: 'Prospects', fa: 'fa-solid fa-users'          },
             ]).map(tab => (
@@ -619,6 +641,15 @@ export function AccountCrmLeadsContent() {
           </nav>
         </CardContent>
       </Card>
+
+      {view === 'dashboard' && (
+        <LeadsDashboard
+          leads={leads as any}
+          scanHistory={scanHistory as any}
+          sectorIcon={(s) => SECTORS[s]?.faIcon || 'fa-solid fa-tag'}
+          onGoScan={() => setView('scan')}
+        />
+      )}
 
       {/* ══════════════════ SCAN ══════════════════════════════════════════ */}
       {view === 'scan' && (

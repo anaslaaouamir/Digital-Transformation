@@ -6,7 +6,7 @@
 =============================================================
 """
 
-import os, csv, random, time, threading, uuid
+import os, csv, random, time, threading, uuid, io
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_file
 import requests as req
@@ -152,29 +152,43 @@ def run_job(job_id: str, city: str, category: str, max_results: int):
             })
 
         # ── Phase 3: Sort + Export ───────────────────────────────────────────
+        # leads.sort(key=lambda x: x["score"], reverse=True)
+        # for i, lead in enumerate(leads, 1):
+        #     lead["rank"] = i
+
+        # job["leads"]    = leads
+        # job["progress"] = 100
+        # job["status"]   = "done"
+
+        # ts    = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # fname = f"leads_{city.replace(' ','_')}_{category.replace(' ','_')}_{ts}.csv"
+        # fpath = os.path.join(os.getcwd(), fname)
+
+        # fields = ["rank","name","score","temperature","address","phone","website",
+        #           "rating","reviews","price_level","google_maps_url","types","city","category"]
+
+        # with open(fpath, "w", newline="", encoding="utf-8-sig") as f:
+        #     writer = csv.DictWriter(f, fieldnames=fields)
+        #     writer.writeheader()
+        #     writer.writerows(leads)
+
+        # job["csv_path"] = fpath
+        # job["csv_name"] = fname
+        # log(f"Done! {len(leads)} leads exported.")
+
+        # ── Phase 3: Sort + Export ───────────────────────────────────────────
         leads.sort(key=lambda x: x["score"], reverse=True)
         for i, lead in enumerate(leads, 1):
             lead["rank"] = i
 
+        # Just save the data in memory, DO NOT save to file
         job["leads"]    = leads
+        job["city"]     = city       # Saved for later
+        job["category"] = category   # Saved for later
         job["progress"] = 100
         job["status"]   = "done"
-
-        ts    = datetime.now().strftime("%Y%m%d_%H%M%S")
-        fname = f"leads_{city.replace(' ','_')}_{category.replace(' ','_')}_{ts}.csv"
-        fpath = os.path.join(os.getcwd(), fname)
-
-        fields = ["rank","name","score","temperature","address","phone","website",
-                  "rating","reviews","price_level","google_maps_url","types","city","category"]
-
-        with open(fpath, "w", newline="", encoding="utf-8-sig") as f:
-            writer = csv.DictWriter(f, fieldnames=fields)
-            writer.writeheader()
-            writer.writerows(leads)
-
-        job["csv_path"] = fpath
-        job["csv_name"] = fname
-        log(f"Done! {len(leads)} leads exported.")
+        
+        log(f"Done! {len(leads)} leads ready for download.")
 
     except Exception as e:
         job["status"] = "error"
@@ -226,13 +240,44 @@ def status(job_id):
     })
 
 
+# @app.route("/api/download/<job_id>")
+# def download(job_id):
+#     job  = jobs.get(job_id, {})
+#     path = job.get("csv_path")
+#     if not path or not os.path.exists(path):
+#         return "File not found", 404
+#     return send_file(path, as_attachment=True, download_name=job.get("csv_name"))
+
 @app.route("/api/download/<job_id>")
 def download(job_id):
-    job  = jobs.get(job_id, {})
-    path = job.get("csv_path")
-    if not path or not os.path.exists(path):
-        return "File not found", 404
-    return send_file(path, as_attachment=True, download_name=job.get("csv_name"))
+    job = jobs.get(job_id, {})
+    leads = job.get("leads", [])
+
+    if not leads:
+        return "Job not ready or no leads found", 404
+
+    # 1. Create CSV in memory
+    proxy = io.StringIO()
+    fields = ["rank","name","score","temperature","address","phone","website",
+              "rating","reviews","price_level","google_maps_url","types","city","category"]
+    
+    writer = csv.DictWriter(proxy, fieldnames=fields)
+    writer.writeheader()
+    writer.writerows(leads)
+
+    # 2. Convert to bytes for download
+    mem = io.BytesIO()
+    mem.write(proxy.getvalue().encode('utf-8-sig'))
+    mem.seek(0)
+    proxy.close()
+
+    # 3. Create filename dynamically
+    city = job.get("city", "data").replace(" ", "_")
+    cat  = job.get("category", "export").replace(" ", "_")
+    ts   = datetime.now().strftime("%Y%m%d_%H%M%S")
+    fname = f"leads_{city}_{cat}_{ts}.csv"
+
+    return send_file(mem, as_attachment=True, download_name=fname, mimetype="text/csv")
 
 
 # ─── ENTRY POINT ──────────────────────────────────────────────────────────────

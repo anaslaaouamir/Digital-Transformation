@@ -9,6 +9,8 @@ import com.stage.admin.services.AdminService;
 
 @RestController
 @RequestMapping("/api/admin")
+@CrossOrigin(origins = "*") // Allows your React frontend to communicate with this API
+
 public class AdminController {
 
     private final AdminService adminService;
