@@ -9,5 +9,5 @@ import java.util.Optional;
 public interface LeadRepository extends JpaRepository<Lead, Long> {
     Optional<Lead> findByGoogleMapsUrl(String googleMapsUrl);
     List<Lead> findByTemperatureAndContactStatusAndEmailIsNotNull(String temperature, String contactStatus);
-
+    Optional<Lead> findByEmail(String email);
 }

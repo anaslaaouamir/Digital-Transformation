@@ -22,10 +22,10 @@ public class Interaction {
     // Options: EMAIL, WHATSAPP
     private String channel;
 
-    // Options: MANUAL, SEQUENCE, AI_GENERATED, MASSE
+    // Options: MANUAL, SEQUENCE, AI_GENERATED, MASSE, RESPONSE
     private String type;
 
-    // Options: SCHEDULED, SENT, OPENED, REPLIED, BOUNCED
+    // Options:  SENT, OPENED, REPLIED, BOUNCED
     private String status;
 
     private String subject;
