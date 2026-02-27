@@ -1,5 +1,6 @@
 package com.stage.leadintelligencesystem.services;
 
+import com.stage.leadintelligencesystem.dto.IncomingReplyDto;
 import com.stage.leadintelligencesystem.dto.SimulatedEmailDto;
 import com.stage.leadintelligencesystem.entities.*;
 import com.stage.leadintelligencesystem.repositories.*;
@@ -143,5 +144,71 @@ public class SequenceService {
         }
 
         return emailsToSend;
+    }
+
+    @Transactional
+    public void processIncomingReply(IncomingReplyDto replyDto) {
+        // 1. Find the Lead
+        Lead lead = leadRepository.findByEmail(replyDto.getEmail())
+                .orElseThrow(() -> new RuntimeException("Lead not found: " + replyDto.getEmail()));
+
+        // 2. GLOBAL STATUS UPDATE (For ALL types: Masse, Manual, Sequence...)
+        // If they reply, they are no longer "Non contacté" or "En sequence".
+        if (!"A_REPONDU".equals(lead.getContactStatus())) {
+            lead.setContactStatus("A_REPONDU");
+            leadRepository.save(lead);
+        }
+
+        // 3. STOP SEQUENCE (Only if applicable)
+        // Even if they replied to a "Mass Email", we should ensure no sequence starts later.
+        Optional<SequenceEnrollment> activeEnrollment = enrollmentRepository.findByLeadAndStatus(lead, "ACTIVE");
+        if (activeEnrollment.isPresent()) {
+            SequenceEnrollment enrollment = activeEnrollment.get();
+            enrollment.setStatus("CANCELLED");
+            enrollment.setNextExecutionDate(null);
+            enrollmentRepository.save(enrollment);
+        }
+
+        // 4. FIND THE MATCHING SENT EMAIL
+        Interaction matchedInteraction = null;
+
+        // A. Clean the subject (Remove prefixes to get the core topic)
+        String cleanSubject = replyDto.getSubject()
+                .replace("Re:", "").replace("RE:", "")
+                .replace("Fwd:", "").replace("FWD:", "")
+                .trim();
+
+        // B. Search for a Sent Email that contains this core subject
+        // NOW WE USE THE VARIABLE:
+        List<Interaction> matches = interactionRepository.findBySubjectMatch(lead, cleanSubject);
+
+        if (!matches.isEmpty()) {
+            // Found a match! The first one is the most recent due to ORDER BY DESC
+            matchedInteraction = matches.get(0);
+        } else {
+            // C. Fallback: If no subject match, just take the very last email sent
+            matchedInteraction = interactionRepository
+                    .findTopByLeadAndChannelAndStatusOrderBySentAtDesc(lead, "EMAIL", "SENT")
+                    .orElse(null);
+        }
+
+        // 5. UPDATE THE ORIGINAL MESSAGE (Mark it as the "winner")
+        if (matchedInteraction != null) {
+            matchedInteraction.setStatus("REPLIED");
+            matchedInteraction.setRepliedAt(replyDto.getRepliedAt()); // Or use replyDto.getRepliedAt()
+            interactionRepository.save(matchedInteraction);
+        }
+
+        // 6. LOG THE NEW RESPONSE
+        Interaction responseInteraction = new Interaction();
+        responseInteraction.setLead(lead);
+        responseInteraction.setChannel("EMAIL");
+        responseInteraction.setType("RESPONSE"); // The new type
+        responseInteraction.setStatus("RECEIVED");
+        responseInteraction.setSubject(replyDto.getSubject()); // Original subject with "Re:"
+        responseInteraction.setContent(replyDto.getEmailBody());
+        responseInteraction.setSentAt(replyDto.getRepliedAt());
+
+        interactionRepository.save(responseInteraction);
     }
 }
