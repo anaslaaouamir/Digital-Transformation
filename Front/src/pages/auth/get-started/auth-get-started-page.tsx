@@ -1,10 +1,5 @@
-import { Demo1LightSidebarContent } from '@/pages/dashboards/demo1';
-import { Container } from '@/components/common/container';
+import { Navigate } from 'react-router-dom';
 
 export function AuthGetStartedPage() {
-  return (
-    <Container>
-      <Demo1LightSidebarContent />
-    </Container>
-  );
+  return <Navigate to="/account/crm/leads" replace />;
 }

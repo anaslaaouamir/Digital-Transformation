@@ -1,5 +1,4 @@
 import { AuthRouting } from '@/auth/auth-routing';
-import { RequireAuth } from '@/auth/require-auth';
 import { ErrorRouting } from '@/errors/error-routing';
 import { Demo1Layout } from '@/layouts/demo1/layout';
 import {
@@ -43,7 +42,6 @@ import {
   AuthAccountDeactivatedPage,
   AuthWelcomeMessagePage,
 } from '@/pages/auth';
-import { DefaultPage } from '@/pages/dashboards';
 import {
   NetworkAppRosterPage,
   NetworkAuthorPage,
@@ -131,15 +129,10 @@ export function AppRoutingSetup() {
         <Route path="/add_tiers" element={<AddTiers />} />
 
         <Route path="/edit_tiers/:id" element={<EditTiers />} />
-
-        <Route element={<DefaultPage />}>
-          <Route index element={null} />
-          <Route path="mass-scan" element={null} />
-          <Route path="prospects" element={null} />
-          <Route path="crm" element={null} />
-          <Route path="pipline" element={null} />
-          <Route path="leads" element={null} />
-        </Route>
+        <Route
+          path="/"
+          element={<Navigate to="/account/crm/leads" replace />}
+        />
         <Route
           path="/public-profile/profiles/default/"
           element={<ProfileDefaultPage />}

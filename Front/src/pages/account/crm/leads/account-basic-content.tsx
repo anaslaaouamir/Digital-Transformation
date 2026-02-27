@@ -11,6 +11,9 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { DashboardSectionView } from './components/dashboard-view';
+import { CrmSectionView } from './components/crm-view';
+import { PipelineSectionView } from './components/pipeline-view';
 
 // ── Inject Font Awesome CDN automatically ────────────────────────────────────
 function useFontAwesome() {
@@ -247,7 +250,7 @@ export function AccountCrmLeadsContent() {
     try { localStorage.setItem('crm_scan_history', JSON.stringify(scanHistory)); } catch {}
   }, [scanHistory]);
 
-  const [view,         setView]         = useState<'scan' | 'leads'>('scan');
+  const [view,         setView]         = useState<'dashboard' | 'scan' | 'leads' | 'crm' | 'pipeline'>('dashboard');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [currentPage,  setCurrentPage]  = useState(1);
   const [sortBy,       setSortBy]       = useState<'score' | 'name' | 'city'>('score');
@@ -594,8 +597,11 @@ export function AccountCrmLeadsContent() {
         <CardContent className="p-1.5">
           <nav className="flex items-center gap-1">
             {([
+              { k: 'dashboard'  as const, label: 'Dashboard', fa: 'fa-solid fa-chart-line'},
               { k: 'scan'  as const, label: 'Scan',      fa: 'fa-solid fa-satellite-dish' },
               { k: 'leads' as const, label: 'Prospects', fa: 'fa-solid fa-users'          },
+              { k: 'crm' as const, label: 'CRM', fa: 'fa-solid fa-address-book'},
+              { k: 'pipeline' as const, label: 'Pipeline', fa: 'fa-solid fa-diagram-project'},
             ]).map(tab => (
               <button
                 key={tab.k}
@@ -620,6 +626,15 @@ export function AccountCrmLeadsContent() {
         </CardContent>
       </Card>
 
+      {/* ══════════════════ DASHBOARD ══════════════════════════════════════════ */}
+      {view === 'dashboard' && (
+        <DashboardSectionView
+          leads={leads}
+          scanHistory={scanHistory}
+          onStartScan={() => setView('scan')}
+          onOpenLeads={() => setView('leads')}
+        />
+      )}
       {/* ══════════════════ SCAN ══════════════════════════════════════════ */}
       {view === 'scan' && (
         <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
@@ -1356,6 +1371,16 @@ export function AccountCrmLeadsContent() {
             </>
           )}
         </>
+      )}
+
+      {/* ══════════════════ CRM ══════════════════════════════════════════ */}
+      {view === 'crm' && <CrmSectionView leads={leads} />}
+      {/* ══════════════════ CRM ══════════════════════════════════════════ */}
+      {view === 'pipeline' && (
+        <PipelineSectionView
+          leads={leads}
+          onOpenProspects={() => setView('leads')}
+        />
       )}
 
       {/* ══════════════════ MODAL ════════════════════════════════════════ */}

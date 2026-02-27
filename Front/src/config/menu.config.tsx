@@ -57,18 +57,6 @@ import {
 import { type MenuConfig } from './types';
 
 export const MENU_SIDEBAR: MenuConfig = [
-  {
-    title: 'Dashboards',
-    icon: LayoutGrid,
-    children: [
-      { title: 'Dashboard', path: '/' },
-      { title: 'Mass Scan', path: '/mass-scan' },
-      { title: 'Prospects (0)', path: '/prospects' },
-      { title: 'CRM', path: '/crm' },
-      { title: 'Pipline', path: '/pipline' },
-      { title: 'Leads', path: '/leads' },
-    ],
-  },
   { heading: 'User' },
   {
     title: 'Public Profile',
@@ -410,11 +398,6 @@ export const MENU_SIDEBAR_CUSTOM: MenuConfig = [
 ];
 
 export const MENU_SIDEBAR_COMPACT: MenuConfig = [
-  {
-    title: 'Dashboards',
-    icon: LayoutGrid,
-    path: '/',
-  },
   {
     title: 'Public Profile',
     icon: UserCircle,
@@ -1643,7 +1626,7 @@ export const MENU_ROOT: MenuConfig = [
     title: 'Account',
     icon: Settings,
     rootPath: '/account/',
-    path: '/',
+    path: '/account/crm/leads',
     childrenIndex: 3,
   },
   {

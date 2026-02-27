@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   Activity,
   BarChart3,
@@ -37,45 +38,150 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type {
-  ApiUsage,
-  CategoryChartDatum,
-  DashboardStats,
-  Lead,
-  LeadStatus,
-  ScanHistoryChartDatum,
-  StatusChartDatum,
-} from '@/types/dashboard.types';
 import { KpiCard } from './kpi-card';
+
+type LeadStatus = 'hot' | 'warm' | 'cold';
+
+interface Lead {
+  id: number;
+  name: string;
+  company: string;
+  city: string;
+  sector: string;
+  score: number;
+  status: string;
+  website?: string;
+  apolloEnriched?: boolean;
+}
+
+interface ScanHistoryEntry {
+  date: string;
+  count: number;
+  avgScore: number;
+  apollo: boolean;
+}
 
 interface DashboardSectionViewProps {
   leads: Lead[];
-  stats: DashboardStats;
-  statusChartData: StatusChartDatum[];
-  sectorChartData: CategoryChartDatum[];
-  cityChartData: CategoryChartDatum[];
-  scanHistoryChartData: ScanHistoryChartDatum[];
-  apiUsage: ApiUsage;
+  scanHistory: ScanHistoryEntry[];
   onStartScan: () => void;
   onOpenLeads: () => void;
-  scoreVariant: (score: number) => 'success' | 'warning' | 'destructive';
-  statusVariant: (status: LeadStatus) => 'success' | 'warning' | 'info';
 }
+
+const normalizeStatus = (status: string): LeadStatus => {
+  const normalized = status.toLowerCase();
+  if (normalized === 'hot' || normalized === 'warm' || normalized === 'cold') {
+    return normalized;
+  }
+  return 'cold';
+};
+
+const scoreVariant = (score: number): 'success' | 'warning' | 'destructive' =>
+  score >= 80 ? 'success' : score >= 60 ? 'warning' : 'destructive';
+
+const statusVariant = (status: LeadStatus): 'success' | 'warning' | 'info' =>
+  status === 'hot' ? 'success' : status === 'warm' ? 'warning' : 'info';
 
 export function DashboardSectionView({
   leads,
-  stats,
-  statusChartData,
-  sectorChartData,
-  cityChartData,
-  scanHistoryChartData,
-  apiUsage,
+  scanHistory,
   onStartScan,
   onOpenLeads,
-  scoreVariant,
-  statusVariant,
 }: DashboardSectionViewProps) {
-  if (leads.length === 0) {
+  const normalizedLeads = useMemo(
+    () =>
+      leads.map((lead) => ({
+        ...lead,
+        status: normalizeStatus(lead.status),
+      })),
+    [leads],
+  );
+
+  const stats = useMemo(() => {
+    const bySector: Record<string, number> = {};
+    const byCity: Record<string, number> = {};
+    let hot = 0;
+    let warm = 0;
+    let cold = 0;
+    let withSite = 0;
+    let enriched = 0;
+    let scoreTotal = 0;
+
+    normalizedLeads.forEach((lead) => {
+      scoreTotal += lead.score;
+      bySector[lead.sector] = (bySector[lead.sector] ?? 0) + 1;
+      byCity[lead.city] = (byCity[lead.city] ?? 0) + 1;
+      if (lead.website) withSite += 1;
+      if (lead.apolloEnriched) enriched += 1;
+      if (lead.status === 'hot') hot += 1;
+      else if (lead.status === 'warm') warm += 1;
+      else cold += 1;
+    });
+
+    return {
+      total: normalizedLeads.length,
+      hot,
+      warm,
+      cold,
+      avgScore: normalizedLeads.length
+        ? Math.round(scoreTotal / normalizedLeads.length)
+        : 0,
+      withSite,
+      enriched,
+      bySector,
+      byCity,
+    };
+  }, [normalizedLeads]);
+
+  const statusChartData = useMemo(
+    () => [
+      { name: 'Hot', value: stats.hot, fill: '#ef4444' },
+      { name: 'Warm', value: stats.warm, fill: '#f59e0b' },
+      { name: 'Cold', value: stats.cold, fill: '#94a3b8' },
+    ],
+    [stats.cold, stats.hot, stats.warm],
+  );
+
+  const sectorChartData = useMemo(
+    () =>
+      Object.entries(stats.bySector)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 6),
+    [stats.bySector],
+  );
+
+  const cityChartData = useMemo(
+    () =>
+      Object.entries(stats.byCity)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 6),
+    [stats.byCity],
+  );
+
+  const scanHistoryChartData = useMemo(
+    () =>
+      scanHistory.slice(-10).map((scan, index) => ({
+        name: `Scan ${index + 1}`,
+        prospects: scan.count,
+        score: scan.avgScore,
+      })),
+    [scanHistory],
+  );
+
+  const apiUsage = useMemo(
+    () => ({
+      google: scanHistory.reduce((sum, scan) => sum + scan.count, 0),
+      apollo: scanHistory
+        .filter((scan) => scan.apollo)
+        .reduce((sum, scan) => sum + scan.count, 0),
+      claude: scanHistory.length,
+    }),
+    [scanHistory],
+  );
+
+  if (normalizedLeads.length === 0) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
@@ -245,7 +351,7 @@ export function DashboardSectionView({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {[...leads]
+              {[...normalizedLeads]
                 .sort((a, b) => b.score - a.score)
                 .slice(0, 10)
                 .map((lead) => (
@@ -255,7 +361,7 @@ export function DashboardSectionView({
                     onClick={onOpenLeads}
                   >
                     <TableCell className="font-medium">{lead.company}</TableCell>
-                    <TableCell>{lead.name}</TableCell>
+                    <TableCell>{lead.name || '-'}</TableCell>
                     <TableCell>{lead.city}</TableCell>
                     <TableCell>
                       <Badge

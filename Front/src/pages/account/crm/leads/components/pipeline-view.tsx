@@ -1,23 +1,42 @@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { Lead } from '@/types/dashboard.types';
+
+type LeadStatus = 'hot' | 'warm' | 'cold';
+
+interface Lead {
+  id: number;
+  name: string;
+  company: string;
+  city: string;
+  score: number;
+  status: string;
+}
 
 interface PipelineSectionViewProps {
   leads: Lead[];
   onOpenProspects: () => void;
-  scoreVariant: (score: number) => 'success' | 'warning' | 'destructive';
 }
+
+const normalizeStatus = (status: string): LeadStatus => {
+  const normalized = status.toLowerCase();
+  if (normalized === 'hot' || normalized === 'warm' || normalized === 'cold') {
+    return normalized;
+  }
+  return 'cold';
+};
+
+const scoreVariant = (score: number): 'success' | 'warning' | 'destructive' =>
+  score >= 80 ? 'success' : score >= 60 ? 'warning' : 'destructive';
 
 export function PipelineSectionView({
   leads,
   onOpenProspects,
-  scoreVariant,
 }: PipelineSectionViewProps) {
   return (
     <div className="grid gap-4 xl:grid-cols-3">
       {(['hot', 'warm', 'cold'] as const).map((status) => {
         const items = [...leads]
-          .filter((lead) => lead.status === status)
+          .filter((lead) => normalizeStatus(lead.status) === status)
           .sort((a, b) => b.score - a.score);
         return (
           <Card key={status}>
