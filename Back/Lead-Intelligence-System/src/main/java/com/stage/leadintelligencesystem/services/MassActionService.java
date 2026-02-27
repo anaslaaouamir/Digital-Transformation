@@ -52,7 +52,7 @@ public class MassActionService {
 
             // The exact String Replacement logic!
             String personalizedSubject = template.getSubject().replace("{{company}}", companyName);
-            String personalizedBody = template.getBody().replace("{{company}}", companyName).replace("\n", "<br>");
+            String personalizedBody = template.getBody().replace("{{company}}", companyName);
 
             // 4. Update the database (Simulating that n8n returned a success)
 
@@ -65,31 +65,19 @@ public class MassActionService {
             interaction.setSubject(personalizedSubject);
             interaction.setContent(personalizedBody);
             interaction.setSentAt(LocalDateTime.now());
-            interaction = interactionRepository.save(interaction);
-
-            // 5. INJECT THE SPY PIXEL
-            // Replace 'http://localhost:8080' with your actual server URL in production
-            String trackingUrl = "https://processes-thompson-usual-commission.trycloudflare.com/api/tracking/open/" + interaction.getId();
-            String pixelHtml = "<img src=\"" + trackingUrl + "\" width=\"1\" height=\"1\" alt=\"\" style=\"display:none;\"/>";
-
-            String finalBodyWithPixel = personalizedBody + "<br>" + pixelHtml;
-
-            // Optional: Update the DB content to include the exact HTML sent
-            interaction.setContent(finalBodyWithPixel);
             interactionRepository.save(interaction);
 
             // Update Lead Status
             lead.setContactStatus("MASS_EMAIL_ENVOYE");
             leadRepository.save(lead);
 
-            // 6. Add to the results list (Give n8n the body WITH the pixel)
+            // 5. Add to the results list
             generatedEmails.add(new SimulatedEmailDto(
                     lead.getId(),
                     lead.getEmail(),
                     personalizedSubject,
-                    finalBodyWithPixel
+                    personalizedBody
             ));
-
         }
 
         return generatedEmails;
