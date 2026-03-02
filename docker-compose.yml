@@ -79,6 +79,7 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres 
       DISCOVERY_SERVICE_URL: http://discovery:8761/eureka
+      LEADS_GENERATOR_BASE_URL: http://leads-generator:5000
     depends_on:
       db:
         condition: service_healthy
