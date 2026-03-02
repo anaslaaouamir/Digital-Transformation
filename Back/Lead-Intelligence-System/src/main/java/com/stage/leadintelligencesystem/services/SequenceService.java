@@ -121,7 +121,7 @@ public class SequenceService {
             interaction = interactionRepository.save(interaction);
 
             // ---> 4.5 INJECT THE SPY PIXEL <---
-            String trackingUrl = "https://intensive-southwest-century-sized.trycloudflare.com/api/tracking/open/" + interaction.getId();
+            String trackingUrl = "https://info-contribution-aims-lightweight.trycloudflare.com/api/tracking/open/" + interaction.getId();
             String pixelHtml = "<img src=\"" + trackingUrl + "\" width=\"1\" height=\"1\" alt=\"\" style=\"display:none;\"/>";
 
             String finalBodyWithPixel = body + "<br>" + pixelHtml;
@@ -201,7 +201,7 @@ public class SequenceService {
         } else {
             // C. Fallback: If no subject match, just take the very last email sent
             matchedInteraction = interactionRepository
-                    .findTopByLeadAndChannelAndStatusOrderBySentAtDesc(lead, "EMAIL", "SENT")
+                    .findTopByLeadAndChannelAndStatusInOrderBySentAtDesc(lead, "EMAIL", List.of("SENT", "OPENED"))
                     .orElse(null);
         }
 
@@ -210,18 +210,20 @@ public class SequenceService {
             matchedInteraction.setStatus("REPLIED");
             matchedInteraction.setRepliedAt(replyDto.getRepliedAt()); // Or use replyDto.getRepliedAt()
             interactionRepository.save(matchedInteraction);
+
+            // 6. LOG THE NEW RESPONSE
+            Interaction responseInteraction = new Interaction();
+            responseInteraction.setLead(lead);
+            responseInteraction.setChannel("EMAIL");
+            responseInteraction.setType("RESPONSE"); // The new type
+            responseInteraction.setStatus("RECEIVED");
+            responseInteraction.setSubject(replyDto.getSubject()); // Original subject with "Re:"
+            responseInteraction.setContent(replyDto.getEmailBody());
+            responseInteraction.setSentAt(replyDto.getRepliedAt());
+
+            interactionRepository.save(responseInteraction);
         }
 
-        // 6. LOG THE NEW RESPONSE
-        Interaction responseInteraction = new Interaction();
-        responseInteraction.setLead(lead);
-        responseInteraction.setChannel("EMAIL");
-        responseInteraction.setType("RESPONSE"); // The new type
-        responseInteraction.setStatus("RECEIVED");
-        responseInteraction.setSubject(replyDto.getSubject()); // Original subject with "Re:"
-        responseInteraction.setContent(replyDto.getEmailBody());
-        responseInteraction.setSentAt(replyDto.getRepliedAt());
 
-        interactionRepository.save(responseInteraction);
     }
 }
