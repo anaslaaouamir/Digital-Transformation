@@ -71,7 +71,7 @@ public class MassActionService {
             interaction = interactionRepository.save(interaction);
 
             // 5. INJECT THE SPY PIXEL
-            String trackingUrl = "https://philips-considered-academy-musicians.trycloudflare.com/api/tracking/open/" + interaction.getId();
+            String trackingUrl = "https://info-contribution-aims-lightweight.trycloudflare.com/api/tracking/open/" + interaction.getId();
             String pixelHtml = "<img src=\"" + trackingUrl + "\" width=\"1\" height=\"1\" alt=\"\" style=\"display:none;\"/>";
 
             String finalBodyWithPixel = personalizedBody + "<br>" + pixelHtml;
@@ -122,7 +122,7 @@ public class MassActionService {
         interaction = interactionRepository.save(interaction);
 
         // 3. Inject the Spy Pixel
-        String trackingUrl = "https://philips-considered-academy-musicians.trycloudflare.com/api/tracking/open/" + interaction.getId();
+        String trackingUrl = "https://info-contribution-aims-lightweight.trycloudflare.com/api/tracking/open/" + interaction.getId();
         String pixelHtml = "<img src=\"" + trackingUrl + "\" width=\"1\" height=\"1\" alt=\"\" style=\"display:none;\"/>";
         String finalBodyWithPixel = personalizedBody.replace("\n", "<br>") + "<br>" + pixelHtml;
 

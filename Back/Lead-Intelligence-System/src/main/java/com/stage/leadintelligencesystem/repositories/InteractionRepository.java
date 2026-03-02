@@ -12,8 +12,11 @@ import java.util.Optional;
 
 public interface InteractionRepository extends JpaRepository<Interaction, Long> {
     // Standard method to find the last email sent
-    Optional<Interaction> findTopByLeadAndChannelAndStatusOrderBySentAtDesc(Lead lead, String channel, String status);
-
+    Optional<Interaction> findTopByLeadAndChannelAndStatusInOrderBySentAtDesc(
+            Lead lead,
+            String channel,
+            List<String> statuses
+    );
     // MATCHING LOGIC: Find an email where the subject matches our "clean" version
     // We look for emails where the subject is LIKE %cleanSubject%
     @Query("SELECT i FROM Interaction i WHERE i.lead = :lead AND i.status = 'SENT' AND i.subject LIKE %:cleanSubject% ORDER BY i.sentAt DESC")
