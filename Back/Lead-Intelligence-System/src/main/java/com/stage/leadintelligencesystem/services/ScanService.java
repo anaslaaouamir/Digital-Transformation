@@ -3,6 +3,7 @@ package com.stage.leadintelligencesystem.services;
 import com.stage.leadintelligencesystem.dto.ScanRequest;
 import com.stage.leadintelligencesystem.entities.Lead;
 import com.stage.leadintelligencesystem.entities.Secteur;
+import org.springframework.beans.factory.annotation.Value;
 import com.stage.leadintelligencesystem.repositories.LeadRepository;
 import com.stage.leadintelligencesystem.repositories.SecteurRepository;
 import org.springframework.scheduling.annotation.Async;
@@ -18,6 +19,8 @@ public class ScanService {
     private final RestTemplate restTemplate;
     private final LeadRepository leadRepository;
     private final SecteurRepository secteurRepository;
+    @Value("${leads.generator.base-url:http://localhost:5000}")
+    private String leadsGeneratorBaseUrl;
 
     public ScanService(RestTemplate restTemplate, LeadRepository leadRepository, SecteurRepository secteurRepository) {
         this.restTemplate = restTemplate;
@@ -27,8 +30,8 @@ public class ScanService {
 
     // 1. Initiate the scan
     public String initiateScan(ScanRequest request) {
-        String flaskStartUrl = "http://localhost:5000/api/start";
-        //String flaskStartUrl = "http://leads-generator:5000/api/start";
+        
+        String flaskStartUrl = leadsGeneratorBaseUrl + "/api/start";
 
         Map<String, Object> payload = Map.of(
                 "city", request.getCity(),
@@ -48,8 +51,7 @@ public class ScanService {
     // 2. Poll in the background
     @Async
     public void pollAndSaveLeads(String jobId, String searchedCategory) {
-        String statusUrl = "http://localhost:5000/api/status/" + jobId;
-        //String statusUrl = "http://leads-generator:5000/api/status/" + jobId;
+        String statusUrl = leadsGeneratorBaseUrl + "/api/status/" + jobId;
         boolean isDone = false;
 
         while (!isDone) {
@@ -121,7 +123,7 @@ public class ScanService {
     }
 
     public Map<String, Object> getStatus(String jobId) {
-        String statusUrl = "http://leads-generator:5000/api/status/" + jobId;
+        String statusUrl = leadsGeneratorBaseUrl + "/api/status/" + jobId;
         return restTemplate.getForObject(statusUrl, Map.class);
     }
 }
