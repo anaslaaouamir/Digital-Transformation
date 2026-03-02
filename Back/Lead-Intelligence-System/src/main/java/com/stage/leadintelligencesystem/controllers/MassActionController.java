@@ -4,6 +4,7 @@ import com.stage.leadintelligencesystem.dto.SimulatedEmailDto;
 import com.stage.leadintelligencesystem.services.MassActionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
@@ -53,6 +54,15 @@ public class MassActionController {
 
         // Return the full list back as the API response
         return ResponseEntity.ok(result);
+    }
+
+
+    @PostMapping("/send-manual-email")
+    public ResponseEntity<String> sendManualEmail(@RequestBody SimulatedEmailDto request) {
+        // 1. Delegate to service for DB logging, tracking pixel injection, and n8n forwarding
+        massActionService.sendManualEmail(request);
+
+        return ResponseEntity.ok("Manual email sent and tracked successfully.");
     }
 
 

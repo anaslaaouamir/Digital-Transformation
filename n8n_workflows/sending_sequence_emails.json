@@ -1,0 +1,106 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 2
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "40acf35f-7b2c-48ba-8ea9-61442dca856f",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{$json.email}}",
+        "subject": "={{$json.subject}}",
+        "message": "={{$json.body}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        624,
+        32
+      ],
+      "id": "53778d91-dc7f-462b-9103-17453e619aca",
+      "name": "Send a message",
+      "webhookId": "6b8e8afa-1a51-475d-a0bd-5f11845272c1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "hPuYr8AaUYn3ruRO",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8081/api/sequences/process-daily-emails",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "8438c4e6-d966-4179-b1bf-661032459fc3",
+      "name": "HTTP Request1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "57fa768b-c68c-4ba9-a661-40ca0bc103c8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "19608886e3e17c7fa08aa6249e02f43d090f84b9e2f1863d8af8ff9691f099f7"
+  },
+  "id": "VCwDjZYG3sJ9hF4h",
+  "tags": []
+}

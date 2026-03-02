@@ -48,7 +48,7 @@ public class TrackingController {
             boolean isTooFast = false;
             if (sentAt != null) {
                 long secondsSinceSent = java.time.Duration.between(sentAt, now).getSeconds();
-                isTooFast = secondsSinceSent < 45; // Adjust this threshold as you see fit
+                isTooFast = secondsSinceSent < 20; // Adjust this threshold as you see fit
             }
 
             if (isTooFast) {

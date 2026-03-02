@@ -105,7 +105,7 @@ public class SequenceService {
             // 3. Personalize Content
             String companyName = (lead.getCompanyName() != null) ? lead.getCompanyName() : "votre entreprise";
             String subject = template.getSubject().replace("{{company}}", companyName);
-            String body = template.getBody().replace("{{company}}", companyName);
+            String body = template.getBody().replace("{{company}}", companyName).replace("\n", "<br>");;
 
             // 4. Log the Interaction (Proof it was sent)
             Interaction interaction = new Interaction();
@@ -116,10 +116,23 @@ public class SequenceService {
             interaction.setSubject(subject);
             interaction.setContent(body);
             interaction.setSentAt(LocalDateTime.now());
+
+            // IMPORTANT CHANGE: Reassign the saved entity to capture the generated ID
+            interaction = interactionRepository.save(interaction);
+
+            // ---> 4.5 INJECT THE SPY PIXEL <---
+            String trackingUrl = "https://intensive-southwest-century-sized.trycloudflare.com/api/tracking/open/" + interaction.getId();
+            String pixelHtml = "<img src=\"" + trackingUrl + "\" width=\"1\" height=\"1\" alt=\"\" style=\"display:none;\"/>";
+
+            String finalBodyWithPixel = body + "<br>" + pixelHtml;
+
+            // Update the DB content to include the exact HTML sent
+            interaction.setContent(finalBodyWithPixel);
             interactionRepository.save(interaction);
 
             // 5. Add to the list for n8n
-            emailsToSend.add(new SimulatedEmailDto(lead.getId(), lead.getEmail(), subject, body));
+            // IMPORTANT CHANGE: Send finalBodyWithPixel to n8n, not the original body
+            emailsToSend.add(new SimulatedEmailDto(lead.getId(), lead.getEmail(), subject, finalBodyWithPixel));
 
             // 6. ADVANCE TO NEXT STEP (The "Move Forward" Logic)
             // Check if there is a next step (e.g. Step 1 -> Step 2)
