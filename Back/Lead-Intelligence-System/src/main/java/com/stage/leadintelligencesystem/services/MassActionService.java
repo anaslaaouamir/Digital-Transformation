@@ -76,22 +76,32 @@ public class MassActionService {
 
             String finalBodyWithPixel = personalizedBody + "<br>" + pixelHtml;
 
-            // Optional: Update the DB content to include the exact HTML sent
-            interaction.setContent(finalBodyWithPixel);
-            interactionRepository.save(interaction);
+            // ---> MINIMAL FIX START <---
+            try {
+                // Try to send to n8n FIRST using your existing helper
+                forwardToN8n(lead.getEmail(), personalizedSubject, finalBodyWithPixel);
 
-            // Update Lead Status
-            lead.setContactStatus("MASS_EMAIL_ENVOYE");
-            leadRepository.save(lead);
+                // If it succeeds, finalize the DB updates
+                interaction.setContent(finalBodyWithPixel);
+                interactionRepository.save(interaction);
 
-            // 6. Add to the results list (Give n8n the body WITH the pixel)
-            generatedEmails.add(new SimulatedEmailDto(
-                    lead.getId(),
-                    lead.getEmail(),
-                    personalizedSubject,
-                    finalBodyWithPixel
-            ));
+                lead.setContactStatus("MASS_EMAIL_ENVOYE");
+                leadRepository.save(lead);
 
+                generatedEmails.add(new SimulatedEmailDto(
+                        lead.getId(), lead.getEmail(), personalizedSubject, finalBodyWithPixel
+                ));
+
+            } catch (Exception e) {
+                // If n8n fails, just delete the interaction we saved in step 4
+                interactionRepository.delete(interaction);
+                System.err.println("n8n failed for " + lead.getEmail() + ". Email not saved.");
+            }
+            // ---> MINIMAL FIX END <---
+        }
+
+        if (!hotLeads.isEmpty() && generatedEmails.isEmpty()) {
+            throw new RuntimeException("n8n webhook failed. Attempted to send to " + hotLeads.size() + " hot leads, but none were sent.");
         }
 
         return generatedEmails;
