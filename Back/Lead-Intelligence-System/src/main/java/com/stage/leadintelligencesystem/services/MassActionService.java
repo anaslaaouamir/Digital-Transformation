@@ -10,10 +10,13 @@ import com.stage.leadintelligencesystem.repositories.LeadRepository;
 import com.stage.leadintelligencesystem.repositories.MessageTemplateRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class MassActionService {
@@ -68,30 +71,98 @@ public class MassActionService {
             interaction = interactionRepository.save(interaction);
 
             // 5. INJECT THE SPY PIXEL
-            // Replace 'http://localhost:8080' with your actual server URL in production
-            String trackingUrl = "https://processes-thompson-usual-commission.trycloudflare.com/api/tracking/open/" + interaction.getId();
+            String trackingUrl = "https://info-contribution-aims-lightweight.trycloudflare.com/api/tracking/open/" + interaction.getId();
             String pixelHtml = "<img src=\"" + trackingUrl + "\" width=\"1\" height=\"1\" alt=\"\" style=\"display:none;\"/>";
 
             String finalBodyWithPixel = personalizedBody + "<br>" + pixelHtml;
 
-            // Optional: Update the DB content to include the exact HTML sent
-            interaction.setContent(finalBodyWithPixel);
-            interactionRepository.save(interaction);
+            // ---> MINIMAL FIX START <---
+            try {
+                // Try to send to n8n FIRST using your existing helper
+                forwardToN8n(lead.getEmail(), personalizedSubject, finalBodyWithPixel);
 
-            // Update Lead Status
-            lead.setContactStatus("MASS_EMAIL_ENVOYE");
-            leadRepository.save(lead);
+                // If it succeeds, finalize the DB updates
+                interaction.setContent(finalBodyWithPixel);
+                interactionRepository.save(interaction);
 
-            // 6. Add to the results list (Give n8n the body WITH the pixel)
-            generatedEmails.add(new SimulatedEmailDto(
-                    lead.getId(),
-                    lead.getEmail(),
-                    personalizedSubject,
-                    finalBodyWithPixel
-            ));
+                lead.setContactStatus("MASS_EMAIL_ENVOYE");
+                leadRepository.save(lead);
 
+                generatedEmails.add(new SimulatedEmailDto(
+                        lead.getId(), lead.getEmail(), personalizedSubject, finalBodyWithPixel
+                ));
+
+            } catch (Exception e) {
+                // If n8n fails, just delete the interaction we saved in step 4
+                interactionRepository.delete(interaction);
+                System.err.println("n8n failed for " + lead.getEmail() + ". Email not saved.");
+            }
+            // ---> MINIMAL FIX END <---
+        }
+
+        if (!hotLeads.isEmpty() && generatedEmails.isEmpty()) {
+            throw new RuntimeException("n8n webhook failed. Attempted to send to " + hotLeads.size() + " hot leads, but none were sent.");
         }
 
         return generatedEmails;
+    }
+
+
+    @Transactional
+    public void sendManualEmail(SimulatedEmailDto request) {
+        // 1. Fetch the lead to ensure it exists and to link the interaction
+        Lead lead = leadRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("Lead not found with email: " + request.getEmail()));
+
+        // 2. Create the Interaction record (MANUAL type)
+        String companyName = (lead.getCompanyName() != null && !lead.getCompanyName().isEmpty())
+                ? lead.getCompanyName()
+                : "votre entreprise";
+        String personalizedSubject = request.getSubject().replace("{{company}}", companyName);
+        String personalizedBody = request.getBody().replace("{{company}}", companyName);
+        Interaction interaction = new Interaction();
+        interaction.setLead(lead);
+        interaction.setChannel("EMAIL");
+        interaction.setType("MANUAL"); // Changed from MASSE to MANUAL
+        interaction.setStatus("SENT");
+        interaction.setSubject(personalizedSubject);
+        interaction.setSentAt(LocalDateTime.now());
+
+        // Save first to get the ID for the tracking pixel
+        interaction = interactionRepository.save(interaction);
+
+        // 3. Inject the Spy Pixel
+        String trackingUrl = "https://info-contribution-aims-lightweight.trycloudflare.com/api/tracking/open/" + interaction.getId();
+        String pixelHtml = "<img src=\"" + trackingUrl + "\" width=\"1\" height=\"1\" alt=\"\" style=\"display:none;\"/>";
+        String finalBodyWithPixel = personalizedBody.replace("\n", "<br>") + "<br>" + pixelHtml;
+
+        // Update interaction with final HTML content
+        interaction.setContent(finalBodyWithPixel);
+        interactionRepository.save(interaction);
+
+        if (!"EN_SEQUENCE".equals(lead.getContactStatus())) {
+            lead.setContactStatus("MANUAL_EMAIL_ENVOYE");
+            leadRepository.save(lead);
+        }
+
+        // 4. Forward to the same n8n Webhook
+        forwardToN8n(request.getEmail(), request.getSubject(), finalBodyWithPixel);
+    }
+
+    // Helper method to keep code clean
+    private void forwardToN8n(String email, String subject, String body) {
+        RestTemplate restTemplate = new RestTemplate();
+        String n8nWebhookUrl = "http://localhost:5678/webhook/send-email";
+
+        Map<String, String> payload = new HashMap<>();
+        payload.put("email", email);
+        payload.put("subject", subject);
+        payload.put("body", body);
+
+        try {
+            restTemplate.postForObject(n8nWebhookUrl, payload, String.class);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to forward manual email to n8n: " + e.getMessage());
+        }
     }
 }

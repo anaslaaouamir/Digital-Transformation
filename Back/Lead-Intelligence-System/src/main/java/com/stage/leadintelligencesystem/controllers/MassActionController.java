@@ -4,6 +4,7 @@ import com.stage.leadintelligencesystem.dto.SimulatedEmailDto;
 import com.stage.leadintelligencesystem.services.MassActionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
@@ -23,36 +24,26 @@ public class MassActionController {
     }
 
     @PostMapping("/simulate-mass-emails")
-    public ResponseEntity<List<SimulatedEmailDto>> simulateMassEmails() {
-        // 1. Generate the list of personalized emails
-        List<SimulatedEmailDto> result = massActionService.simulateMassEmails();
-
-        RestTemplate restTemplate = new RestTemplate();
-        String n8nWebhookUrl = "http://localhost:5678/webhook/send-email";
-
-        // 2. Loop through the results and send them to n8n individually
-        for (SimulatedEmailDto emailDto : result) {
-            Map<String, String> body = new HashMap<>();
-
-            // Map the fields from your DTO to the expected n8n payload
-            body.put("email", emailDto.getEmail());
-            body.put("subject", emailDto.getSubject());
-            body.put("body", emailDto.getBody());
-
-            try {
-                // Fire the request to n8n
-                restTemplate.postForObject(n8nWebhookUrl, body, String.class);
-                System.out.println("***************************************************");
-                System.out.println("Successfully forwarded to n8n for: " + emailDto.getEmail());
-            } catch (Exception e) {
-                System.out.println("***************************************************");
-                // Catch any connection errors so one failure doesn't stop the whole loop
-                System.err.println("Failed to forward to n8n for " + emailDto.getEmail() + " - Error: " + e.getMessage());
-            }
+    public ResponseEntity<?> simulateMassEmails() { // Changed to <?>
+        try {
+            List<SimulatedEmailDto> result = massActionService.simulateMassEmails();
+            return ResponseEntity.ok(result);
+        } catch (RuntimeException e) {
+            // If n8n is down, this returns the exact error message we wrote in the service
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
 
-        // Return the full list back as the API response
-        return ResponseEntity.ok(result);
+
+    @PostMapping("/send-manual-email")
+    public ResponseEntity<String> sendManualEmail(@RequestBody SimulatedEmailDto request) {
+        try {
+            massActionService.sendManualEmail(request);
+            return ResponseEntity.ok("Manual email sent and tracked successfully.");
+        } catch (RuntimeException e) {
+            // Returns a clean 400 error if n8n is down, so your frontend knows exactly what happened
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
 

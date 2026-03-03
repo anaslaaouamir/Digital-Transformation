@@ -105,7 +105,7 @@ public class SequenceService {
             // 3. Personalize Content
             String companyName = (lead.getCompanyName() != null) ? lead.getCompanyName() : "votre entreprise";
             String subject = template.getSubject().replace("{{company}}", companyName);
-            String body = template.getBody().replace("{{company}}", companyName);
+            String body = template.getBody().replace("{{company}}", companyName).replace("\n", "<br>");;
 
             // 4. Log the Interaction (Proof it was sent)
             Interaction interaction = new Interaction();
@@ -116,10 +116,23 @@ public class SequenceService {
             interaction.setSubject(subject);
             interaction.setContent(body);
             interaction.setSentAt(LocalDateTime.now());
+
+            // IMPORTANT CHANGE: Reassign the saved entity to capture the generated ID
+            interaction = interactionRepository.save(interaction);
+
+            // ---> 4.5 INJECT THE SPY PIXEL <---
+            String trackingUrl = "https://info-contribution-aims-lightweight.trycloudflare.com/api/tracking/open/" + interaction.getId();
+            String pixelHtml = "<img src=\"" + trackingUrl + "\" width=\"1\" height=\"1\" alt=\"\" style=\"display:none;\"/>";
+
+            String finalBodyWithPixel = body + "<br>" + pixelHtml;
+
+            // Update the DB content to include the exact HTML sent
+            interaction.setContent(finalBodyWithPixel);
             interactionRepository.save(interaction);
 
             // 5. Add to the list for n8n
-            emailsToSend.add(new SimulatedEmailDto(lead.getId(), lead.getEmail(), subject, body));
+            // IMPORTANT CHANGE: Send finalBodyWithPixel to n8n, not the original body
+            emailsToSend.add(new SimulatedEmailDto(lead.getId(), lead.getEmail(), subject, finalBodyWithPixel));
 
             // 6. ADVANCE TO NEXT STEP (The "Move Forward" Logic)
             // Check if there is a next step (e.g. Step 1 -> Step 2)
@@ -188,7 +201,7 @@ public class SequenceService {
         } else {
             // C. Fallback: If no subject match, just take the very last email sent
             matchedInteraction = interactionRepository
-                    .findTopByLeadAndChannelAndStatusOrderBySentAtDesc(lead, "EMAIL", "SENT")
+                    .findTopByLeadAndChannelAndStatusInOrderBySentAtDesc(lead, "EMAIL", List.of("SENT", "OPENED"))
                     .orElse(null);
         }
 
@@ -197,18 +210,20 @@ public class SequenceService {
             matchedInteraction.setStatus("REPLIED");
             matchedInteraction.setRepliedAt(replyDto.getRepliedAt()); // Or use replyDto.getRepliedAt()
             interactionRepository.save(matchedInteraction);
+
+            // 6. LOG THE NEW RESPONSE
+            Interaction responseInteraction = new Interaction();
+            responseInteraction.setLead(lead);
+            responseInteraction.setChannel("EMAIL");
+            responseInteraction.setType("RESPONSE"); // The new type
+            responseInteraction.setStatus("RECEIVED");
+            responseInteraction.setSubject(replyDto.getSubject()); // Original subject with "Re:"
+            responseInteraction.setContent(replyDto.getEmailBody());
+            responseInteraction.setSentAt(replyDto.getRepliedAt());
+
+            interactionRepository.save(responseInteraction);
         }
 
-        // 6. LOG THE NEW RESPONSE
-        Interaction responseInteraction = new Interaction();
-        responseInteraction.setLead(lead);
-        responseInteraction.setChannel("EMAIL");
-        responseInteraction.setType("RESPONSE"); // The new type
-        responseInteraction.setStatus("RECEIVED");
-        responseInteraction.setSubject(replyDto.getSubject()); // Original subject with "Re:"
-        responseInteraction.setContent(replyDto.getEmailBody());
-        responseInteraction.setSentAt(replyDto.getRepliedAt());
 
-        interactionRepository.save(responseInteraction);
     }
 }
