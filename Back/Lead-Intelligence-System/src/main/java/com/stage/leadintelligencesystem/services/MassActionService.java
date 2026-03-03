@@ -8,6 +8,7 @@ import com.stage.leadintelligencesystem.entities.MessageTemplate;
 import com.stage.leadintelligencesystem.repositories.InteractionRepository;
 import com.stage.leadintelligencesystem.repositories.LeadRepository;
 import com.stage.leadintelligencesystem.repositories.MessageTemplateRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -24,6 +25,8 @@ public class MassActionService {
     private final LeadRepository leadRepository;
     private final InteractionRepository interactionRepository;
     private final MessageTemplateRepository templateRepository;
+    @Value("${app.tracking.url}")
+    private String trackingBaseUrl;
 
     public MassActionService(LeadRepository leadRepository, InteractionRepository interactionRepository, MessageTemplateRepository templateRepository) {
         this.leadRepository = leadRepository;
@@ -71,7 +74,8 @@ public class MassActionService {
             interaction = interactionRepository.save(interaction);
 
             // 5. INJECT THE SPY PIXEL
-            String trackingUrl = "https://info-contribution-aims-lightweight.trycloudflare.com/api/tracking/open/" + interaction.getId();
+            //String trackingUrl = "https://info-contribution-aims-lightweight.trycloudflare.com/api/tracking/open/" + interaction.getId();
+            String trackingUrl = trackingBaseUrl+ "/api/tracking/open/" + interaction.getId();
             String pixelHtml = "<img src=\"" + trackingUrl + "\" width=\"1\" height=\"1\" alt=\"\" style=\"display:none;\"/>";
 
             String finalBodyWithPixel = personalizedBody + "<br>" + pixelHtml;
@@ -132,7 +136,8 @@ public class MassActionService {
         interaction = interactionRepository.save(interaction);
 
         // 3. Inject the Spy Pixel
-        String trackingUrl = "https://info-contribution-aims-lightweight.trycloudflare.com/api/tracking/open/" + interaction.getId();
+        //String trackingUrl = "https://info-contribution-aims-lightweight.trycloudflare.com/api/tracking/open/" + interaction.getId();
+        String trackingUrl = trackingBaseUrl+ "/api/tracking/open/" + interaction.getId();
         String pixelHtml = "<img src=\"" + trackingUrl + "\" width=\"1\" height=\"1\" alt=\"\" style=\"display:none;\"/>";
         String finalBodyWithPixel = personalizedBody.replace("\n", "<br>") + "<br>" + pixelHtml;
 
