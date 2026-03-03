@@ -4,6 +4,7 @@ import com.stage.leadintelligencesystem.dto.IncomingReplyDto;
 import com.stage.leadintelligencesystem.dto.SimulatedEmailDto;
 import com.stage.leadintelligencesystem.entities.*;
 import com.stage.leadintelligencesystem.repositories.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,8 @@ public class SequenceService {
     private final SequenceStepRepository stepRepository;
     private final SequenceEnrollmentRepository enrollmentRepository;
     private final InteractionRepository interactionRepository;
+    @Value("${app.tracking.url}")
+    private String trackingBaseUrl;
 
     public SequenceService(InteractionRepository interactionRepository,LeadRepository leadRepository, SequenceRepository sequenceRepository,
                            SequenceStepRepository stepRepository, SequenceEnrollmentRepository enrollmentRepository) {
@@ -121,7 +124,8 @@ public class SequenceService {
             interaction = interactionRepository.save(interaction);
 
             // ---> 4.5 INJECT THE SPY PIXEL <---
-            String trackingUrl = "https://info-contribution-aims-lightweight.trycloudflare.com/api/tracking/open/" + interaction.getId();
+            //String trackingUrl = "https://info-contribution-aims-lightweight.trycloudflare.com/api/tracking/open/" + interaction.getId();
+            String trackingUrl = trackingBaseUrl+ "/api/tracking/open/" + interaction.getId();
             String pixelHtml = "<img src=\"" + trackingUrl + "\" width=\"1\" height=\"1\" alt=\"\" style=\"display:none;\"/>";
 
             String finalBodyWithPixel = body + "<br>" + pixelHtml;
@@ -187,8 +191,7 @@ public class SequenceService {
 
         // A. Clean the subject (Remove prefixes to get the core topic)
         String cleanSubject = replyDto.getSubject()
-                .replace("Re:", "").replace("RE:", "")
-                .replace("Fwd:", "").replace("FWD:", "")
+                .replaceAll("(?i)^(Re|Fwd|Rép|Rép\\.|Tr):\\s*", "")
                 .trim();
 
         // B. Search for a Sent Email that contains this core subject
@@ -225,5 +228,37 @@ public class SequenceService {
         }
 
 
+    }
+
+    @Transactional
+    public void handleBouncedEmail(String email) {
+        if ("unknown_bounce".equals(email)) {
+            throw new RuntimeException("Could not extract bounced email address from payload.");
+        }
+
+        Lead lead = leadRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Lead not found for bounce: " + email));
+
+        // 1. Update Lead Status
+        lead.setContactStatus("BOUNCED_EMAIL");
+        leadRepository.save(lead);
+
+        // 2. Cancel Active Sequence
+        Optional<SequenceEnrollment> activeEnrollment = enrollmentRepository.findByLeadAndStatus(lead, "ACTIVE");
+        if (activeEnrollment.isPresent()) {
+            SequenceEnrollment enrollment = activeEnrollment.get();
+            enrollment.setStatus("CANCELLED");
+            enrollment.setNextExecutionDate(null);
+            enrollmentRepository.save(enrollment);
+        }
+
+        // 3. Update ONLY the most recent SENT interaction
+        // We target only the last email sent, preserving historical data
+        interactionRepository.findTopByLeadAndChannelAndStatusInOrderBySentAtDesc(
+                lead, "EMAIL", List.of("SENT")
+        ).ifPresent(interaction -> {
+            interaction.setStatus("BOUNCED");
+            interactionRepository.save(interaction);
+        });
     }
 }
