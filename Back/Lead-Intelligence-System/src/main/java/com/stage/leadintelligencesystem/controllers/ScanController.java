@@ -9,7 +9,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/lead_agent")
-@CrossOrigin(origins = "*") // Allows your React frontend to communicate with this API
+//@CrossOrigin(origins = "*") // Allows your React frontend to communicate with this API
 public class ScanController {
 
     private final ScanService scanService;

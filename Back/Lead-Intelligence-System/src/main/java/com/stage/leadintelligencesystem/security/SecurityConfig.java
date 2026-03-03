@@ -1,4 +1,4 @@
-package com.stage.admin.security;
+package com.stage.leadintelligencesystem.security;
 
 
 import org.springframework.context.annotation.Bean;
@@ -30,7 +30,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
         return httpSecurity
-              //  .cors(Customizer.withDefaults())
+                //  .cors(Customizer.withDefaults())
                 .sessionManagement(sm->sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .csrf(csrf->csrf.disable())
                 .headers(h->h.frameOptions(fo->fo.disable()))

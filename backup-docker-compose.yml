@@ -1,0 +1,95 @@
+version: "3.9"
+
+services:
+
+  db:
+    image: postgres:16-alpine
+    container_name: dt-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: admin_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d admin_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ================= ADMIN =================
+
+  admin-service:
+    build: ./Back/Admin
+    container_name: dt-admin
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/admin_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+
+      APP_JWT_SECRET: jahsjgdJHJWEYWDBYU127357352548SSG
+      APP_JWT_EXPIRATION: 86400000
+
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ================= DISCOVERY =================
+
+  discovery:
+    build: ./Back/Discovery
+    container_name: dt-discovery
+    ports:
+      - "8761:8761"
+    restart: unless-stopped
+
+  # ================= LEAD INTELLIGENCE =================
+
+  lead-intelligence:
+    build: ./Back/Lead-Intelligence-System
+    container_name: dt-lead-intelligence
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/lead_management
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      DISCOVERY_SERVICE_URL: http://discovery:8761/eureka
+    ports:
+      - "8081:8081"
+    depends_on:
+      db:
+        condition: service_healthy
+      discovery:
+        condition: service_started
+    restart: unless-stopped
+
+  # ================= PYTHON =================
+
+  leads-generator:
+    build: ./Back/Leads_Generator
+    container_name: dt-leads-generator
+    env_file:
+      - ./Back/Leads_Generator/.env
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
+  # ================= FRONT =================
+
+  frontend:
+    build: ./Front
+    container_name: dt-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - admin-service
+    restart: unless-stopped
+
+volumes:
+  pgdata:

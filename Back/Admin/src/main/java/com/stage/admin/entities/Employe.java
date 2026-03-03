@@ -9,96 +9,43 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import lombok.Data;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Data
 @Entity
 @Table(name = "employe")
+@Getter @Setter @Builder
+@AllArgsConstructor @NoArgsConstructor
 public class Employe {
 
-    @Id 
+    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "Nom is required")
     private String nom;
+
+    @NotBlank(message = "Prenom is required")
     private String prenom;
+
+    @NotBlank(message = "Telephone is required")
     private String telephone;
+
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email format is invalid")
+    @Column(nullable = false, unique = true)
     private String email;
 
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    private String motDePasse;
-
-    private String role;
-    
-
-    @Column(name = "created_at", insertable = false, updatable = false)
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    // getters & setters
-
-    public Long getId() {
-    return id;
-}
-
-public void setId(Long id) {
-    this.id = id;
-}
-
-public String getNom() {
-    return nom;
-}
-
-public void setNom(String nom) {
-    this.nom = nom;
-}
-
-public String getPrenom() {
-    return prenom;
-}
-
-public void setPrenom(String prenom) {
-    this.prenom = prenom;
-}
-
-public String getTelephone() {
-    return telephone;
-}
-
-public void setTelephone(String telephone) {
-    this.telephone = telephone;
-}
-
-public String getEmail() {
-    return email;
-}
-
-public void setEmail(String email) {
-    this.email = email;
-}
-
-public String getMotDePasse() {
-    return motDePasse;
-}
-
-public void setMotDePasse(String motDePasse) {
-    this.motDePasse = motDePasse;
-}
-
-public String getRole() {
-    return role;
-}
-
-public void setRole(String role) {
-    this.role = role;
-}
-
-public LocalDateTime getCreatedAt() {
-    return createdAt;
-}
-
-public void setCreatedAt(LocalDateTime createdAt) {
-    this.createdAt = createdAt;
-}
-
+    @UpdateTimestamp
+    @Column(name = "updated_at", updatable = false)
+    private LocalDateTime updatedAt;
 }
 

@@ -27,8 +27,8 @@ public class ScanService {
 
     // 1. Initiate the scan
     public String initiateScan(ScanRequest request) {
-        //String flaskStartUrl = "http://localhost:5000/api/start";
-        String flaskStartUrl = "http://leads-generator:5000/api/start";
+        String flaskStartUrl = "http://localhost:5000/api/start";
+        //String flaskStartUrl = "http://leads-generator:5000/api/start";
 
         Map<String, Object> payload = Map.of(
                 "city", request.getCity(),
@@ -121,7 +121,8 @@ public class ScanService {
     }
 
     public Map<String, Object> getStatus(String jobId) {
-        String statusUrl = "http://leads-generator:5000/api/status/" + jobId;
+        //String statusUrl = "http://leads-generator:5000/api/status/" + jobId;
+        String statusUrl = "http://localhost:5000/api/status/" + jobId;
         return restTemplate.getForObject(statusUrl, Map.class);
     }
 }

@@ -1,8 +1,8 @@
 package com.stage.admin.services;
 
 import com.stage.admin.dto.AdminUpdateRequest;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import com.stage.admin.entities.Admin;
 import com.stage.admin.repositories.AdminRepository;
 
@@ -10,17 +10,33 @@ import com.stage.admin.repositories.AdminRepository;
 public class AdminService {
 
     private final AdminRepository adminRepository;
-    private final PasswordEncoder passwordEncoder;
 
-    public AdminService(AdminRepository adminRepository, PasswordEncoder passwordEncoder) {
+    public AdminService(AdminRepository adminRepository) {
         this.adminRepository = adminRepository;
-        this.passwordEncoder = passwordEncoder;
     }
 
-    public Admin getCurrentAdmin() {
-        // retourne le premier admin pour l’instant
-        return adminRepository.findAll().stream().findFirst().orElse(null);
+    public Admin getOrCreateAdmin(Jwt jwt) {
+
+        String keycloakId = jwt.getSubject();
+
+        return adminRepository.findByKeycloakId(keycloakId)
+                .orElseGet(() ->  createFromJwt(jwt)
+                       );
     }
+
+    private Admin createFromJwt(Jwt jwt) {
+
+        return adminRepository.save(
+                Admin.builder()
+                        .keycloakId(jwt.getSubject())
+                        .email(jwt.getClaim("email"))
+                        .nom("")
+                        .prenom("")
+                        .telephone(null)
+                        .build()
+        );
+    }
+
 
     /*public Admin updateCurrentAdmin(Admin updatedAdmin) {
         Admin existing = getCurrentAdmin();
@@ -42,54 +58,31 @@ public class AdminService {
 
 
 
-    // Changed signature to accept DTO instead of Entity
-    public Admin updateCurrentAdmin(AdminUpdateRequest request) {
-        Admin existing = getCurrentAdmin();
-        if (existing == null) {
-            throw new RuntimeException("ADMIN_NOT_FOUND");
+    // Update current admin (business data only)
+    public Admin updateCurrentAdmin(String keycloakId, AdminUpdateRequest request) {
+
+        Admin existing = adminRepository.findByKeycloakId(keycloakId)
+                .orElseThrow(() -> new RuntimeException("ADMIN_NOT_FOUND"));
+
+        if (request.getNom() != null) {
+            existing.setNom(request.getNom());
         }
 
-        // 1. SECURITY CHECK: Validate the Current Password
-        // We cannot trust the update unless they prove they know the old password
-        if (request.getCurrentPassword() == null ||
-                !passwordEncoder.matches(request.getCurrentPassword(), existing.getMotDePasse())) {
-            throw new RuntimeException("INVALID_CURRENT_PASSWORD");
+        if (request.getPrenom() != null) {
+            existing.setPrenom(request.getPrenom());
         }
 
-        // 2. Update Basic Info
-        existing.setNom(request.getNom());
-        existing.setPrenom(request.getPrenom());
-        existing.setEmail(request.getEmail());
-        existing.setTelephone(request.getTelephone());
+        if (request.getTelephone() != null) {
+            existing.setTelephone(request.getTelephone());
+        }
 
-        // 3. Handle Password Change (If new password is provided)
-        if (request.getNewPassword() != null && !request.getNewPassword().isBlank()) {
-            // Check if new password is the same as old (optional, but good practice)
-            if (passwordEncoder.matches(request.getNewPassword(), existing.getMotDePasse())) {
-                throw new RuntimeException("NEW_PASSWORD_SAME_AS_OLD");
-            }
-
-            // Validate and Encode
-            validatePasswordStrength(request.getNewPassword());
-            existing.setMotDePasse(passwordEncoder.encode(request.getNewPassword()));
+        //Email update decision:
+        // Recommended: do NOT update email here unless you also update it in Keycloak
+        if (request.getEmail() != null) {
+            existing.setEmail(request.getEmail());
         }
 
         return adminRepository.save(existing);
     }
 
-    // Password strength validation
-    private void validatePasswordStrength(String password) {
-        if (password.length() < 8) {
-            throw new RuntimeException("PASSWORD_TOO_SHORT");
-        }
-        if (!password.matches(".*[A-Z].*")) {
-            throw new RuntimeException("PASSWORD_MISSING_UPPERCASE");
-        }
-        if (!password.matches(".*[a-z].*")) {
-            throw new RuntimeException("PASSWORD_MISSING_LOWERCASE");
-        }
-        if (!password.matches(".*\\d.*")) {
-            throw new RuntimeException("PASSWORD_MISSING_DIGIT");
-        }
-    }
 }

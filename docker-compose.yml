@@ -1,7 +1,6 @@
 version: "3.9"
 
 services:
-
   db:
     image: postgres:16-alpine
     container_name: dt-postgres
@@ -21,55 +20,50 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # ================= ADMIN =================
-
-  admin-service:
-    build: ./Back/Admin
-    container_name: dt-admin
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: dt-pgadmin
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/admin_db
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-
-      APP_JWT_SECRET: jahsjgdJHJWEYWDBYU127357352548SSG
-      APP_JWT_EXPIRATION: 86400000
-
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
     ports:
-      - "8080:8080"
+      - "5050:80"
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     restart: unless-stopped
 
-  # ================= DISCOVERY =================
+    # ================= KEYCLOAK DATABASE =================
 
-  discovery:
-    build: ./Back/Discovery
-    container_name: dt-discovery
-    ports:
-      - "8761:8761"
-    restart: unless-stopped
-
-  # ================= LEAD INTELLIGENCE =================
-
-  lead-intelligence:
-    build: ./Back/Lead-Intelligence-System
-    container_name: dt-lead-intelligence
+  keycloak-db:
+    image: postgres:16-alpine
+    container_name: dt-keycloak-db
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/lead_management
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      DISCOVERY_SERVICE_URL: http://discovery:8761/eureka
-    ports:
-      - "8081:8081"
-    depends_on:
-      db:
-        condition: service_healthy
-      discovery:
-        condition: service_started
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+    volumes:
+      - keycloak_data:/var/lib/postgresql/data
     restart: unless-stopped
 
-  # ================= PYTHON =================
+  # ================= KEYCLOAK =================
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: dt-keycloak
+    command: start-dev
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: keycloak-db
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8082:8080"
+    depends_on:
+      - keycloak-db
+    restart: unless-stopped
 
   leads-generator:
     build: ./Back/Leads_Generator
@@ -80,16 +74,6 @@ services:
       - "5000:5000"
     restart: unless-stopped
 
-  # ================= FRONT =================
-
-  frontend:
-    build: ./Front
-    container_name: dt-frontend
-    ports:
-      - "3000:80"
-    depends_on:
-      - admin-service
-    restart: unless-stopped
-
 volumes:
   pgdata:
+  keycloak_data:

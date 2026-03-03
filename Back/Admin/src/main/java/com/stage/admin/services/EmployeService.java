@@ -1,6 +1,9 @@
 package com.stage.admin.services;
 
+import com.stage.admin.dto.EmployeResponse;
 import com.stage.admin.entities.Employe;
+import com.stage.admin.exceptions.DuplicateResourceException;
+import com.stage.admin.exceptions.ResourceNotFoundException;
 import com.stage.admin.repositories.EmployeRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -11,23 +14,27 @@ import java.util.List;
 public class EmployeService {
 
     private final EmployeRepository employeRepository;
-    private final PasswordEncoder passwordEncoder;
 
-    public EmployeService(EmployeRepository employeRepository, PasswordEncoder passwordEncoder) {
+
+    public EmployeService(EmployeRepository employeRepository) {
         this.employeRepository = employeRepository;
-        this.passwordEncoder = passwordEncoder;
+
     }
 
-    public Employe findById(Long id) {
-        return employeRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("NOT_FOUND"));
+    public EmployeResponse getById(Long id) {
+        Employe e = employeRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Employe not found"));
+
+        return mapToResponse(e);
     }
 
-    public List<Employe> getAll(String role) {
-        if (role != null && !role.isBlank()) {
-            return employeRepository.findByRole(role);
-        }
-        return employeRepository.findAll();
+    public List<EmployeResponse> getAll() {
+        List<Employe> employes = employeRepository.findAll();
+
+        return employes.stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
     public void deleteById(Long id) {
@@ -38,81 +45,46 @@ public class EmployeService {
     }
 
     //  POST: Add employee
-    public Employe create(Employe employe) {
-        if (employe.getEmail() == null || employe.getEmail().isBlank()) {
-            throw new RuntimeException("EMAIL_REQUIRED");
-        }
+    public EmployeResponse create(Employe employe) {
 
         if (employeRepository.findByEmail(employe.getEmail()).isPresent()) {
-            throw new RuntimeException("EMAIL_EXISTS");
+            throw new DuplicateResourceException("Email already exists");
         }
 
-        // default role if empty
-        if (employe.getRole() == null || employe.getRole().isBlank()) {
-            employe.setRole("Commercial");
-        }
-
-        // basic password check
-        if (employe.getMotDePasse() == null || employe.getMotDePasse().isBlank()) {
-            throw new RuntimeException("PASSWORD_REQUIRED");
-        }
-
-        // Validate password strength
-        validatePasswordStrength(employe.getMotDePasse());
-
-        // Encrypt password with BCrypt
-        employe.setMotDePasse(passwordEncoder.encode(employe.getMotDePasse()));
-
-        return employeRepository.save(employe);
+        return mapToResponse(employeRepository.save(employe));
     }
 
-    //  PUT: Update employee
-    public Employe update(Long id, Employe data) {
+    // PUT: Update employee (Business data only)
+    public EmployeResponse update(Long id, Employe data) {
+
         Employe existing = employeRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("NOT_FOUND"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Employe not found"));
 
-        // update fields if provided
-        if (data.getNom() != null) existing.setNom(data.getNom());
-        if (data.getPrenom() != null) existing.setPrenom(data.getPrenom());
-        if (data.getTelephone() != null) existing.setTelephone(data.getTelephone());
+        existing.setNom(data.getNom());
+        existing.setPrenom(data.getPrenom());
+        existing.setTelephone(data.getTelephone());
 
-        // update role (and default if blank)
-        if (data.getRole() != null) {
-            existing.setRole(data.getRole().isBlank() ? "Commercial" : data.getRole());
-        }
 
-        // update email (check uniqueness if changed)
-        if (data.getEmail() != null && !data.getEmail().equals(existing.getEmail())) {
-            if (employeRepository.findByEmail(data.getEmail()).isPresent()) {
-                throw new RuntimeException("EMAIL_EXISTS");
-            }
-            existing.setEmail(data.getEmail());
-        }
-
-        // update password only if provided
-        if (data.getMotDePasse() != null && !data.getMotDePasse().isBlank()) {
-            // Validate password strength
-            validatePasswordStrength(data.getMotDePasse());
-            // Encrypt password with BCrypt
-            existing.setMotDePasse(passwordEncoder.encode(data.getMotDePasse()));
-        }
-
-        return employeRepository.save(existing);
+        return mapToResponse(employeRepository.save(existing));
     }
 
-    // Password strength validation
-    private void validatePasswordStrength(String password) {
-        if (password.length() < 8) {
-            throw new RuntimeException("PASSWORD_TOO_SHORT");
+    public void delete(Long id) {
+        if (!employeRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Employe not found");
         }
-        if (!password.matches(".*[A-Z].*")) {
-            throw new RuntimeException("PASSWORD_MISSING_UPPERCASE");
-        }
-        if (!password.matches(".*[a-z].*")) {
-            throw new RuntimeException("PASSWORD_MISSING_LOWERCASE");
-        }
-        if (!password.matches(".*\\d.*")) {
-            throw new RuntimeException("PASSWORD_MISSING_DIGIT");
-        }
+        employeRepository.deleteById(id);
+    }
+
+
+    private EmployeResponse mapToResponse(Employe e) {
+        return new EmployeResponse(
+                e.getId(),
+                e.getNom(),
+                e.getPrenom(),
+                e.getTelephone(),
+                e.getEmail(),
+                e.getCreatedAt()
+        );
     }
 }

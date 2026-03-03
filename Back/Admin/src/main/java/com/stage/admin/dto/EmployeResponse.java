@@ -15,6 +15,7 @@ public class EmployeResponse {
     private String prenom;
     private String telephone;
     private String email;
-    private String role;
+    //private String role; we dont need actually this , because we know alrady that he is an employer (== role)
+    // AND Management of roles and user now are separated on his own service with keacloak
     private LocalDateTime createdAt;
 }
