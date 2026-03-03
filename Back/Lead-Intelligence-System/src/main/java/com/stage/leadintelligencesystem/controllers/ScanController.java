@@ -21,11 +21,21 @@ public class ScanController {
 
     @PostMapping("/start")
     public ResponseEntity<Map<String, String>> startScan(@RequestBody ScanRequest request) {
-        // This triggers the service to call Flask and start the @Async polling loop
-        String jobId = scanService.initiateScan(request);
+        try {
+            String jobId = scanService.initiateScan(request);
+            if (jobId == null || jobId.isEmpty()) {
+                return ResponseEntity.status(502).body(Map.of("error", "Le service d'extraction n'a pas renvoyé de job_id"));
+            }
 
-        // Returns HTTP 202 (Accepted) immediately, meaning "processing started in background"
-        return ResponseEntity.accepted().body(Map.of("job_id", jobId));
+            return ResponseEntity.accepted().body(Map.of("job_id", jobId));
+        } catch (org.springframework.web.client.HttpStatusCodeException ex) {
+            String msg = ex.getResponseBodyAsString();
+            if (msg == null || msg.isBlank()) msg = ex.getStatusCode().toString();
+            return ResponseEntity.status(ex.getStatusCode().value()).body(Map.of("error", msg));
+        } catch (Exception ex) {
+            String msg = ex.getMessage() != null ? ex.getMessage() : "Erreur interne";
+            return ResponseEntity.status(502).body(Map.of("error", msg));
+        }
     }
 
     @GetMapping("/results/{jobId}")

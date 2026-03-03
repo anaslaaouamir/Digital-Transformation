@@ -34,6 +34,7 @@ public class Lead {
     @Column(name = "phone_number")
     private String phoneNumber;
 
+    @Column(unique = true)
     private String email;
     private String website;
 

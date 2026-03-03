@@ -1,8 +1,10 @@
 package com.stage.leadintelligencesystem.services;
 
+import com.stage.leadintelligencesystem.dto.IncomingReplyDto;
 import com.stage.leadintelligencesystem.dto.SimulatedEmailDto;
 import com.stage.leadintelligencesystem.entities.*;
 import com.stage.leadintelligencesystem.repositories.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,8 @@ public class SequenceService {
     private final SequenceStepRepository stepRepository;
     private final SequenceEnrollmentRepository enrollmentRepository;
     private final InteractionRepository interactionRepository;
+    @Value("${app.tracking.url}")
+    private String trackingBaseUrl;
 
     public SequenceService(InteractionRepository interactionRepository,LeadRepository leadRepository, SequenceRepository sequenceRepository,
                            SequenceStepRepository stepRepository, SequenceEnrollmentRepository enrollmentRepository) {
@@ -104,7 +108,7 @@ public class SequenceService {
             // 3. Personalize Content
             String companyName = (lead.getCompanyName() != null) ? lead.getCompanyName() : "votre entreprise";
             String subject = template.getSubject().replace("{{company}}", companyName);
-            String body = template.getBody().replace("{{company}}", companyName);
+            String body = template.getBody().replace("{{company}}", companyName).replace("\n", "<br>");;
 
             // 4. Log the Interaction (Proof it was sent)
             Interaction interaction = new Interaction();
@@ -115,10 +119,24 @@ public class SequenceService {
             interaction.setSubject(subject);
             interaction.setContent(body);
             interaction.setSentAt(LocalDateTime.now());
+
+            // IMPORTANT CHANGE: Reassign the saved entity to capture the generated ID
+            interaction = interactionRepository.save(interaction);
+
+            // ---> 4.5 INJECT THE SPY PIXEL <---
+            //String trackingUrl = "https://info-contribution-aims-lightweight.trycloudflare.com/api/tracking/open/" + interaction.getId();
+            String trackingUrl = trackingBaseUrl+ "/api/tracking/open/" + interaction.getId();
+            String pixelHtml = "<img src=\"" + trackingUrl + "\" width=\"1\" height=\"1\" alt=\"\" style=\"display:none;\"/>";
+
+            String finalBodyWithPixel = body + "<br>" + pixelHtml;
+
+            // Update the DB content to include the exact HTML sent
+            interaction.setContent(finalBodyWithPixel);
             interactionRepository.save(interaction);
 
             // 5. Add to the list for n8n
-            emailsToSend.add(new SimulatedEmailDto(lead.getId(), lead.getEmail(), subject, body));
+            // IMPORTANT CHANGE: Send finalBodyWithPixel to n8n, not the original body
+            emailsToSend.add(new SimulatedEmailDto(lead.getId(), lead.getEmail(), subject, finalBodyWithPixel));
 
             // 6. ADVANCE TO NEXT STEP (The "Move Forward" Logic)
             // Check if there is a next step (e.g. Step 1 -> Step 2)
@@ -143,5 +161,104 @@ public class SequenceService {
         }
 
         return emailsToSend;
+    }
+
+    @Transactional
+    public void processIncomingReply(IncomingReplyDto replyDto) {
+        // 1. Find the Lead
+        Lead lead = leadRepository.findByEmail(replyDto.getEmail())
+                .orElseThrow(() -> new RuntimeException("Lead not found: " + replyDto.getEmail()));
+
+        // 2. GLOBAL STATUS UPDATE (For ALL types: Masse, Manual, Sequence...)
+        // If they reply, they are no longer "Non contacté" or "En sequence".
+        if (!"A_REPONDU".equals(lead.getContactStatus())) {
+            lead.setContactStatus("A_REPONDU");
+            leadRepository.save(lead);
+        }
+
+        // 3. STOP SEQUENCE (Only if applicable)
+        // Even if they replied to a "Mass Email", we should ensure no sequence starts later.
+        Optional<SequenceEnrollment> activeEnrollment = enrollmentRepository.findByLeadAndStatus(lead, "ACTIVE");
+        if (activeEnrollment.isPresent()) {
+            SequenceEnrollment enrollment = activeEnrollment.get();
+            enrollment.setStatus("CANCELLED");
+            enrollment.setNextExecutionDate(null);
+            enrollmentRepository.save(enrollment);
+        }
+
+        // 4. FIND THE MATCHING SENT EMAIL
+        Interaction matchedInteraction = null;
+
+        // A. Clean the subject (Remove prefixes to get the core topic)
+        String cleanSubject = replyDto.getSubject()
+                .replaceAll("(?i)^(Re|Fwd|Rép|Rép\\.|Tr):\\s*", "")
+                .trim();
+
+        // B. Search for a Sent Email that contains this core subject
+        // NOW WE USE THE VARIABLE:
+        List<Interaction> matches = interactionRepository.findBySubjectMatch(lead, cleanSubject);
+
+        if (!matches.isEmpty()) {
+            // Found a match! The first one is the most recent due to ORDER BY DESC
+            matchedInteraction = matches.get(0);
+        } else {
+            // C. Fallback: If no subject match, just take the very last email sent
+            matchedInteraction = interactionRepository
+                    .findTopByLeadAndChannelAndStatusInOrderBySentAtDesc(lead, "EMAIL", List.of("SENT", "OPENED"))
+                    .orElse(null);
+        }
+
+        // 5. UPDATE THE ORIGINAL MESSAGE (Mark it as the "winner")
+        if (matchedInteraction != null) {
+            matchedInteraction.setStatus("REPLIED");
+            matchedInteraction.setRepliedAt(replyDto.getRepliedAt()); // Or use replyDto.getRepliedAt()
+            interactionRepository.save(matchedInteraction);
+
+            // 6. LOG THE NEW RESPONSE
+            Interaction responseInteraction = new Interaction();
+            responseInteraction.setLead(lead);
+            responseInteraction.setChannel("EMAIL");
+            responseInteraction.setType("RESPONSE"); // The new type
+            responseInteraction.setStatus("RECEIVED");
+            responseInteraction.setSubject(replyDto.getSubject()); // Original subject with "Re:"
+            responseInteraction.setContent(replyDto.getEmailBody());
+            responseInteraction.setSentAt(replyDto.getRepliedAt());
+
+            interactionRepository.save(responseInteraction);
+        }
+
+
+    }
+
+    @Transactional
+    public void handleBouncedEmail(String email) {
+        if ("unknown_bounce".equals(email)) {
+            throw new RuntimeException("Could not extract bounced email address from payload.");
+        }
+
+        Lead lead = leadRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Lead not found for bounce: " + email));
+
+        // 1. Update Lead Status
+        lead.setContactStatus("BOUNCED_EMAIL");
+        leadRepository.save(lead);
+
+        // 2. Cancel Active Sequence
+        Optional<SequenceEnrollment> activeEnrollment = enrollmentRepository.findByLeadAndStatus(lead, "ACTIVE");
+        if (activeEnrollment.isPresent()) {
+            SequenceEnrollment enrollment = activeEnrollment.get();
+            enrollment.setStatus("CANCELLED");
+            enrollment.setNextExecutionDate(null);
+            enrollmentRepository.save(enrollment);
+        }
+
+        // 3. Update ONLY the most recent SENT interaction
+        // We target only the last email sent, preserving historical data
+        interactionRepository.findTopByLeadAndChannelAndStatusInOrderBySentAtDesc(
+                lead, "EMAIL", List.of("SENT")
+        ).ifPresent(interaction -> {
+            interaction.setStatus("BOUNCED");
+            interactionRepository.save(interaction);
+        });
     }
 }
