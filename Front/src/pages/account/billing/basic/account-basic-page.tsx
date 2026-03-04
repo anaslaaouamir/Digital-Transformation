@@ -1,4 +1,5 @@
 import { Fragment } from 'react';
+import { Link } from 'react-router-dom';
 import { PageNavbar } from '@/pages/account';
 import {
   Toolbar,
@@ -29,6 +30,9 @@ export function AccountBasicPage() {
             </ToolbarHeading>
             <ToolbarActions>
               <Button variant="outline">Order History</Button>
+              <Button asChild variant="mono">
+                <Link to="/account/crm">CRM</Link>
+              </Button>
             </ToolbarActions>
           </Toolbar>
         </Container>
