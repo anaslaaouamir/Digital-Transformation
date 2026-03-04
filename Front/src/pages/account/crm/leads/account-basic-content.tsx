@@ -12,6 +12,8 @@ import {
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { LeadsDashboard } from './leads-dashboard';
+import { CRM } from './crm';
+import LeadMessanger, { Interaction } from './lead-messanger';
 
 // ── Inject Font Awesome CDN automatically ────────────────────────────────────
 function useFontAwesome() {
@@ -248,7 +250,7 @@ export function AccountCrmLeadsContent() {
     try { localStorage.setItem('crm_scan_history', JSON.stringify(scanHistory)); } catch {}
   }, [scanHistory]);
 
-  const [view,         setView]         = useState<'dashboard' | 'scan' | 'leads'>('scan');
+  const [view,         setView]         = useState<'dashboard' | 'scan' | 'leads' | 'messenger'>('scan');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [currentPage,  setCurrentPage]  = useState(1);
   const [sortBy,       setSortBy]       = useState<'score' | 'name' | 'city'>('score');
@@ -261,6 +263,20 @@ export function AccountCrmLeadsContent() {
   const [scanStep,     setScanStep]     = useState(0);
   const [scanLog,      setScanLog]      = useState<string[]>([]);
   const [emailSentFor, setEmailSentFor] = useState<number | null>(null);
+  const [interactions, setInteractions] = useState<Interaction[]>(() => {
+    try {
+      const raw = localStorage.getItem('crm_interactions');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('crm_interactions', JSON.stringify(interactions));
+    } catch {}
+  }, [interactions]);
 
   const [filters, setFilters] = useState({
     sectors:    [] as string[],
@@ -618,6 +634,9 @@ export function AccountCrmLeadsContent() {
               { k: 'dashboard' as const, label: 'Dashboard', fa: 'fa-solid fa-chart-pie' },
               { k: 'scan'  as const, label: 'Scan',      fa: 'fa-solid fa-satellite-dish' },
               { k: 'leads' as const, label: 'Prospects', fa: 'fa-solid fa-users'          },
+              { k: 'crm' as const, label: 'Crm', fa: 'fa-solid fa-address-card' },
+              { k: 'messenger' as const, label: 'Interactions', fa: 'fa-solid fa-comments' },
+                
             ]).map(tab => (
               <button
                 key={tab.k}
@@ -636,6 +655,11 @@ export function AccountCrmLeadsContent() {
                     {leads.length}
                   </span>
                 )}
+                {tab.k === 'messenger' && interactions.length > 0 && (
+                  <span className="rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
+                    {interactions.length}
+                  </span>
+                )}
               </button>
             ))}
           </nav>
@@ -649,6 +673,35 @@ export function AccountCrmLeadsContent() {
           sectorIcon={(s) => SECTORS[s]?.faIcon || 'fa-solid fa-tag'}
           onGoScan={() => setView('scan')}
         />
+      )}
+
+      {view === 'messenger' && (
+        <LeadMessanger
+          leads={leads.map(l => ({ id: l.id, company: l.company, name: l.name, city: l.city, sector: l.sector }))}
+          interactions={interactions}
+        />
+      )}
+
+      {view === 'crm' && (
+        <div className="max-w-[1100px] mx-auto">
+          <CRM
+            leads={leads.map(l => ({
+              id: l.id,
+              name: l.name,
+              company: l.company,
+              role: l.role,
+              email: l.email,
+              phone: l.phone,
+              city: l.city,
+              sector: l.sector,
+              score: l.score,
+              status: l.status,
+              website: l.website,
+              linkedin: l.linkedIn,
+              enriched: l.apolloEnriched,
+            })) as any}
+          />
+        </div>
       )}
 
       {/* ══════════════════ SCAN ══════════════════════════════════════════ */}

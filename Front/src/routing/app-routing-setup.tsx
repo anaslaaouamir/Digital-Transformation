@@ -124,6 +124,10 @@ export function AppRoutingSetup() {
             path="/account/crm/leads"
             element={<AccountCrmLeadsPage />}
           />
+        <Route
+            path="/account/crm"
+            element={<AccountCrmLeadsPage />}
+          />
       </Route>
       {/*<Route element={<RequireAuth />}>*/}
 
