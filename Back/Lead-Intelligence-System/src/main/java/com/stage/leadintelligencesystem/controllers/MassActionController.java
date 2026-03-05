@@ -3,18 +3,21 @@ package com.stage.leadintelligencesystem.controllers;
 import com.stage.leadintelligencesystem.dto.SimulatedEmailDto;
 import com.stage.leadintelligencesystem.services.MassActionService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/actions")
+@CrossOrigin(origins = "*")
 public class MassActionController {
 
     private final MassActionService massActionService;
@@ -24,9 +27,10 @@ public class MassActionController {
     }
 
     @PostMapping("/simulate-mass-emails")
-    public ResponseEntity<List<SimulatedEmailDto>> simulateMassEmails() {
+    public ResponseEntity<List<SimulatedEmailDto>> simulateMassEmails(@RequestBody(required = false) Map<String, List<Long>> payload) {
         // 1. Generate the list of personalized emails
-        List<SimulatedEmailDto> result = massActionService.simulateMassEmails();
+        List<Long> leadIds = (payload != null && payload.containsKey("leadIds")) ? payload.get("leadIds") : List.of();
+        List<SimulatedEmailDto> result = massActionService.simulateMassEmails(leadIds);
 
         RestTemplate restTemplate = new RestTemplate();
         String n8nWebhookUrl = "http://localhost:5678/webhook/send-email";
@@ -59,11 +63,30 @@ public class MassActionController {
 
     @PostMapping("/send-manual-email")
     public ResponseEntity<String> sendManualEmail(@RequestBody SimulatedEmailDto request) {
-        // 1. Delegate to service for DB logging, tracking pixel injection, and n8n forwarding
-        massActionService.sendManualEmail(request);
-
-        return ResponseEntity.ok("Manual email sent and tracked successfully.");
+        try {
+            massActionService.sendManualEmail(request);
+            return ResponseEntity.ok("Manual email sent and tracked successfully.");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Invalid request: " + e.getMessage());
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(500).body("Error: " + e.getMessage());
+        }
     }
 
+    @PostMapping("/mark-contact-status")
+    public ResponseEntity<String> markContactStatus(@RequestBody Map<String, Object> payload) {
+        try {
+            Object idObj = payload.get("leadId");
+            if (idObj == null) return ResponseEntity.badRequest().body("leadId is required");
+            Long leadId = (idObj instanceof Number) ? ((Number) idObj).longValue() : Long.parseLong(String.valueOf(idObj));
+            String status = String.valueOf(payload.getOrDefault("status", "MANUAL_EMAIL_ENVOYE"));
+            massActionService.updateLeadContactStatus(leadId, status);
+            return ResponseEntity.ok("Contact status updated to " + status);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Invalid request: " + e.getMessage());
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(500).body("Error: " + e.getMessage());
+        }
+    }
 
 }

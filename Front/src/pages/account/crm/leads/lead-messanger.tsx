@@ -30,20 +30,7 @@ export type Interaction = {
   repliedAt?: string;
 };
 
-const FAKE_LEADS = [
-  { id: 1,  company: 'Atlas Hospitality Group', name: 'Youssef Alami',   city: 'Casablanca', sector: 'Hospitality',     phone: '+212 661 234 567', email: 'youssef@atlas-hospitality.ma' },
-  { id: 2,  company: 'Marrakech Fine Dining',   name: 'Fatima Benali',   city: 'Marrakech',  sector: 'Restauration',    phone: '+212 662 345 678', email: 'fatima@marrakechfine.ma' },
-  { id: 3,  company: 'Rabat Tech Hub',          name: 'Mehdi Tazi',      city: 'Rabat',      sector: 'Technology',      phone: '+212 663 456 789', email: 'mehdi@rabattech.ma' },
-  { id: 4,  company: 'Fes Heritage Hotels',     name: 'Samira Idrissi',  city: 'Fes',        sector: 'Hospitality',     phone: '+212 664 567 890', email: 'samira@fesheritage.ma' },
-  { id: 5,  company: 'Agadir Sea Resort',       name: 'Omar Cherkaoui',  city: 'Agadir',     sector: 'Tourism',         phone: '+212 665 678 901', email: 'omar@agadirsea.ma' },
-  { id: 6,  company: 'Tangier Trade Co.',       name: 'Leila Mansouri',  city: 'Tangier',    sector: 'Commerce',        phone: '+212 666 789 012', email: 'leila@tangiertrade.ma' },
-  { id: 7,  company: 'Oujda Food Group',        name: 'Hassan Berrada',  city: 'Oujda',      sector: 'Restauration',    phone: '+212 667 890 123', email: 'hassan@oujdafood.ma' },
-  { id: 8,  company: 'Kenitra Logistics',       name: 'Nadia Filali',    city: 'Kenitra',    sector: 'Logistics',       phone: '+212 668 901 234', email: 'nadia@kenitralog.ma' },
-  { id: 9,  company: 'Tetouan Craft Exports',   name: 'Amine Wahbi',     city: 'Tetouan',    sector: 'Artisanat',       phone: '+212 669 012 345', email: 'amine@tetouancraft.ma' },
-  { id: 10, company: 'Dakhla Surf Lodges',      name: 'Rim Saidi',       city: 'Dakhla',     sector: 'Tourism',         phone: '+212 670 123 456', email: 'rim@dakhlasurf.ma' },
-  { id: 11, company: 'Meknes Wineries',         name: 'Tarik Bousfiha',  city: 'Meknes',     sector: 'Agroalimentaire', phone: '+212 671 234 567', email: 'tarik@mekneswines.ma' },
-  { id: 12, company: 'Essaouira Riad Group',    name: 'Kenza Alaoui',    city: 'Essaouira',  sector: 'Hospitality',     phone: '+212 672 345 678', email: 'kenza@essaouirariad.ma' },
-];
+const EMPTY_LEADS: any[] = [];
 
 const CHANNEL_LIST           = ['EMAIL', 'WHATSAPP'];
 const STATUS_LIST            = ['SENT', 'OPENED', 'REPLIED', 'BOUNCED'];
@@ -52,11 +39,11 @@ const INTERACTION_TYPE_LIST  = ['MANUAL','SEQUENCE','AI_GENERATED','MASSE','RESP
 const SEQ_ENROLLMENT_STATUS  = ['ACTIVE','PAUSED','COMPLETED','CANCELLED'];
 
 const EMAIL_TEMPLATES = [
-  { id: 't1', name: 'Premiere approche',  subject: 'Collaboration digitale -- {{company}}',              body: "Bonjour {{firstName}},\n\nJ'ai decouvert {{company}} dans le secteur {{sector}} a {{city}}.\n\nChez ELBAHI.NET, nous accompagnons les entreprises marocaines dans leur transformation digitale.\n\nDisponible pour 15 minutes cette semaine ?\n\nCordialement,\nAbderrahim\nELBAHI.NET" },
-  { id: 't2', name: 'Relance J+3',        subject: 'Re: Collaboration -- {{company}}',                   body: "Bonjour {{firstName}},\n\nJe me permets de revenir vers vous. Nous avons aide des entreprises similaires a {{company}} a augmenter leur visibilite de +150%.\n\nQuand seriez-vous disponible ?\n\nBien cordialement,\nAbderrahim\nELBAHI.NET" },
-  { id: 't3', name: 'Audit gratuit',      subject: 'Audit gratuit pour {{company}}',                    body: "Bonjour {{firstName}},\n\nJe vous propose un audit digital gratuit de {{company}} incluant :\n- Analyse SEO\n- Benchmark concurrentiel\n- Recommandations personnalisees\n\nUn simple oui suffit !\n\nAbderrahim\nELBAHI.NET" },
-  { id: 't4', name: 'Social proof',       subject: 'Resultats pour une entreprise similaire',           body: "Bonjour {{firstName}},\n\nNous avons accompagne une entreprise {{sector}} a {{city}} :\n-> +180% trafic qualifie\n-> +85 leads/mois\n-> ROI 4.5x\n\nDiscutons comment reproduire ces resultats pour {{company}}.\n\n15 minutes ?\n\nAbderrahim\nELBAHI.NET" },
-  { id: 't5', name: 'Dernier contact',    subject: 'Derniere tentative -- {{company}}',                 body: "Bonjour {{firstName}},\n\nCe sera mon dernier message. Si le digital n'est pas prioritaire pour {{company}} en ce moment, je comprends.\n\nN'hesitez pas a me recontacter quand le moment sera venu.\n\nAbderrahim\nELBAHI.NET" },
+  { id: 't1', name: 'Premiere approche',  subject: 'Collaboration digitale -- {{company}}',              body: "Bonjour,\n\nJ'ai decouvert {{company}} dans le secteur {{sector}} a {{city}}.\n\nChez ELBAHI.NET, nous accompagnons les entreprises marocaines dans leur transformation digitale.\n\nDisponible pour 15 minutes cette semaine ?\n\nCordialement,\nAbderrahim\nELBAHI.NET" },
+  { id: 't2', name: 'Relance J+3',        subject: 'Re: Collaboration -- {{company}}',                   body: "Bonjour,\n\nJe me permets de revenir vers vous. Nous avons aide des entreprises similaires a {{company}} a augmenter leur visibilite de +150%.\n\nQuand seriez-vous disponible ?\n\nBien cordialement,\nAbderrahim\nELBAHI.NET" },
+  { id: 't3', name: 'Audit gratuit',      subject: 'Audit gratuit pour {{company}}',                    body: "Bonjour ,\n\nJe vous propose un audit digital gratuit de {{company}} incluant :\n- Analyse SEO\n- Benchmark concurrentiel\n- Recommandations personnalisees\n\nUn simple oui suffit !\n\nAbderrahim\nELBAHI.NET" },
+  { id: 't4', name: 'Social proof',       subject: 'Resultats pour une entreprise similaire',           body: "Bonjour ,\n\nNous avons accompagne une entreprise {{sector}} a {{city}} :\n-> +180% trafic qualifie\n-> +85 leads/mois\n-> ROI 4.5x\n\nDiscutons comment reproduire ces resultats pour {{company}}.\n\n15 minutes ?\n\nAbderrahim\nELBAHI.NET" },
+  { id: 't5', name: 'Dernier contact',    subject: 'Derniere tentative -- {{company}}',                 body: "Bonjour ,\n\nCe sera mon dernier message. Si le digital n'est pas prioritaire pour {{company}} en ce moment, je comprends.\n\nN'hesitez pas a me recontacter quand le moment sera venu.\n\nAbderrahim\nELBAHI.NET" },
 ];
 
 const WA_TEMPLATES = {
@@ -85,38 +72,6 @@ function applyTemplate(tmpl, lead) {
   let subject = tmpl.subject, body = tmpl.body;
   Object.entries(vars).forEach(([k,v]) => { subject = subject.replaceAll(k,v); body = body.replaceAll(k,v); });
   return { subject, body };
-}
-
-function buildFakeInteractions(leads) {
-  const now = Date.now();
-  const out = [];
-  leads.forEach((l, idx) => {
-    const count = 1 + (idx % 3);
-    for (let k = 0; k < count; k++) {
-      const ch     = CHANNEL_LIST[(idx + k) % CHANNEL_LIST.length];
-      const st     = STATUS_LIST[(idx * 3 + k) % STATUS_LIST.length];
-      const sentMs = now - idx * 86400000 - k * 7200000;
-      out.push({
-        id:              `${l.id}-${k}`,
-        leadId:          l.id,
-        company:         l.company,
-        contactName:     l.name,
-        city:            l.city,
-        sector:          l.sector,
-        phone:           l.phone,
-        email:           l.email,
-        channel:         ch,
-        status:          st,
-        contactStatus:   CONTACT_STATUS_LIST[(idx + k) % CONTACT_STATUS_LIST.length],
-        interactionType: INTERACTION_TYPE_LIST[(idx + k) % INTERACTION_TYPE_LIST.length],
-        sequenceStatus:  SEQ_ENROLLMENT_STATUS[(idx + k) % SEQ_ENROLLMENT_STATUS.length],
-        sentAt:          new Date(sentMs).toISOString(),
-        openedAt:        (st==='OPENED'||st==='REPLIED') ? new Date(sentMs+3600000).toISOString() : undefined,
-        repliedAt:       st==='REPLIED' ? new Date(sentMs+7200000).toISOString() : undefined,
-      });
-    }
-  });
-  return out.sort((a,b) => b.sentAt.localeCompare(a.sentAt));
 }
 
 /* ─── Style maps ─── */
@@ -532,12 +487,28 @@ function ComposeModal({ lead, onClose, onSend, onStartSequence }) {
 ══════════════════════════════════════════ */
 function Conversation({ detail, onCompose, incoming }) {
   const [msg,    setMsg]  = useState('');
+  const htmlToPlain = (html: string) => {
+    if (!html) return '';
+    let t = String(html);
+    // Remove tracking pixels and any img tags
+    t = t.replace(/<img[\s\S]*?>/gi, '');
+    // Replace <br> with newlines
+    t = t.replace(/<br\s*\/?>/gi, '\n');
+    // Strip remaining tags
+    t = t.replace(/<[^>]+>/g, '');
+    // Trim backticks and spaces
+    t = t.replace(/`/g, '').trim();
+    return t;
+  };
   const [thread, setTh]   = useState(() => {
-    const items = [];
-    if (detail.sentAt)   items.push({ from:'you',    txt:`Bonjour, je vous contacte au sujet de ${detail.company}. Seriez-vous disponible pour un echange rapide ?`, at:detail.sentAt });
+    const items: any[] = [];
+    if (detail.content || detail.subject) {
+      const base = detail.content ? htmlToPlain(detail.content) : String(detail.subject || '');
+      if (base) items.push({ from:'you', txt: base, at: detail.sentAt || new Date().toISOString() });
+    }
     if (detail.openedAt) items.push({ from:'system', txt:'Ouverture du message', at:detail.openedAt });
-    if (detail.repliedAt)items.push({ from:'lead',   txt:'Bonjour, merci pour votre message. Nous pouvons echanger prochainement.', at:detail.repliedAt });
-    return items.length ? items : [{ from:'you', txt:`Bonjour, je vous contacte au sujet de ${detail.company}.`, at:new Date().toISOString() }];
+    if (detail.repliedAt)items.push({ from:'lead', txt:'Reponse recue', at:detail.repliedAt });
+    return items;
   });
 
   const send = () => {
@@ -653,10 +624,10 @@ function Conversation({ detail, onCompose, incoming }) {
 /* ══════════════════════════════════════════
    MAIN COMPONENT
 ══════════════════════════════════════════ */
-export default function LeadMessanger({ leads = FAKE_LEADS }) {
+export default function LeadMessanger({ leads = EMPTY_LEADS }) {
   useFontAwesome();
 
-  const [interactions, setInteractions] = useState(() => buildFakeInteractions(FAKE_LEADS));
+  const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [filter,       setFilter]       = useState('all');
   const [search,       setSearch]       = useState('');
   const [sortBy,       setSortBy]       = useState('sentAt');
@@ -667,6 +638,7 @@ export default function LeadMessanger({ leads = FAKE_LEADS }) {
   const [toast,        setToast]        = useState('');
   const [incomingMsg,  setIncomingMsg]  = useState(null);
   const PER_PAGE = 8;
+  const API_BASE = (import.meta as any).env?.VITE_GATEWAY_BASE_URL || 'http://localhost:8081/api';
 
   /* Stats */
   const stats = useMemo(() => ({
@@ -674,6 +646,40 @@ export default function LeadMessanger({ leads = FAKE_LEADS }) {
     replied: interactions.filter(r => r.status==='REPLIED').length,
     opened:  interactions.filter(r => r.status==='OPENED').length,
   }), [interactions]);
+
+  /* Load interactions from backend */
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/interactions`, { method: 'GET' });
+        const data = await res.json().catch(() => []);
+        const rows = Array.isArray(data) ? data : (data?.data ?? []);
+        if (Array.isArray(rows) && rows.length) {
+          const mapped = rows.map((it: any) => ({
+            id: String(it.id ?? `${it.leadId}-${Date.now()}`),
+            leadId: Number(it.leadId ?? it.lead_id ?? 0),
+            company: it.company ?? it.companyName ?? '',
+            contactName: it.contactName ?? it.contact_name ?? '',
+            city: it.city ?? '',
+            sector: it.sector ?? '',
+            phone: it.phone ?? '',
+            email: it.email ?? '',
+            subject: it.subject ?? '',
+            content: it.content ?? '',
+            channel: (String(it.channel ?? 'EMAIL').toUpperCase() === 'WHATSAPP') ? 'WHATSAPP' : 'EMAIL',
+            status: (String(it.status ?? 'SENT').toUpperCase() as any),
+            contactStatus: it.contactStatus ?? it.contact_status ?? undefined,
+            interactionType: it.interactionType ?? it.interaction_type ?? undefined,
+            sequenceStatus: it.sequenceStatus ?? it.sequence_status ?? undefined,
+            sentAt: it.sentAt ?? it.sent_at ?? new Date().toISOString(),
+            openedAt: it.openedAt ?? it.opened_at ?? undefined,
+            repliedAt: it.repliedAt ?? it.replied_at ?? undefined,
+          }));
+          setInteractions(mapped.sort((a,b) => (b.sentAt||'').localeCompare(a.sentAt||'')));
+        }
+      } catch {}
+    })();
+  }, [API_BASE]);
 
   /* Filtered + sorted rows */
   const filtered = useMemo(() => {
@@ -713,7 +719,7 @@ export default function LeadMessanger({ leads = FAKE_LEADS }) {
 
   /* Get full lead object for a row */
   const getLeadForRow = useCallback((row) =>
-    FAKE_LEADS.find(l => l.id===row.leadId) || {
+    leads.find(l => l.id===row.leadId) || {
       id:row.leadId, name:row.contactName, company:row.company,
       city:row.city, sector:row.sector, phone:row.phone, email:row.email,
     }, []);
@@ -724,7 +730,7 @@ export default function LeadMessanger({ leads = FAKE_LEADS }) {
   }, [getLeadForRow]);
 
   /* Handle send from modal */
-  const handleSend = useCallback((data) => {
+  const handleSend = useCallback(async (data) => {
     const lead   = composeLead;
     const chKey  = data.channel==='whatsapp' ? 'WHATSAPP' : 'EMAIL';
     const nowIso = new Date().toISOString();
@@ -739,58 +745,49 @@ export default function LeadMessanger({ leads = FAKE_LEADS }) {
         data.waBody ? `WhatsApp: ${data.waBody}` : ''
       ].filter(Boolean).join('\n\n');
     }
-    const newRow = {
-      id:              `${lead.id}-${Date.now()}`,
-      leadId:          lead.id,
-      company:         lead.company,
-      contactName:     lead.name,
-      city:            lead.city,
-      sector:          lead.sector,
-      phone:           lead.phone,
-      email:           lead.email,
-      channel:         chKey,
-      status:          'SENT',
-      contactStatus:   'MANUAL_EMAIL_ENVOYE',
-      interactionType: 'MANUAL',
-      sequenceStatus:  'ACTIVE',
-      sentAt:          nowIso,
-      openedAt:        undefined,
-      repliedAt:       undefined,
-    };
-    setInteractions(p => [newRow, ...p]);
-    setComposeLead(null);
+    if (data.channel !== 'whatsapp') {
+      try {
+        const r = await fetch(`${API_BASE}/actions/mark-contact-status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ leadId: lead.id, status:'MANUAL_EMAIL_ENVOYE' }),
+        });
+        if (!r.ok) {
+          setToast('Echec mise à jour du statut contact');
+          return;
+        }
+      } catch {
+        setToast('Echec mise à jour du statut (réseau)');
+        return;
+      }
+    }
+    // Do not add any row to the Interactions table; only update badges and keep thread message
+    setDetail(prev => prev && prev.leadId === lead.id ? { ...prev, contactStatus: 'MANUAL_EMAIL_ENVOYE' } : prev);
     setIncomingMsg({ leadId: lead.id, at: nowIso, from:'you', txt: textOut });
-    setDetail(prev => prev && prev.leadId === lead.id ? prev : newRow);
-    const msg = chKey==='WHATSAPP' ? 'WhatsApp envoye avec succes' : 'Email envoye avec succes';
-    setToast(msg);
+    setComposeLead(null);
+    setToast(chKey==='WHATSAPP' ? 'WhatsApp envoyé' : 'Statut mis à jour');
     setTimeout(() => setToast(''), 3000);
   }, [composeLead]);
 
   const handleStartSequence = useCallback(() => {
     const lead   = composeLead;
     if (!lead) return;
+    (async () => {
+      try {
+        await fetch(`${API_BASE}/sequences/start/${lead.id}`, { method: 'POST' });
+        // Persist contact status so it stays after refresh
+        await fetch(`${API_BASE}/actions/mark-contact-status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ leadId: lead.id, status: 'EN_SEQUENCE' }),
+        });
+      } catch {}
+    })();
     const nowIso = new Date().toISOString();
-    const newRow = {
-      id:              `${lead.id}-${Date.now()}-seq`,
-      leadId:          lead.id,
-      company:         lead.company,
-      contactName:     lead.name,
-      city:            lead.city,
-      sector:          lead.sector,
-      phone:           lead.phone,
-      email:           lead.email,
-      channel:         'EMAIL',
-      status:          'SENT',
-      contactStatus:   'EN_SEQUENCE',
-      interactionType: 'SEQUENCE',
-      sequenceStatus:  'ACTIVE',
-      sentAt:          nowIso,
-      openedAt:        undefined,
-      repliedAt:       undefined,
-    };
-    setInteractions(p => [newRow, ...p]);
+    // Do not add an interaction row; only update the detail badge locally
     setComposeLead(null);
-    setDetail(newRow);
+    setDetail(prev => prev ? { ...prev, contactStatus: 'EN_SEQUENCE', sequenceStatus: 'ACTIVE', status: 'SENT', sentAt: nowIso } : prev);
+    setInteractions(prev => prev.map(r => r.leadId === lead.id ? { ...r, contactStatus: 'EN_SEQUENCE', sequenceStatus: 'ACTIVE' } : r));
     setToast('Sequence lancee');
     setTimeout(() => setToast(''), 3000);
   }, [composeLead]);
