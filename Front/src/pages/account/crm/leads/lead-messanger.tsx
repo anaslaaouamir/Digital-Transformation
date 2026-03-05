@@ -293,7 +293,7 @@ function PagBtn({ onClick, disabled, label, active }) {
 /* ══════════════════════════════════════════
    COMPOSE MODAL
 ══════════════════════════════════════════ */
-function ComposeModal({ lead, onClose, onSend }) {
+function ComposeModal({ lead, onClose, onSend, onStartSequence }) {
   const [channel,     setChannel]  = useState('email');
   const [subject,     setSubject]  = useState('');
   const [body,        setBody]     = useState('');
@@ -411,22 +411,7 @@ function ComposeModal({ lead, onClose, onSend }) {
                 Email
               </div>
 
-              {/* Email templates */}
-              <div>
-                <label style={S.label}>Template</label>
-                <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                  {EMAIL_TEMPLATES.map(t => (
-                    <button
-                      key={t.id}
-                      onClick={() => pickEmailTmpl(t)}
-                      style={{ padding:'5px 10px', border:'1px solid #cbd5e1', borderRadius:6, background:'#fff', fontSize:11, fontWeight:600, color:'#0f172a', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:5 }}
-                    >
-                      <i className="fa-solid fa-file-lines" style={{ fontSize:10, color:'#94a3b8' }} />
-                      {t.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
+          
 
               {/* Claude AI */}
               <button
@@ -522,6 +507,13 @@ function ComposeModal({ lead, onClose, onSend }) {
                 WhatsApp
               </button>
             )}
+            <button
+              onClick={() => onStartSequence?.()}
+              style={{ padding:'9px 18px', background:'#0f172a', border:'none', borderRadius:8, color:'#fff', fontSize:13, fontWeight:700, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6, fontFamily:'inherit' }}
+            >
+              <i className="fa-solid fa-rotate-right" />
+              Lancer sequence
+            </button>
             {channel !== 'whatsapp' && (
               <button onClick={handleSend} disabled={!canSendEmail} style={{ padding:'9px 22px', background: canSendEmail?'#0f172a':'#e2e8f0', border:'none', borderRadius:8, color: canSendEmail?'#fff':'#94a3b8', fontSize:13, fontWeight:700, cursor: canSendEmail?'pointer':'not-allowed', display:'inline-flex', alignItems:'center', gap:6, fontFamily:'inherit' }}>
                 <i className="fa-solid fa-paper-plane" />
@@ -774,11 +766,41 @@ export default function LeadMessanger({ leads = FAKE_LEADS }) {
     setTimeout(() => setToast(''), 3000);
   }, [composeLead]);
 
+  const handleStartSequence = useCallback(() => {
+    const lead   = composeLead;
+    if (!lead) return;
+    const nowIso = new Date().toISOString();
+    const newRow = {
+      id:              `${lead.id}-${Date.now()}-seq`,
+      leadId:          lead.id,
+      company:         lead.company,
+      contactName:     lead.name,
+      city:            lead.city,
+      sector:          lead.sector,
+      phone:           lead.phone,
+      email:           lead.email,
+      channel:         'EMAIL',
+      status:          'SENT',
+      contactStatus:   'EN_SEQUENCE',
+      interactionType: 'SEQUENCE',
+      sequenceStatus:  'ACTIVE',
+      sentAt:          nowIso,
+      openedAt:        undefined,
+      repliedAt:       undefined,
+    };
+    setInteractions(p => [newRow, ...p]);
+    setComposeLead(null);
+    setDetail(newRow);
+    setToast('Sequence lancee');
+    setTimeout(() => setToast(''), 3000);
+  }, [composeLead]);
+
   /* Table columns */
   const COLS = [
     { label:'Prospect',  col:'company'         },
     { label:'Canal',     col:'channel'          },
     { label:'Statut',    col:'status'           },
+    { label:'Contact',   col:'contactStatus'    },
     { label:'Sequence',  col:'sequenceStatus'   },
     { label:'Envoye',    col:'sentAt'           },
     { label:'Ouverture', col:'openedAt'         },
@@ -966,6 +988,11 @@ export default function LeadMessanger({ leads = FAKE_LEADS }) {
                         <StatusBadge status={r.status} />
                       </td>
 
+                      {/* Contact Status */}
+                      <td style={{ padding:'12px 14px' }}>
+                        <ContactStatusBadge status={r.contactStatus} />
+                      </td>
+
                       {/* Sequence */}
                       <td style={{ padding:'12px 14px' }}>
                         <SeqBadge status={r.sequenceStatus} />
@@ -1020,7 +1047,7 @@ export default function LeadMessanger({ leads = FAKE_LEADS }) {
 
                   {pageRows.length === 0 && (
                     <tr>
-                      <td colSpan={8} style={{ padding:'60px 16px', textAlign:'center', color:'#94a3b8' }}>
+                      <td colSpan={9} style={{ padding:'60px 16px', textAlign:'center', color:'#94a3b8' }}>
                         <i className="fa-solid fa-inbox" style={{ fontSize:32, display:'block', marginBottom:10, opacity:0.4 }} />
                         <div style={{ fontWeight:600, fontSize:14 }}>Aucune interaction</div>
                         <div style={{ fontSize:12, marginTop:4 }}>Modifiez votre recherche ou filtre</div>
@@ -1061,6 +1088,7 @@ export default function LeadMessanger({ leads = FAKE_LEADS }) {
           lead={composeLead}
           onClose={() => setComposeLead(null)}
           onSend={handleSend}
+          onStartSequence={handleStartSequence}
         />
       )}
 

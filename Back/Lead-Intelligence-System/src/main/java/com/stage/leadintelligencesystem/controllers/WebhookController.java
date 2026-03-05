@@ -29,7 +29,7 @@ public class WebhookController {
             return ResponseEntity.ok("Success: Reply processed, sequence stopped, and interaction linked.");
 
         } catch (RuntimeException e) {
-            // Log the error (e.g., "Lead not found") but return a clean message
+    
             // You might want to return 200 OK even on failure so n8n doesn't keep retrying forever
             return ResponseEntity.badRequest().body("Error processing reply: " + e.getMessage());
         }
