@@ -288,32 +288,6 @@ export function CRM({ leads }: { leads: Lead[] }) {
                   },
                 },
                 {
-                  label: "Lancer séquence auto",
-                  fa: "fa-solid fa-rotate-right",
-                  sub: `${leads.filter(l => !emails.some(e => e.leadId === l.id)).length} non contactés`,
-                  onClick: () => {
-                    const uncontacted = leads.filter(l => !emails.some(e => e.leadId === l.id)).slice(0, 10);
-                    if (uncontacted.length > 0) {
-                      handleCreateSequence(uncontacted.map(l => l.id), [emailTemplates[0].id, emailTemplates[1].id, emailTemplates[2].id], 3);
-                    }
-                  },
-                },
-                {
-                  label: "Relance auto J+3",
-                  fa: "fa-solid fa-clock-rotate-left",
-                  sub: "Sans réponse depuis 3j",
-                  onClick: () => {
-                    const contacted = leads.filter(l => {
-                      const lastEmail = emails.filter(e => e.leadId === l.id).sort((a, b) => new Date(b.sentAt!).getTime() - new Date(a.sentAt!).getTime())[0];
-                      return lastEmail && !lastEmail.repliedAt && Date.now() - new Date(lastEmail.sentAt!).getTime() > 3 * 86400000;
-                    });
-                    contacted.slice(0, 5).forEach(lead => {
-                      const { subject, body } = applyTemplate(emailTemplates[1], lead);
-                      handleSendEmail({ leadId: lead.id, to: lead.email, subject, body, type: "followup" });
-                    });
-                  },
-                },
-                {
                   label: "Générer msg IA",
                   fa: "fa-solid fa-robot",
                   sub: "Claude personnalisé",
@@ -561,28 +535,7 @@ export function CRM({ leads }: { leads: Lead[] }) {
                 </select>
               </div>
 
-              {/* Template */}
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(227,255,204,0.35)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, display: "block" }}>Template (optionnel)</label>
-                <select
-                  onChange={e => {
-                    const tmpl = emailTemplates.find(t => t.id === e.target.value);
-                    if (tmpl && emailCompose.leadId) {
-                      const lead = leads.find(l => l.id === emailCompose.leadId);
-                      if (lead) {
-                        const { subject, body } = applyTemplate(tmpl, lead);
-                        setEmailCompose(prev => prev ? { ...prev, subject, body } : prev);
-                      }
-                    } else if (tmpl) {
-                      setEmailCompose(prev => prev ? { ...prev, subject: tmpl.subject, body: tmpl.body } : prev);
-                    }
-                  }}
-                  style={{ width: "100%", padding: "10px 14px", background: "rgba(227,255,204,0.04)", border: "1px solid rgba(102,195,158,0.1)", borderRadius: 8, color: "#E3FFCC", fontSize: 13, outline: "none", fontFamily: "'Urbanist', sans-serif" }}
-                >
-                  <option value="">— Écrire manuellement —</option>
-                  {emailTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
-              </div>
+              
 
               {/* AI Generate */}
               {emailCompose.leadId && (
@@ -773,6 +726,17 @@ export function CRM({ leads }: { leads: Lead[] }) {
                     <span style={{ fontSize: 15 }}>💬</span> WhatsApp
                   </button>
                 )}
+                <button
+                  onClick={() => {
+                    if (emailCompose.leadId) {
+                      handleCreateSequence([emailCompose.leadId], [], 3);
+                    }
+                  }}
+                  disabled={!emailCompose.leadId}
+                  style={{ padding: "9px 18px", background: emailCompose.leadId ? "#0f172a" : "rgba(227,255,204,0.04)", border: "none", borderRadius: 8, color: emailCompose.leadId ? "#fff" : "rgba(227,255,204,0.2)", fontSize: 13, fontWeight: 700, cursor: emailCompose.leadId ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 6, fontFamily: "'Urbanist', sans-serif" }}
+                >
+                  <i className="fa-solid fa-rotate-right" /> Lancer séquence
+                </button>
                 {emailCompose.channel !== "whatsapp" && (
                   <button
                     onClick={() => {
