@@ -1,5 +1,6 @@
 package com.stage.leadintelligencesystem.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -70,9 +71,11 @@ public class Lead {
     // Relational Mapping
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "secteur_id")
+    @JsonIgnoreProperties("leads")
     private Secteur secteur;
 
     @OneToMany(mappedBy = "lead", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties("lead")
     private List<DecisionMaker> decisionMakers = new ArrayList<>();
 
     @CreationTimestamp
@@ -85,5 +88,13 @@ public class Lead {
 
     // Options: NON_CONTACTE, EN_SEQUENCE, TERMINE_SANS_REPONSE, A_REPONDU, MASS_EMAIL_ENVOYE
     private String contactStatus = "NON_CONTACTE";
+
+    @OneToMany(mappedBy = "lead", cascade = CascadeType.ALL)
+    @JsonIgnoreProperties("lead")
+    private List<Interaction> interactions = new ArrayList<>();
+
+    @OneToMany(mappedBy = "lead", cascade = CascadeType.ALL)
+    @JsonIgnoreProperties("lead")
+    private List<SequenceEnrollment> sequenceEnrollments = new ArrayList<>();
 
 }

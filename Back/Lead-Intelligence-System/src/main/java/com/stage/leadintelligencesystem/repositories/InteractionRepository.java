@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,4 +27,8 @@ public interface InteractionRepository extends JpaRepository<Interaction, Long> 
     List<Interaction> findBySubjectMatch(@Param("lead") Lead lead, @Param("cleanSubject") String cleanSubject);
 
     List<Interaction> findByLeadAndStatusIn(Lead lead, List<String> statuses);
+
+    List<Interaction> findByLeadId(Long leadId);
+
+    Optional<Interaction> findBySentAtAndType(LocalDateTime sentAt, String type);
 }
