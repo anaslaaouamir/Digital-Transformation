@@ -12,6 +12,8 @@ import {
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { LeadsDashboard } from './leads-dashboard';
+import { CRM } from './crm';
+import LeadMessanger, { Interaction } from './lead-messanger';
 import { DashboardSectionView } from './components/dashboard-view';
 import { CrmSectionView } from './components/crm-view';
 import { PipelineSectionView } from './components/pipeline-view';
@@ -327,7 +329,7 @@ export function AccountCrmLeadsContent() {
     try { localStorage.setItem('crm_scan_history', JSON.stringify(scanHistory)); } catch {}
   }, [scanHistory]);
 
-  const [view,         setView]         = useState<'dashboard' | 'scan' | 'leads' | 'crm' | 'pipeline' | 'interactions'>('dashboard');
+  const [view,         setView]         = useState<'dashboard' | 'scan' | 'leads' | 'crm' | 'pipeline' | 'interactions' | "messenger">('dashboard');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [currentPage,  setCurrentPage]  = useState(1);
   const [sortBy,       setSortBy]       = useState<'score' | 'name' | 'city'>('score');
@@ -341,6 +343,20 @@ export function AccountCrmLeadsContent() {
   const [scanLog,      setScanLog]      = useState<string[]>([]);
   const [emailSentFor, setEmailSentFor] = useState<number | null>(null);
   const [isDemoLeads,  setIsDemoLeads]  = useState(false);
+  const [interactions, setInteractions] = useState<Interaction[]>(() => {
+    try {
+      const raw = localStorage.getItem('crm_interactions');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('crm_interactions', JSON.stringify(interactions));
+    } catch {}
+  }, [interactions]);
 
   const [filters, setFilters] = useState({
     sectors:    [] as string[],
@@ -714,6 +730,8 @@ export function AccountCrmLeadsContent() {
               { k: 'dashboard'  as const, label: 'Dashboard', fa: 'fa-solid fa-chart-line'},
               { k: 'scan'  as const, label: 'Scan',      fa: 'fa-solid fa-satellite-dish' },
               { k: 'leads' as const, label: 'Prospects', fa: 'fa-solid fa-users'          },
+              { k: 'crm' as const, label: 'Crm', fa: 'fa-solid fa-address-card' },
+              { k: 'messenger' as const, label: 'Interactions', fa: 'fa-solid fa-comments' },
               { k: 'crm' as const, label: 'CRM', fa: 'fa-solid fa-address-book'},
               { k: 'pipeline' as const, label: 'Pipeline', fa: 'fa-solid fa-diagram-project'},
               { k: 'interactions' as const, label: 'Interactions', fa: 'fa-solid fa-comments' },
@@ -735,6 +753,11 @@ export function AccountCrmLeadsContent() {
                     {leads.length}
                   </span>
                 )}
+                {tab.k === 'messenger' && interactions.length > 0 && (
+                  <span className="rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
+                    {interactions.length}
+                  </span>
+                )}
               </button>
             ))}
           </nav>
@@ -748,6 +771,57 @@ export function AccountCrmLeadsContent() {
           sectorIcon={(s) => SECTORS[s]?.faIcon || 'fa-solid fa-tag'}
           onGoScan={() => setView('scan')}
         />
+      )}
+
+      {view === 'messenger' && (
+        <LeadMessanger
+          leads={leads.map(l => ({ id: l.id, company: l.company, name: l.name, city: l.city, sector: l.sector }))}
+          interactions={interactions}
+        />
+      )}
+
+      {view === 'crm' && (
+        <div className="max-w-[1100px] mx-auto">
+          <CRM
+            leads={leads.map(l => ({
+              id: l.id,
+              name: l.name,
+              company: l.company,
+              role: l.role,
+              email: l.email,
+              phone: l.phone,
+              city: l.city,
+              sector: l.sector,
+              score: l.score,
+              status: l.status,
+              website: l.website,
+              linkedin: l.linkedIn,
+              enriched: l.apolloEnriched,
+            })) as any}
+          />
+        </div>
+      )}
+
+      {view === 'crm' && (
+        <div className="max-w-[1100px] mx-auto">
+          <CRM
+            leads={leads.map(l => ({
+              id: l.id,
+              name: l.name,
+              company: l.company,
+              role: l.role,
+              email: l.email,
+              phone: l.phone,
+              city: l.city,
+              sector: l.sector,
+              score: l.score,
+              status: l.status,
+              website: l.website,
+              linkedin: l.linkedIn,
+              enriched: l.apolloEnriched,
+            })) as any}
+          />
+        </div>
       )}
 
       {/* ══════════════════ DASHBOARD ══════════════════════════════════════════ */}

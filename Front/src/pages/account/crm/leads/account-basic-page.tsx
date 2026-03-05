@@ -11,6 +11,7 @@ import { useSettings } from '@/providers/settings-provider';
 import { Container } from '@/components/common/container';
 import { AccountCrmLeadsContent } from './account-basic-content';
 
+
 export function AccountCrmLeadsPage() {
   const { settings } = useSettings();
 
@@ -26,7 +27,9 @@ export function AccountCrmLeadsPage() {
                 ProspectAI — Google Places, Apollo.io & Claude. Manage and track your prospects.
               </ToolbarDescription>
             </ToolbarHeading>
-            <ToolbarActions>{null}</ToolbarActions>
+            <ToolbarActions>
+              <CrmToolbarLinks />
+            </ToolbarActions>
           </Toolbar>
         </Container>
       )}

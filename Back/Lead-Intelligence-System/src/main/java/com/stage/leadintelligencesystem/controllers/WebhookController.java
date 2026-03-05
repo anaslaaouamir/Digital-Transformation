@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/webhooks")
 public class WebhookController {
@@ -31,5 +33,16 @@ public class WebhookController {
             // Log the error (e.g., "Lead not found") but return a clean message
             // You might want to return 200 OK even on failure so n8n doesn't keep retrying forever
             return ResponseEntity.badRequest().body("{\"status\": \"error\", \"message\": \"" + e.getMessage() + "\"}");        }
+    }
+
+    @PostMapping("/email-bounce")
+    public ResponseEntity<String> handleEmailBounce(@RequestBody Map<String, String> payload) {
+        try {
+            String email = payload.get("email");
+            sequenceService.handleBouncedEmail(email);
+            return ResponseEntity.ok("{\"status\": \"success\", \"message\": \"Bounce processed\"}");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body("{\"status\": \"error\", \"message\": \"" + e.getMessage() + "\"}");
+        }
     }
 }

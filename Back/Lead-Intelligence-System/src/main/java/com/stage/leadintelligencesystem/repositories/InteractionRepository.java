@@ -19,7 +19,11 @@ public interface InteractionRepository extends JpaRepository<Interaction, Long> 
     );
     // MATCHING LOGIC: Find an email where the subject matches our "clean" version
     // We look for emails where the subject is LIKE %cleanSubject%
-    @Query("SELECT i FROM Interaction i WHERE i.lead = :lead AND i.status = 'SENT' AND i.subject LIKE %:cleanSubject% ORDER BY i.sentAt DESC")
+    @Query("SELECT i FROM Interaction i WHERE i.lead = :lead " +
+            "AND i.status IN ('SENT', 'OPENED') " + // Catch both sent and opened emails
+            "AND i.subject LIKE %:cleanSubject% " +
+            "ORDER BY i.sentAt DESC")
     List<Interaction> findBySubjectMatch(@Param("lead") Lead lead, @Param("cleanSubject") String cleanSubject);
 
+    List<Interaction> findByLeadAndStatusIn(Lead lead, List<String> statuses);
 }

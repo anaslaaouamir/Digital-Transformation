@@ -1,0 +1,1077 @@
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+
+function useFontAwesome() {
+  useEffect(() => {
+    const id = 'fa-cdn';
+    if (document.getElementById(id)) return;
+    const link = document.createElement('link');
+    link.id = id; link.rel = 'stylesheet';
+    link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
+    document.head.appendChild(link);
+  }, []);
+}
+
+export type Interaction = {
+  id: string;
+  leadId: number;
+  company: string;
+  contactName?: string;
+  city?: string;
+  sector?: string;
+  phone?: string;
+  email?: string;
+  channel: 'EMAIL' | 'WHATSAPP';
+  status: 'SENT' | 'OPENED' | 'REPLIED' | 'BOUNCED';
+  contactStatus?: string;
+  interactionType?: string;
+  sequenceStatus?: string;
+  sentAt: string;
+  openedAt?: string;
+  repliedAt?: string;
+};
+
+const FAKE_LEADS = [
+  { id: 1,  company: 'Atlas Hospitality Group', name: 'Youssef Alami',   city: 'Casablanca', sector: 'Hospitality',     phone: '+212 661 234 567', email: 'youssef@atlas-hospitality.ma' },
+  { id: 2,  company: 'Marrakech Fine Dining',   name: 'Fatima Benali',   city: 'Marrakech',  sector: 'Restauration',    phone: '+212 662 345 678', email: 'fatima@marrakechfine.ma' },
+  { id: 3,  company: 'Rabat Tech Hub',          name: 'Mehdi Tazi',      city: 'Rabat',      sector: 'Technology',      phone: '+212 663 456 789', email: 'mehdi@rabattech.ma' },
+  { id: 4,  company: 'Fes Heritage Hotels',     name: 'Samira Idrissi',  city: 'Fes',        sector: 'Hospitality',     phone: '+212 664 567 890', email: 'samira@fesheritage.ma' },
+  { id: 5,  company: 'Agadir Sea Resort',       name: 'Omar Cherkaoui',  city: 'Agadir',     sector: 'Tourism',         phone: '+212 665 678 901', email: 'omar@agadirsea.ma' },
+  { id: 6,  company: 'Tangier Trade Co.',       name: 'Leila Mansouri',  city: 'Tangier',    sector: 'Commerce',        phone: '+212 666 789 012', email: 'leila@tangiertrade.ma' },
+  { id: 7,  company: 'Oujda Food Group',        name: 'Hassan Berrada',  city: 'Oujda',      sector: 'Restauration',    phone: '+212 667 890 123', email: 'hassan@oujdafood.ma' },
+  { id: 8,  company: 'Kenitra Logistics',       name: 'Nadia Filali',    city: 'Kenitra',    sector: 'Logistics',       phone: '+212 668 901 234', email: 'nadia@kenitralog.ma' },
+  { id: 9,  company: 'Tetouan Craft Exports',   name: 'Amine Wahbi',     city: 'Tetouan',    sector: 'Artisanat',       phone: '+212 669 012 345', email: 'amine@tetouancraft.ma' },
+  { id: 10, company: 'Dakhla Surf Lodges',      name: 'Rim Saidi',       city: 'Dakhla',     sector: 'Tourism',         phone: '+212 670 123 456', email: 'rim@dakhlasurf.ma' },
+  { id: 11, company: 'Meknes Wineries',         name: 'Tarik Bousfiha',  city: 'Meknes',     sector: 'Agroalimentaire', phone: '+212 671 234 567', email: 'tarik@mekneswines.ma' },
+  { id: 12, company: 'Essaouira Riad Group',    name: 'Kenza Alaoui',    city: 'Essaouira',  sector: 'Hospitality',     phone: '+212 672 345 678', email: 'kenza@essaouirariad.ma' },
+];
+
+const CHANNEL_LIST           = ['EMAIL', 'WHATSAPP'];
+const STATUS_LIST            = ['SENT', 'OPENED', 'REPLIED', 'BOUNCED'];
+const CONTACT_STATUS_LIST    = ['NON_CONTACTE','EN_SEQUENCE','TERMINE_SANS_REPONSE','A_REPONDU','MASS_EMAIL_ENVOYE','EMAIL_BOUNCED','MANUAL_EMAIL_ENVOYE'];
+const INTERACTION_TYPE_LIST  = ['MANUAL','SEQUENCE','AI_GENERATED','MASSE','RESPONSE'];
+const SEQ_ENROLLMENT_STATUS  = ['ACTIVE','PAUSED','COMPLETED','CANCELLED'];
+
+const EMAIL_TEMPLATES = [
+  { id: 't1', name: 'Premiere approche',  subject: 'Collaboration digitale -- {{company}}',              body: "Bonjour {{firstName}},\n\nJ'ai decouvert {{company}} dans le secteur {{sector}} a {{city}}.\n\nChez ELBAHI.NET, nous accompagnons les entreprises marocaines dans leur transformation digitale.\n\nDisponible pour 15 minutes cette semaine ?\n\nCordialement,\nAbderrahim\nELBAHI.NET" },
+  { id: 't2', name: 'Relance J+3',        subject: 'Re: Collaboration -- {{company}}',                   body: "Bonjour {{firstName}},\n\nJe me permets de revenir vers vous. Nous avons aide des entreprises similaires a {{company}} a augmenter leur visibilite de +150%.\n\nQuand seriez-vous disponible ?\n\nBien cordialement,\nAbderrahim\nELBAHI.NET" },
+  { id: 't3', name: 'Audit gratuit',      subject: 'Audit gratuit pour {{company}}',                    body: "Bonjour {{firstName}},\n\nJe vous propose un audit digital gratuit de {{company}} incluant :\n- Analyse SEO\n- Benchmark concurrentiel\n- Recommandations personnalisees\n\nUn simple oui suffit !\n\nAbderrahim\nELBAHI.NET" },
+  { id: 't4', name: 'Social proof',       subject: 'Resultats pour une entreprise similaire',           body: "Bonjour {{firstName}},\n\nNous avons accompagne une entreprise {{sector}} a {{city}} :\n-> +180% trafic qualifie\n-> +85 leads/mois\n-> ROI 4.5x\n\nDiscutons comment reproduire ces resultats pour {{company}}.\n\n15 minutes ?\n\nAbderrahim\nELBAHI.NET" },
+  { id: 't5', name: 'Dernier contact',    subject: 'Derniere tentative -- {{company}}',                 body: "Bonjour {{firstName}},\n\nCe sera mon dernier message. Si le digital n'est pas prioritaire pour {{company}} en ce moment, je comprends.\n\nN'hesitez pas a me recontacter quand le moment sera venu.\n\nAbderrahim\nELBAHI.NET" },
+];
+
+const WA_TEMPLATES = {
+  intro:    (lead) => `Bonjour ${(lead?.name||'').split(' ')[0]},\n\nJe suis Abderrahim d'ELBAHI.NET.\n\nJ'ai remarque ${lead?.company} et j'aimerais echanger 10 min sur votre strategie digitale.\n\nwww.elbahi.net`,
+  followup: (lead) => `Bonjour ${(lead?.name||'').split(' ')[0]},\n\nJe reviens suite a mon precedent message.\n\nToujours partant pour discuter de ${lead?.company} ?\n\nAbderrahim - ELBAHI.NET`,
+  proposal: (lead) => `Bonjour ${(lead?.name||'').split(' ')[0]},\n\nVoici notre proposition pour ${lead?.company}.\n\nDocument en piece jointe.\n\nVos questions sont les bienvenues !\n\nAbderrahim - ELBAHI.NET`,
+  catalog:  ()     => `Bonjour,\n\nNos services ELBAHI.NET :\n\n- Sites web\n- Marketing digital\n- Design & Branding\n- SEO\n\nTarifs adaptes au Maroc.\n\nInteresse(e) ? Repondez OUI !`,
+};
+
+const QUICK_ATTACHMENTS = [
+  { name: 'Proposition commerciale.pdf', size: 2400000 },
+  { name: 'Strategie digitale.pdf',      size: 1800000 },
+  { name: 'Grille tarifaire.pdf',        size:  850000 },
+  { name: 'Etude de cas client.pdf',     size: 3200000 },
+  { name: 'Presentation agence.pptx',    size: 5600000 },
+];
+
+function applyTemplate(tmpl, lead) {
+  const vars = {
+    '{{firstName}}': (lead?.name||'').split(' ')[0],
+    '{{company}}':   lead?.company || '',
+    '{{sector}}':    lead?.sector  || '',
+    '{{city}}':      lead?.city    || '',
+    '{{email}}':     lead?.email   || '',
+  };
+  let subject = tmpl.subject, body = tmpl.body;
+  Object.entries(vars).forEach(([k,v]) => { subject = subject.replaceAll(k,v); body = body.replaceAll(k,v); });
+  return { subject, body };
+}
+
+function buildFakeInteractions(leads) {
+  const now = Date.now();
+  const out = [];
+  leads.forEach((l, idx) => {
+    const count = 1 + (idx % 3);
+    for (let k = 0; k < count; k++) {
+      const ch     = CHANNEL_LIST[(idx + k) % CHANNEL_LIST.length];
+      const st     = STATUS_LIST[(idx * 3 + k) % STATUS_LIST.length];
+      const sentMs = now - idx * 86400000 - k * 7200000;
+      out.push({
+        id:              `${l.id}-${k}`,
+        leadId:          l.id,
+        company:         l.company,
+        contactName:     l.name,
+        city:            l.city,
+        sector:          l.sector,
+        phone:           l.phone,
+        email:           l.email,
+        channel:         ch,
+        status:          st,
+        contactStatus:   CONTACT_STATUS_LIST[(idx + k) % CONTACT_STATUS_LIST.length],
+        interactionType: INTERACTION_TYPE_LIST[(idx + k) % INTERACTION_TYPE_LIST.length],
+        sequenceStatus:  SEQ_ENROLLMENT_STATUS[(idx + k) % SEQ_ENROLLMENT_STATUS.length],
+        sentAt:          new Date(sentMs).toISOString(),
+        openedAt:        (st==='OPENED'||st==='REPLIED') ? new Date(sentMs+3600000).toISOString() : undefined,
+        repliedAt:       st==='REPLIED' ? new Date(sentMs+7200000).toISOString() : undefined,
+      });
+    }
+  });
+  return out.sort((a,b) => b.sentAt.localeCompare(a.sentAt));
+}
+
+/* ─── Style maps ─── */
+const STATUS_CFG = {
+  SENT:    { bg:'#f8fafc', text:'#475569', border:'#cbd5e1', icon:'fa-solid fa-paper-plane',          label:'Envoye'  },
+  OPENED:  { bg:'#fffbeb', text:'#b45309', border:'#fcd34d', icon:'fa-solid fa-envelope-open',        label:'Ouvert'  },
+  REPLIED: { bg:'#ecfdf5', text:'#047857', border:'#6ee7b7', icon:'fa-solid fa-reply',                label:'Repondu' },
+  BOUNCED: { bg:'#fef2f2', text:'#b91c1c', border:'#fecaca', icon:'fa-solid fa-triangle-exclamation', label:'Bounce'  },
+};
+
+const CHANNEL_CFG = {
+  EMAIL:     { color:'#2563eb', icon:'fa-solid fa-envelope',     label:'EMAIL'     },
+  WHATSAPP:  { color:'#16a34a', icon:'fa-brands fa-whatsapp',    label:'WHATSAPP'  },
+};
+
+const CONTACT_STATUS_CFG = {
+  NON_CONTACTE:         { bg:'#f1f5f9', text:'#475569', border:'#e2e8f0', icon:'fa-solid fa-circle',               label:'Non contacte'    },
+  EN_SEQUENCE:          { bg:'#eef2ff', text:'#4338ca', border:'#a5b4fc', icon:'fa-solid fa-diagram-project',      label:'En sequence'     },
+  TERMINE_SANS_REPONSE: { bg:'#fff7ed', text:'#9a3412', border:'#fdba74', icon:'fa-solid fa-clock-rotate-left',    label:'Sans reponse'    },
+  A_REPONDU:            { bg:'#ecfdf5', text:'#047857', border:'#6ee7b7', icon:'fa-solid fa-check',                label:'A repondu'       },
+  MASS_EMAIL_ENVOYE:    { bg:'#f5f3ff', text:'#5b21b6', border:'#c4b5fd', icon:'fa-solid fa-bullhorn',             label:'Email masse'     },
+  EMAIL_BOUNCED:        { bg:'#fef2f2', text:'#b91c1c', border:'#fecaca', icon:'fa-solid fa-triangle-exclamation', label:'Bounce'          },
+  MANUAL_EMAIL_ENVOYE:  { bg:'#f0f9ff', text:'#0369a1', border:'#bae6fd', icon:'fa-solid fa-keyboard',            label:'Email manuel'    },
+};
+
+const ITYPE_CFG = {
+  MANUAL:       { icon:'fa-solid fa-keyboard',          label:'Manuel'   },
+  SEQUENCE:     { icon:'fa-solid fa-diagram-project',   label:'Sequence' },
+  AI_GENERATED: { icon:'fa-solid fa-robot',             label:'IA'       },
+  MASSE:        { icon:'fa-solid fa-bullhorn',          label:'Masse'    },
+  RESPONSE:     { icon:'fa-solid fa-reply',             label:'Reponse'  },
+};
+
+const SEQ_CFG = {
+  ACTIVE:    { bg:'#ecfdf5', text:'#047857', border:'#6ee7b7', icon:'fa-solid fa-play',        label:'Active'    },
+  PAUSED:    { bg:'#fffbeb', text:'#b45309', border:'#fcd34d', icon:'fa-solid fa-pause',       label:'En pause'  },
+  COMPLETED: { bg:'#f1f5f9', text:'#475569', border:'#e2e8f0', icon:'fa-solid fa-check-double',label:'Terminee'  },
+  CANCELLED: { bg:'#fef2f2', text:'#b91c1c', border:'#fecaca', icon:'fa-solid fa-xmark',       label:'Annulee'   },
+};
+
+/* ─── Formatters ─── */
+const fmtDate = (iso) => {
+  if (!iso) return '--';
+  return new Date(iso).toLocaleDateString('fr-MA', { day:'2-digit', month:'short', year:'numeric' });
+};
+const fmtTime = (iso) => {
+  if (!iso) return '';
+  return new Date(iso).toLocaleTimeString('fr-MA', { hour:'2-digit', minute:'2-digit' });
+};
+const timeAgo = (iso) => {
+  if (!iso) return '';
+  const ms = Date.now() - new Date(iso).getTime();
+  const d  = Math.floor(ms / 86400000);
+  const h  = Math.floor(ms / 3600000);
+  if (d > 0) return `il y a ${d}j`;
+  if (h > 0) return `il y a ${h}h`;
+  return "a l'instant";
+};
+const fmtSize = (b) => b > 1e6 ? `${(b/1e6).toFixed(1)} MB` : `${Math.round(b/1000)} KB`;
+
+/* ─── Shared micro-styles ─── */
+const S = {
+  input: {
+    width:'100%', boxSizing:'border-box', padding:'9px 11px',
+    border:'1px solid #e2e8f0', borderRadius:7, fontSize:13,
+    color:'#0f172a', outline:'none', background:'#fff', fontFamily:'inherit',
+  },
+  label: {
+    display:'block', fontSize:10, fontWeight:700, color:'#94a3b8',
+    textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:5,
+  },
+  card: {
+    background:'#fff', border:'1px solid #e2e8f0', borderRadius:12,
+    boxShadow:'0 1px 3px rgba(0,0,0,0.05)',
+  },
+  tag: (bg, text, border) => ({
+    display:'inline-flex', alignItems:'center', gap:5,
+    background:bg, color:text, border:`1px solid ${border}`,
+    borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:600,
+    whiteSpace:'nowrap',
+  }),
+};
+
+/* ══════════════════════════════════════════
+   SMALL BADGE COMPONENTS
+══════════════════════════════════════════ */
+function StatusBadge({ status }) {
+  const c = STATUS_CFG[status] || STATUS_CFG.SENT;
+  return (
+    <span style={S.tag(c.bg, c.text, c.border)}>
+      <i className={c.icon} style={{ fontSize:10 }} />
+      {c.label}
+    </span>
+  );
+}
+
+function ChannelBadge({ channel }) {
+  const c = CHANNEL_CFG[channel] || CHANNEL_CFG.EMAIL;
+  return (
+    <span style={S.tag('#f8fafc', c.color, '#e2e8f0')}>
+      <i className={c.icon} style={{ fontSize:12 }} />
+      <span style={{ fontWeight:700 }}>{c.label}</span>
+    </span>
+  );
+}
+
+function ITypeBadge({ type }) {
+  const c = ITYPE_CFG[type] || { icon:'fa-solid fa-circle', label:type };
+  return (
+    <span style={S.tag('#f8fafc', '#475569', '#e2e8f0')}>
+      <i className={c.icon} style={{ fontSize:10 }} />
+      {c.label}
+    </span>
+  );
+}
+
+function ContactStatusBadge({ status }) {
+  const c = CONTACT_STATUS_CFG[status] || CONTACT_STATUS_CFG.NON_CONTACTE;
+  return (
+    <span style={S.tag(c.bg, c.text, c.border)}>
+      <i className={c.icon} style={{ fontSize:10 }} />
+      {c.label}
+    </span>
+  );
+}
+
+function SeqBadge({ status }) {
+  const c = SEQ_CFG[status] || SEQ_CFG.ACTIVE;
+  return (
+    <span style={S.tag(c.bg, c.text, c.border)}>
+      <i className={c.icon} style={{ fontSize:10 }} />
+      {c.label}
+    </span>
+  );
+}
+
+/* ── Stat card ── */
+function StatCard({ label, value, icon }) {
+  const THEME = {
+    Total:           { accent:'#2563eb', bg:'#eff6ff' },
+    Repondus:        { accent:'#059669', bg:'#ecfdf5' },
+    Ouverts:         { accent:'#d97706', bg:'#fffbeb' },
+    'Taux de reponse': { accent:'#7c3aed', bg:'#f5f3ff' },
+  };
+  const t = THEME[label] || { accent:'#64748b', bg:'#f1f5f9' };
+  return (
+    <div style={{ ...S.card, padding:'14px 18px', display:'flex', alignItems:'center', gap:12, flex:'1 1 130px', minWidth:120, borderLeft:`3px solid ${t.accent}` }}>
+      <div style={{ width:38, height:38, borderRadius:10, background:t.bg, display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <i className={icon} style={{ fontSize:16, color:t.accent }} />
+      </div>
+      <div>
+        <div style={{ fontSize:20, fontWeight:700, color:'#0f172a', lineHeight:1.1 }}>{value}</div>
+        <div style={{ fontSize:11, color:t.accent, fontWeight:700, marginTop:2 }}>{label}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Pagination button ── */
+function PagBtn({ onClick, disabled, label, active }) {
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      width:30, height:30, borderRadius:6, border:'1px solid #e2e8f0',
+      background: active ? '#0f172a' : disabled ? '#f8fafc' : '#fff',
+      color:      active ? '#fff'    : disabled ? '#cbd5e1' : '#475569',
+      fontWeight:600, fontSize:13, cursor:disabled?'default':'pointer',
+      display:'flex', alignItems:'center', justifyContent:'center',
+    }}>
+      {label}
+    </button>
+  );
+}
+
+/* ══════════════════════════════════════════
+   COMPOSE MODAL
+══════════════════════════════════════════ */
+function ComposeModal({ lead, onClose, onSend }) {
+  const [channel,     setChannel]  = useState('email');
+  const [subject,     setSubject]  = useState('');
+  const [body,        setBody]     = useState('');
+  const [waBody,      setWaBody]   = useState('');
+  const [waPhone,     setWaPhone]  = useState(lead?.phone || '');
+  const [aiLoading,   setAiLoad]   = useState(false);
+
+  useEffect(() => {
+    const { subject: s, body: b } = applyTemplate(EMAIL_TEMPLATES[0], lead);
+    setSubject(s);
+    setBody(b);
+    setWaBody(WA_TEMPLATES.intro(lead));
+  }, []);
+
+  const pickEmailTmpl = (t) => { const { subject:s, body:b } = applyTemplate(t, lead); setSubject(s); setBody(b); };
+  const pickWaTmpl    = (k) => { if (WA_TEMPLATES[k]) setWaBody(WA_TEMPLATES[k](lead)); };
+
+  const generateAI = async () => {
+    setAiLoad(true);
+    try {
+      const res  = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514', max_tokens: 1000,
+          messages: [{ role:'user', content:`Redige un objet et corps d'email de prospection pour ELBAHI.NET. Prospect: ${lead?.name}, ${lead?.company} (${lead?.sector}, ${lead?.city}). Reponds en JSON: {"subject":"...","body":"..."}. Max 120 mots body. Signe: Abderrahim, ELBAHI.NET` }]
+        }),
+      });
+      const data = await res.json();
+      const text = data.content?.[0]?.text || '';
+      try { const p = JSON.parse(text.replace(/```json|```/g,'').trim()); setSubject(p.subject); setBody(p.body); }
+      catch { setBody(text); }
+    } catch { pickEmailTmpl(EMAIL_TEMPLATES[0]); }
+    setAiLoad(false);
+  };
+
+  const handleSend = () => onSend({ subject, body, waBody, waPhone, channel });
+  const canSendEmail = subject.trim() && body.trim();
+
+  /* section styles */
+  const emailSection = {
+    background:'#f0f4ff', border:'1px solid #bfdbfe', borderRadius:12, padding:'16px',
+    display:'flex', flexDirection:'column', gap:12,
+  };
+  const waSection = {
+    background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:12, padding:'16px',
+    display:'flex', flexDirection:'column', gap:12,
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.65)', backdropFilter:'blur(6px)', zIndex:2000, display:'flex', alignItems:'center', justifyContent:'center' }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ width:680, maxHeight:'92vh', background:'#fff', borderRadius:20, overflow:'hidden', display:'flex', flexDirection:'column', boxShadow:'0 40px 100px rgba(0,0,0,0.3)' }}
+      >
+
+        {/* ─── Header ─── */}
+        <div style={{ padding:'18px 24px', borderBottom:'1px solid #f1f5f9', background:'#f8fafc', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div>
+            <div style={{ fontSize:16, fontWeight:700, color:'#0f172a', display:'flex', alignItems:'center', gap:8 }}>
+              <i className="fa-solid fa-file-invoice" style={{ fontSize:16 }} />
+              Envoyer une proposition
+            </div>
+            <div style={{ fontSize:12, color:'#94a3b8', marginTop:3 }}>
+              {lead?.name} &middot; {lead?.company} &middot; {lead?.city}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ width:34, height:34, borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#94a3b8' }}
+          >
+            <i className="fa-solid fa-xmark" />
+          </button>
+        </div>
+
+        {/* ─── Body ─── */}
+        <div style={{ overflowY:'auto', flex:1, padding:'20px 24px', display:'flex', flexDirection:'column', gap:16 }}>
+
+          {/* Channel selector */}
+          <div>
+            <label style={S.label}>Canal d'envoi</label>
+            <div style={{ display:'flex', gap:8 }}>
+              {[
+                { k:'email',    icon:'fa-solid fa-envelope',  label:'Email',      desc:'SMTP' },
+                { k:'whatsapp', icon:'fa-brands fa-whatsapp', label:'WhatsApp',   desc:'Business API' },
+                { k:'both',     icon:'fa-solid fa-layer-group',label:'Les deux',  desc:'Multi-canal' },
+              ].map(ch => (
+                <button
+                  key={ch.k}
+                  onClick={() => setChannel(ch.k)}
+                  style={{
+                    flex:1, padding:'10px 8px', borderRadius:10, cursor:'pointer',
+                    background: channel===ch.k ? '#f1f5f9' : '#f8fafc',
+                    border: `1.5px solid ${channel===ch.k ? '#475569' : '#e2e8f0'}`,
+                    display:'flex', flexDirection:'column', alignItems:'center', gap:5,
+                    transition:'all 0.15s',
+                  }}
+                >
+                  <i className={ch.icon} style={{ fontSize:16, color: channel===ch.k ? '#0f172a' : '#94a3b8' }} />
+                  <span style={{ fontSize:12, fontWeight:700, color: channel===ch.k ? '#0f172a' : '#94a3b8' }}>{ch.label}</span>
+                  <span style={{ fontSize:10, color:'#94a3b8' }}>{ch.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Email section ── */}
+          {(channel==='email' || channel==='both') && (
+            <div style={emailSection}>
+              <div style={{ display:'flex', alignItems:'center', gap:7, fontWeight:700, fontSize:13, color:'#0f172a' }}>
+                <i className="fa-solid fa-envelope" />
+                Email
+              </div>
+
+              {/* Email templates */}
+              <div>
+                <label style={S.label}>Template</label>
+                <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                  {EMAIL_TEMPLATES.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => pickEmailTmpl(t)}
+                      style={{ padding:'5px 10px', border:'1px solid #cbd5e1', borderRadius:6, background:'#fff', fontSize:11, fontWeight:600, color:'#0f172a', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:5 }}
+                    >
+                      <i className="fa-solid fa-file-lines" style={{ fontSize:10, color:'#94a3b8' }} />
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Claude AI */}
+              <button
+                onClick={generateAI}
+                disabled={aiLoading}
+                style={{ alignSelf:'flex-start', display:'inline-flex', alignItems:'center', gap:6, padding:'7px 14px', background: aiLoading?'#f1f5f9':'#0f172a', border:'none', borderRadius:8, color: aiLoading?'#94a3b8':'#fff', fontSize:12, fontWeight:700, cursor: aiLoading?'wait':'pointer', fontFamily:'inherit' }}
+              >
+                <i className={aiLoading ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-robot'} style={{ fontSize:12 }} />
+                {aiLoading ? 'Generation Claude...' : 'Rediger avec Claude AI'}
+              </button>
+
+              {/* Subject */}
+              <div>
+                <label style={S.label}>Objet</label>
+                <input value={subject} onChange={e=>setSubject(e.target.value)} placeholder="Objet de l'email..." style={S.input} />
+              </div>
+
+              {/* Body */}
+              <div>
+                <label style={S.label}>Message</label>
+                <textarea value={body} onChange={e=>setBody(e.target.value)} rows={5} style={{ ...S.input, resize:'vertical', lineHeight:1.7 }} />
+              </div>
+            </div>
+          )}
+
+          {/* ── WhatsApp section ── */}
+          {(channel==='whatsapp' || channel==='both') && (
+            <div style={waSection}>
+              <div style={{ display:'flex', alignItems:'center', gap:7, fontWeight:700, fontSize:13, color:'#0f172a' }}>
+                <i className="fa-brands fa-whatsapp" style={{ fontSize:16 }} />
+                WhatsApp Business
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label style={S.label}>Numero WhatsApp</label>
+                <input value={waPhone} onChange={e=>setWaPhone(e.target.value)} placeholder="+212 6XX XX XX XX" style={{ ...S.input, fontFamily:'monospace' }} />
+              </div>
+
+              {/* WA templates */}
+              <div>
+                <label style={S.label}>Template</label>
+                <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                  {[
+                    { k:'intro',    label:'Introduction',  icon:'fa-solid fa-hand-wave'    },
+                    { k:'followup', label:'Relance',       icon:'fa-solid fa-rotate-right'  },
+                    { k:'proposal', label:'Proposition',   icon:'fa-solid fa-file-contract' },
+                    { k:'catalog',  label:'Catalogue',     icon:'fa-solid fa-table-list'    },
+                  ].map(t => (
+                    <button
+                      key={t.k}
+                      onClick={() => pickWaTmpl(t.k)}
+                      style={{ padding:'5px 10px', border:'1px solid #bbf7d0', borderRadius:6, background:'#fff', fontSize:11, fontWeight:600, color:'#0f172a', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:5 }}
+                    >
+                      <i className={t.icon} style={{ fontSize:10, color:'#94a3b8' }} />
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* WA body */}
+              <div>
+                <label style={S.label}>Message WhatsApp</label>
+                <textarea value={waBody} onChange={e=>setWaBody(e.target.value)} rows={5} style={{ ...S.input, resize:'vertical', lineHeight:1.7 }} />
+                <div style={{ fontSize:10, color:'#94a3b8', marginTop:3 }}>{waBody.length}/1024 caracteres</div>
+              </div>
+
+              {/* Info */}
+              <div style={{ padding:'8px 12px', background:'rgba(0,0,0,0.02)', borderRadius:8, border:'1px solid #e2e8f0', fontSize:11, color:'#64748b', lineHeight:1.5, display:'flex', gap:8 }}>
+                <i className="fa-solid fa-circle-info" style={{ color:'#94a3b8', marginTop:1, flexShrink:0 }} />
+                <span>Necessite un numero verifie Meta Business. Cout : ~0.05 MAD/message. Les pieces jointes sont envoyees comme media.</span>
+              </div>
+            </div>
+          )}
+
+          {/* No attachments section (removed) */}
+        </div>
+
+        {/* ─── Footer ─── */}
+        <div style={{ padding:'14px 24px', borderTop:'1px solid #f1f5f9', background:'#f8fafc', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div style={{ fontSize:12, color:'#94a3b8', display:'flex', alignItems:'center', gap:8 }}>
+            <i className="fa-solid fa-at" style={{ fontSize:11 }} />
+            {lead?.email || '--'}
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={onClose} style={{ padding:'9px 18px', border:'1px solid #e2e8f0', borderRadius:8, background:'#fff', color:'#475569', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+              Annuler
+            </button>
+            {(channel==='whatsapp'||channel==='both') && (
+              <button onClick={handleSend} style={{ padding:'9px 20px', background:'#15803d', border:'none', borderRadius:8, color:'#fff', fontSize:13, fontWeight:700, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6, fontFamily:'inherit' }}>
+                <i className="fa-brands fa-whatsapp" />
+                WhatsApp
+              </button>
+            )}
+            {channel !== 'whatsapp' && (
+              <button onClick={handleSend} disabled={!canSendEmail} style={{ padding:'9px 22px', background: canSendEmail?'#0f172a':'#e2e8f0', border:'none', borderRadius:8, color: canSendEmail?'#fff':'#94a3b8', fontSize:13, fontWeight:700, cursor: canSendEmail?'pointer':'not-allowed', display:'inline-flex', alignItems:'center', gap:6, fontFamily:'inherit' }}>
+                <i className="fa-solid fa-paper-plane" />
+                Envoyer
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════
+   CONVERSATION DETAIL PANEL
+══════════════════════════════════════════ */
+function Conversation({ detail, onCompose, incoming }) {
+  const [msg,    setMsg]  = useState('');
+  const [thread, setTh]   = useState(() => {
+    const items = [];
+    if (detail.sentAt)   items.push({ from:'you',    txt:`Bonjour, je vous contacte au sujet de ${detail.company}. Seriez-vous disponible pour un echange rapide ?`, at:detail.sentAt });
+    if (detail.openedAt) items.push({ from:'system', txt:'Ouverture du message', at:detail.openedAt });
+    if (detail.repliedAt)items.push({ from:'lead',   txt:'Bonjour, merci pour votre message. Nous pouvons echanger prochainement.', at:detail.repliedAt });
+    return items.length ? items : [{ from:'you', txt:`Bonjour, je vous contacte au sujet de ${detail.company}.`, at:new Date().toISOString() }];
+  });
+
+  const send = () => {
+    if (!msg.trim()) return;
+    setTh(t => [...t, { from:'you', txt:msg.trim(), at:new Date().toISOString() }]);
+    setMsg('');
+  };
+
+  useEffect(() => {
+    if (incoming && incoming.leadId === detail.leadId) {
+      setTh(t => [...t, { from: incoming.from || 'you', txt: incoming.txt || '', at: incoming.at || new Date().toISOString() }]);
+    }
+  }, [incoming, detail.leadId]);
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+
+      {/* Lead info row */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+        {[
+          { label:'Email',     value:detail.email  ||'--', icon:'fa-solid fa-envelope'  },
+          { label:'Telephone', value:detail.phone  ||'--', icon:'fa-solid fa-phone'     },
+          { label:'Secteur',   value:detail.sector ||'--', icon:'fa-solid fa-briefcase' },
+        ].map(r => (
+          <div key={r.label} style={{ background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:8, padding:'10px 12px', display:'flex', alignItems:'center', gap:8 }}>
+            <i className={r.icon} style={{ color:'#94a3b8', fontSize:13, flexShrink:0 }} />
+            <div>
+              <div style={{ fontSize:9, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.07em' }}>{r.label}</div>
+              <div style={{ fontSize:12, color:'#0f172a', fontWeight:600, marginTop:1 }}>{r.value}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Status badges */}
+      <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+        <StatusBadge status={detail.status} />
+        <ChannelBadge channel={detail.channel} />
+        <ITypeBadge type={detail.interactionType} />
+        <ContactStatusBadge status={detail.contactStatus} />
+        <SeqBadge status={detail.sequenceStatus} />
+      </div>
+
+      {/* Proposition CTA banner */}
+      <div style={{ background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:12, padding:'14px 18px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+        <div>
+          <div style={{ fontSize:14, fontWeight:700, color:'#0f172a', display:'flex', alignItems:'center', gap:8, marginBottom:3 }}>
+            <i className="fa-solid fa-file-invoice" style={{ color:'#475569' }} />
+            Prospect: {detail.company} {detail.sector}
+          </div>
+          <div style={{ fontSize:11, color:'#94a3b8', display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+            <span><i className="fa-solid fa-envelope" style={{ marginRight:4 }}/>Email</span>
+            <span><i className="fa-brands fa-whatsapp" style={{ marginRight:4 }}/>WhatsApp</span>
+            <span><i className="fa-solid fa-robot" style={{ marginRight:4 }}/>Claude AI</span>
+          </div>
+        </div>
+        <button
+          onClick={onCompose}
+          style={{ flexShrink:0, padding:'10px 20px', background:'#0f172a', border:'none', borderRadius:10, color:'#fff', fontSize:13, fontWeight:700, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:7, fontFamily:'inherit' }}
+        >
+          <i className="fa-solid fa-paper-plane" />
+          Prospect: {detail.company} {detail.sector}
+        </button>
+      </div>
+
+      {/* Conversation thread */}
+      <div style={{ display:'flex', flexDirection:'column', gap:8, maxHeight:320, overflowY:'auto', padding:'2px 0' }}>
+        {thread.map((m, i) => (
+          m.from === 'system' ? (
+            <div key={i} style={{ alignSelf:'center', color:'#94a3b8', fontSize:11, display:'flex', alignItems:'center', gap:5, padding:'4px 12px', background:'#f1f5f9', borderRadius:20 }}>
+              <i className="fa-solid fa-eye" style={{ fontSize:10 }} />
+              {m.txt} &middot; {fmtDate(m.at)} {fmtTime(m.at)}
+            </div>
+          ) : (
+            <div key={i} style={{
+              alignSelf: m.from==='you' ? 'flex-end' : 'flex-start',
+              background: m.from==='you' ? '#0f172a' : '#f1f5f9',
+              color:      m.from==='you' ? '#fff'    : '#0f172a',
+              border:'1px solid #e2e8f0', borderRadius:12, padding:'10px 14px', maxWidth:'72%',
+            }}>
+              <div style={{ fontSize:11, marginBottom:4, opacity:0.55, display:'flex', alignItems:'center', gap:5 }}>
+                <i className={m.from==='you'?'fa-solid fa-user':'fa-regular fa-building'} style={{ fontSize:10 }}/>
+                {m.from==='you' ? 'Vous' : (detail.company || 'Prospect')}
+                &nbsp;&middot;&nbsp;{fmtDate(m.at)} {fmtTime(m.at)}
+              </div>
+              <div style={{ fontSize:13, lineHeight:1.5 }}>{m.txt}</div>
+            </div>
+          )
+        ))}
+      </div>
+
+      {/* Reply input */}
+      <div style={{ display:'flex', gap:8 }}>
+        <input
+          value={msg}
+          onChange={e => setMsg(e.target.value)}
+          onKeyDown={e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+          placeholder="Ecrire une reponse..."
+          style={{ flex:1, border:'1px solid #e2e8f0', borderRadius:10, padding:'10px 14px', fontSize:13, color:'#0f172a', outline:'none', background:'#f8fafc', fontFamily:'inherit' }}
+        />
+        <button
+          onClick={send}
+          style={{ padding:'10px 16px', borderRadius:10, border:'none', background:'#0f172a', color:'#fff', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6, fontWeight:600, fontSize:13, fontFamily:'inherit' }}
+        >
+          <i className="fa-solid fa-paper-plane" />
+          Envoyer
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════
+   MAIN COMPONENT
+══════════════════════════════════════════ */
+export default function LeadMessanger({ leads = FAKE_LEADS }) {
+  useFontAwesome();
+
+  const [interactions, setInteractions] = useState(() => buildFakeInteractions(FAKE_LEADS));
+  const [filter,       setFilter]       = useState('all');
+  const [search,       setSearch]       = useState('');
+  const [sortBy,       setSortBy]       = useState('sentAt');
+  const [sortDir,      setSortDir]      = useState('desc');
+  const [page,         setPage]         = useState(1);
+  const [detail,       setDetail]       = useState(null);
+  const [composeLead,  setComposeLead]  = useState(null);
+  const [toast,        setToast]        = useState('');
+  const [incomingMsg,  setIncomingMsg]  = useState(null);
+  const PER_PAGE = 8;
+
+  /* Stats */
+  const stats = useMemo(() => ({
+    total:   interactions.length,
+    replied: interactions.filter(r => r.status==='REPLIED').length,
+    opened:  interactions.filter(r => r.status==='OPENED').length,
+  }), [interactions]);
+
+  /* Filtered + sorted rows */
+  const filtered = useMemo(() => {
+    let rows = interactions;
+    if (filter !== 'all') rows = rows.filter(r => r.status===filter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      rows = rows.filter(r =>
+        r.company.toLowerCase().includes(q) ||
+        (r.contactName||'').toLowerCase().includes(q) ||
+        (r.city||'').toLowerCase().includes(q) ||
+        r.channel.toLowerCase().includes(q)
+      );
+    }
+    return [...rows].sort((a,b) => {
+      const va = a[sortBy]||'', vb = b[sortBy]||'';
+      return sortDir==='asc' ? (va<vb?-1:va>vb?1:0) : (va<vb?1:va>vb?-1:0);
+    });
+  }, [interactions, filter, search, sortBy, sortDir]);
+
+  const totalPages = Math.ceil(filtered.length / PER_PAGE);
+  const pageRows   = filtered.slice((page-1)*PER_PAGE, page*PER_PAGE);
+
+  useEffect(() => { setPage(1); setDetail(null); }, [filter, search, sortBy]);
+
+  const toggleSort = (col) => {
+    if (sortBy===col) setSortDir(d => d==='asc'?'desc':'asc');
+    else { setSortBy(col); setSortDir('desc'); }
+  };
+
+  const SortIcon = ({ col }) => (
+    <i
+      className={sortBy===col ? (sortDir==='asc'?'fa-solid fa-sort-up':'fa-solid fa-sort-down') : 'fa-solid fa-sort'}
+      style={{ marginLeft:5, fontSize:10, opacity: sortBy===col ? 1 : 0.3 }}
+    />
+  );
+
+  /* Get full lead object for a row */
+  const getLeadForRow = useCallback((row) =>
+    FAKE_LEADS.find(l => l.id===row.leadId) || {
+      id:row.leadId, name:row.contactName, company:row.company,
+      city:row.city, sector:row.sector, phone:row.phone, email:row.email,
+    }, []);
+
+  const openCompose = useCallback((row, e) => {
+    if (e) e.stopPropagation();
+    setComposeLead(getLeadForRow(row));
+  }, [getLeadForRow]);
+
+  /* Handle send from modal */
+  const handleSend = useCallback((data) => {
+    const lead   = composeLead;
+    const chKey  = data.channel==='whatsapp' ? 'WHATSAPP' : 'EMAIL';
+    const nowIso = new Date().toISOString();
+    let textOut  = '';
+    if (data.channel === 'whatsapp') {
+      textOut = data.waBody || '';
+    } else if (data.channel === 'email') {
+      textOut = (data.subject ? `${data.subject}\n\n` : '') + (data.body||'');
+    } else {
+      textOut = [
+        data.subject ? `Email: ${data.subject}\n\n${data.body||''}` : '',
+        data.waBody ? `WhatsApp: ${data.waBody}` : ''
+      ].filter(Boolean).join('\n\n');
+    }
+    const newRow = {
+      id:              `${lead.id}-${Date.now()}`,
+      leadId:          lead.id,
+      company:         lead.company,
+      contactName:     lead.name,
+      city:            lead.city,
+      sector:          lead.sector,
+      phone:           lead.phone,
+      email:           lead.email,
+      channel:         chKey,
+      status:          'SENT',
+      contactStatus:   'MANUAL_EMAIL_ENVOYE',
+      interactionType: 'MANUAL',
+      sequenceStatus:  'ACTIVE',
+      sentAt:          nowIso,
+      openedAt:        undefined,
+      repliedAt:       undefined,
+    };
+    setInteractions(p => [newRow, ...p]);
+    setComposeLead(null);
+    setIncomingMsg({ leadId: lead.id, at: nowIso, from:'you', txt: textOut });
+    setDetail(prev => prev && prev.leadId === lead.id ? prev : newRow);
+    const msg = chKey==='WHATSAPP' ? 'WhatsApp envoye avec succes' : 'Email envoye avec succes';
+    setToast(msg);
+    setTimeout(() => setToast(''), 3000);
+  }, [composeLead]);
+
+  /* Table columns */
+  const COLS = [
+    { label:'Prospect',  col:'company'         },
+    { label:'Canal',     col:'channel'          },
+    { label:'Statut',    col:'status'           },
+    { label:'Sequence',  col:'sequenceStatus'   },
+    { label:'Envoye',    col:'sentAt'           },
+    { label:'Ouverture', col:'openedAt'         },
+    { label:'Reponse',   col:'repliedAt'        },
+  ];
+
+  /* ─── RENDER ─── */
+  return (
+    <div style={{ fontFamily:"'DM Sans', system-ui, sans-serif", minHeight:'100vh', padding:24, background:'transparent' }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet" />
+
+      {/* Toast notification */}
+      {toast && (
+        <div style={{
+          position:'fixed', top:20, right:20, zIndex:3000,
+          background:'#0f172a', color:'#fff', padding:'12px 18px', borderRadius:12,
+          fontSize:13, fontWeight:600, display:'flex', alignItems:'center', gap:8,
+          boxShadow:'0 8px 32px rgba(0,0,0,0.2)', animation:'slideDown 0.3s ease',
+        }}>
+          <i className="fa-solid fa-circle-check" style={{ fontSize:14 }} />
+          {toast}
+        </div>
+      )}
+
+      {/* ═══ DETAIL VIEW ═══ */}
+      <div className="max-w-[1100px] mx-auto">
+      {detail ? (
+        <div>
+          {/* Detail header */}
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20, flexWrap:'wrap' }}>
+            <button
+              onClick={() => setDetail(null)}
+              style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 14px', border:'1px solid #e2e8f0', borderRadius:8, background:'#fff', color:'#475569', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}
+            >
+              <i className="fa-solid fa-arrow-left" />
+              Retour
+            </button>
+            <div>
+              <div style={{ fontSize:18, fontWeight:700, color:'#0f172a' }}>{detail.company}</div>
+              <div style={{ fontSize:12, color:'#94a3b8', marginTop:2 }}>
+                <i className="fa-solid fa-location-dot" style={{ marginRight:5, fontSize:11 }}/>
+                {detail.city}
+              </div>
+            </div>
+          </div>
+
+          {/* Conversation card */}
+          <div style={{ ...S.card, padding:'22px 24px' }}>
+            <Conversation
+              detail={detail}
+              onCompose={() => setComposeLead(getLeadForRow(detail))}
+              incoming={incomingMsg}
+            />
+          </div>
+        </div>
+
+      ) : (
+        /* ═══ TABLE VIEW ═══ */
+        <>
+          {/* Page title */}
+          <div style={{ marginBottom:20 }}>
+            <h2 style={{ fontSize:20, fontWeight:700, color:'#0f172a', margin:0, display:'flex', alignItems:'center', gap:8 }}>
+              <i className="fa-solid fa-comments" />
+              Interactions
+            </h2>
+            <p style={{ fontSize:13, color:'#94a3b8', margin:'4px 0 0' }}>
+              Activite par canal, suivi des reponses, envoi de propositions
+            </p>
+          </div>
+
+          {/* Stat cards */}
+          <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:20 }}>
+            <StatCard label="Total"           value={stats.total}   icon="fa-solid fa-chart-simple" />
+            <StatCard label="Repondus"        value={stats.replied} icon="fa-solid fa-reply" />
+            <StatCard label="Ouverts"         value={stats.opened}  icon="fa-solid fa-envelope-open" />
+            <StatCard
+              label="Taux de reponse"
+              value={`${stats.total ? Math.round(stats.replied/stats.total*100) : 0}%`}
+              icon="fa-solid fa-chart-line"
+            />
+          </div>
+
+          {/* Filter bar */}
+          <div style={{ ...S.card, padding:'12px 16px', marginBottom:12, display:'flex', flexWrap:'wrap', gap:10, alignItems:'center' }}>
+            {/* Search */}
+            <div style={{ position:'relative', flex:'1 1 220px', minWidth:180 }}>
+              <i className="fa-solid fa-magnifying-glass" style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', fontSize:13, color:'#94a3b8', pointerEvents:'none' }} />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Rechercher entreprise, contact, ville..."
+                style={{ ...S.input, paddingLeft:32, paddingRight:search?28:12 }}
+              />
+              {search && (
+                <button onClick={() => setSearch('')} style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'#94a3b8', padding:2, display:'flex', alignItems:'center' }}>
+                  <i className="fa-solid fa-xmark" />
+                </button>
+              )}
+            </div>
+
+            {/* Status filter pills */}
+            <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+              {['all', ...STATUS_LIST].map(k => {
+                const cnt    = k==='all' ? interactions.length : interactions.filter(r=>r.status===k).length;
+                const active = filter===k;
+                const cfg    = STATUS_CFG[k];
+                return (
+                  <button
+                    key={k}
+                    onClick={() => setFilter(k)}
+                    style={{
+                      padding:'6px 12px', borderRadius:20, fontSize:12, fontWeight:600,
+                      border: active ? '1.5px solid #0f172a' : '1.5px solid #e2e8f0',
+                      background: active ? '#0f172a' : '#f8fafc',
+                      color:      active ? '#fff'    : '#64748b',
+                      cursor:'pointer', display:'inline-flex', alignItems:'center', gap:5, fontFamily:'inherit',
+                    }}
+                  >
+                    {cfg && <i className={cfg.icon} style={{ fontSize:10, opacity:0.8 }} />}
+                    {k==='all' ? 'Tous' : (cfg?.label||k)}
+                    <span style={{ background: active?'rgba(255,255,255,0.2)':'#e2e8f0', color: active?'#fff':'#64748b', borderRadius:10, padding:'0 5px', fontSize:10, marginLeft:2 }}>
+                      {cnt}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ marginLeft:'auto', fontSize:12, color:'#94a3b8', display:'flex', alignItems:'center', gap:5 }}>
+              <i className="fa-solid fa-list" style={{ fontSize:11 }} />
+              {filtered.length} resultat{filtered.length!==1?'s':''}
+            </div>
+          </div>
+
+          {/* Table */}
+          <div style={{ ...S.card, overflow:'hidden' }}>
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13, minWidth:980 }}>
+                <thead>
+                  <tr style={{ borderBottom:'1px solid #f1f5f9', background:'#f8fafc' }}>
+                    {COLS.map(({ label, col }) => (
+                      <th
+                        key={col}
+                        onClick={() => toggleSort(col)}
+                        style={{ padding:'11px 14px', textAlign:'left', fontSize:10, fontWeight:700, color:'#94a3b8', letterSpacing:'0.07em', textTransform:'uppercase', cursor:'pointer', userSelect:'none', whiteSpace:'nowrap' }}
+                      >
+                        {label}<SortIcon col={col} />
+                      </th>
+                    ))}
+                    <th style={{ padding:'11px 14px', textAlign:'left', fontSize:10, fontWeight:700, color:'#94a3b8', letterSpacing:'0.07em', textTransform:'uppercase', whiteSpace:'nowrap' }}>
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map(r => (
+                    <tr
+                      key={r.id}
+                      onClick={() => setDetail(r)}
+                      style={{ borderBottom:'1px solid #f1f5f9', cursor:'pointer', transition:'background 0.1s' }}
+                      onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
+                      onMouseLeave={e => e.currentTarget.style.background='transparent'}
+                    >
+                      {/* Prospect */}
+                      <td style={{ padding:'12px 14px' }}>
+                        <div style={{ fontWeight:600, color:'#0f172a', display:'flex', alignItems:'center', gap:6 }}>
+                          <i className="fa-regular fa-building" style={{ fontSize:12, color:'#94a3b8' }} />
+                          {r.company}
+                        </div>
+                        <div style={{ fontSize:11, color:'#94a3b8', marginTop:3, display:'flex', alignItems:'center', gap:5 }}>
+                          <i className="fa-solid fa-location-dot" style={{ fontSize:10 }} />
+                          {r.city}
+                        </div>
+                      </td>
+
+                      {/* Canal */}
+                      <td style={{ padding:'12px 14px' }}>
+                        <ChannelBadge channel={r.channel} />
+                      </td>
+
+                        
+
+                      {/* Status */}
+                      <td style={{ padding:'12px 14px' }}>
+                        <StatusBadge status={r.status} />
+                      </td>
+
+                      {/* Sequence */}
+                      <td style={{ padding:'12px 14px' }}>
+                        <SeqBadge status={r.sequenceStatus} />
+                      </td>
+
+                      {/* Sent */}
+                      <td style={{ padding:'12px 14px' }}>
+                        <div style={{ color:'#334155', fontWeight:500 }}>
+                          {fmtDate(r.sentAt)}
+                        </div>
+                        <div style={{ fontSize:11, color:'#94a3b8', marginTop:2 }}>
+                          {fmtTime(r.sentAt)} &middot; {timeAgo(r.sentAt)}
+                        </div>
+                      </td>
+
+                      {/* Opened */}
+                      <td style={{ padding:'12px 14px' }}>
+                        {r.openedAt ? (
+                          <>
+                            <div style={{ color:'#334155', fontWeight:500 }}>
+                              {fmtDate(r.openedAt)}
+                            </div>
+                            <div style={{ fontSize:11, color:'#94a3b8', marginTop:2 }}>{fmtTime(r.openedAt)}</div>
+                          </>
+                        ) : <span style={{ color:'#e2e8f0', fontSize:16 }}>&#8212;</span>}
+                      </td>
+
+                      {/* Replied */}
+                      <td style={{ padding:'12px 14px' }}>
+                        {r.repliedAt ? (
+                          <>
+                            <div style={{ color:'#334155', fontWeight:500 }}>
+                              {fmtDate(r.repliedAt)}
+                            </div>
+                            <div style={{ fontSize:11, color:'#94a3b8', marginTop:2 }}>{fmtTime(r.repliedAt)}</div>
+                          </>
+                        ) : <span style={{ color:'#e2e8f0', fontSize:16 }}>&#8212;</span>}
+                      </td>
+
+                      {/* Action */}
+                      <td style={{ padding:'12px 14px' }}>
+                        <button
+                          onClick={e => openCompose(r, e)}
+                          style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'6px 13px', background:'#0f172a', border:'none', borderRadius:8, color:'#fff', fontSize:11, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', fontFamily:'inherit' }}
+                        >
+                          <i className="fa-solid fa-paper-plane" style={{ fontSize:10 }} />
+                          Proposition
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+
+                  {pageRows.length === 0 && (
+                    <tr>
+                      <td colSpan={8} style={{ padding:'60px 16px', textAlign:'center', color:'#94a3b8' }}>
+                        <i className="fa-solid fa-inbox" style={{ fontSize:32, display:'block', marginBottom:10, opacity:0.4 }} />
+                        <div style={{ fontWeight:600, fontSize:14 }}>Aucune interaction</div>
+                        <div style={{ fontSize:12, marginTop:4 }}>Modifiez votre recherche ou filtre</div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderTop:'1px solid #f1f5f9', background:'#f8fafc' }}>
+                <span style={{ fontSize:12, color:'#94a3b8', display:'flex', alignItems:'center', gap:5 }}>
+                  <i className="fa-solid fa-file-lines" style={{ fontSize:11 }} />
+                  Page {page} sur {totalPages} &middot; {filtered.length} lignes
+                </span>
+                <div style={{ display:'flex', gap:5 }}>
+                  <PagBtn onClick={()=>setPage(1)}         disabled={page===1}          label={<i className="fa-solid fa-angles-left"  style={{fontSize:11}}/>} />
+                  <PagBtn onClick={()=>setPage(p=>p-1)}    disabled={page===1}          label={<i className="fa-solid fa-angle-left"   style={{fontSize:11}}/>} />
+                  {Array.from({ length:Math.min(5,totalPages) }, (_,i) => {
+                    const p = Math.max(1, Math.min(totalPages-4, page-2)) + i;
+                    return <PagBtn key={p} onClick={()=>setPage(p)} label={p} active={page===p} />;
+                  })}
+                  <PagBtn onClick={()=>setPage(p=>p+1)}    disabled={page===totalPages} label={<i className="fa-solid fa-angle-right"  style={{fontSize:11}}/>} />
+                  <PagBtn onClick={()=>setPage(totalPages)} disabled={page===totalPages} label={<i className="fa-solid fa-angles-right" style={{fontSize:11}}/>} />
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+      </div>
+
+      {/* Compose modal */}
+      {composeLead && (
+        <ComposeModal
+          lead={composeLead}
+          onClose={() => setComposeLead(null)}
+          onSend={handleSend}
+        />
+      )}
+
+      <style>{`
+        @keyframes slideDown {
+          from { opacity:0; transform:translateY(-10px); }
+          to   { opacity:1; transform:translateY(0);     }
+        }
+        .fa-spin { animation: fa-spin 1s linear infinite; }
+        @keyframes fa-spin { 0%{transform:rotate(0deg);} 100%{transform:rotate(360deg);} }
+      `}</style>
+    </div>
+  );
+}
