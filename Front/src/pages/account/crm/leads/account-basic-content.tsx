@@ -14,10 +14,16 @@ import { cn } from '@/lib/utils';
 import { LeadsDashboard } from './leads-dashboard';
 import { CRM } from './crm';
 import LeadMessanger, { Interaction } from './lead-messanger';
-import { DashboardSectionView } from './components/dashboard-view';
-import { CrmSectionView } from './components/crm-view';
+// import { DashboardSectionView } from './components/dashboard-view';
+// import { CrmSectionView } from './components/crm-view';
+// import { LeadsInteractionsSection } from './components/leads-interactions-view';
+import {
+  applyMessageTemplateVariables,
+  DEFAULT_MESSAGE_SEQUENCE_TEMPLATES,
+  loadMessageSequenceTemplates,
+  MessageSequenceTemplatesView,
+} from './components/message-sequence-templates-view';
 import { PipelineSectionView } from './components/pipeline-view';
-import { LeadsInteractionsSection } from './components/leads-interactions-view';
 
 // ── Inject Font Awesome CDN automatically ────────────────────────────────────
 function useFontAwesome() {
@@ -199,81 +205,6 @@ type Lead = {
   linkedIn?: string; apolloEnriched?: boolean;
 };
 
-const DEMO_LEADS: Lead[] = [
-  {
-    id: 9001, name: 'Said El Amrani', company: 'Atlas Bistro', role: 'Owner', email: 'said@atlasbistro.ma',
-    phone: '+212600111222', city: 'Casablanca', address: 'Maarif, Casablanca', website: 'atlasbistro.ma',
-    rating: '4.6', reviewCount: 342, sector: 'Restauration', score: 91, status: 'hot',
-    linkedIn: 'linkedin.com/in/said-el-amrani', apolloEnriched: true,
-  },
-  {
-    id: 9002, name: 'Nadia Benhima', company: 'Riad Blue Palm', role: 'General Manager', email: 'nadia@bluepalm.ma',
-    phone: '+212600222333', city: 'Marrakech', address: 'Medina, Marrakech', website: 'bluepalm.ma',
-    rating: '4.4', reviewCount: 198, sector: 'Hôtellerie', score: 86, status: 'hot',
-    linkedIn: 'linkedin.com/in/nadia-benhima', apolloEnriched: true,
-  },
-  {
-    id: 9003, name: 'Youssef Lamrani', company: 'Casa Build Pro', role: 'Director', email: 'contact@casabuildpro.ma',
-    phone: '+212600333444', city: 'Mohammedia', address: 'Parc Indus, Mohammedia', website: 'casabuildpro.ma',
-    rating: '4.2', reviewCount: 111, sector: 'BTP', score: 81, status: 'hot',
-    linkedIn: 'linkedin.com/in/youssef-lamrani', apolloEnriched: false,
-  },
-  {
-    id: 9004, name: 'Imane Naciri', company: 'Agadir Wellness Clinic', role: 'Practice Manager', email: 'imane@awclinic.ma',
-    phone: '+212600444555', city: 'Agadir', address: 'Centre Ville, Agadir', website: 'awclinic.ma',
-    rating: '4.1', reviewCount: 83, sector: 'Santé', score: 74, status: 'warm',
-    linkedIn: 'linkedin.com/in/imane-naciri', apolloEnriched: true,
-  },
-  {
-    id: 9005, name: 'Karim Tazi', company: 'Fes Learning Hub', role: 'Founder', email: 'karim@flh.ma',
-    phone: '+212600555666', city: 'Fès', address: 'Ville Nouvelle, Fès', website: 'flh.ma',
-    rating: '3.9', reviewCount: 67, sector: 'Éducation', score: 71, status: 'warm',
-    linkedIn: 'linkedin.com/in/karim-tazi', apolloEnriched: false,
-  },
-  {
-    id: 9006, name: 'Amina Chraibi', company: 'Tetouan Beauty Studio', role: 'Owner', email: 'amina@tetouanbeauty.ma',
-    phone: '+212600666777', city: 'Tétouan', address: 'Avenue Hassan II, Tétouan', website: 'tetouanbeauty.ma',
-    rating: '4.0', reviewCount: 58, sector: 'Beauté', score: 69, status: 'warm',
-    linkedIn: 'linkedin.com/in/amina-chraibi', apolloEnriched: false,
-  },
-  {
-    id: 9007, name: 'Hamza Idrissi', company: 'Rabat Legal Partners', role: 'Managing Partner', email: 'hamza@rlpartners.ma',
-    phone: '+212600777888', city: 'Rabat', address: 'Agdal, Rabat', website: 'rlpartners.ma',
-    rating: '4.3', reviewCount: 42, sector: 'Juridique', score: 67, status: 'warm',
-    linkedIn: 'linkedin.com/in/hamza-idrissi', apolloEnriched: true,
-  },
-  {
-    id: 9008, name: 'Salma El Fassi', company: 'Kenitra Auto Care', role: 'Operations Lead', email: 'salma@kenitraautocare.ma',
-    phone: '+212600888999', city: 'Kénitra', address: 'Route de Mehdia, Kénitra', website: '',
-    rating: '3.8', reviewCount: 29, sector: 'Automobile', score: 61, status: 'warm',
-    linkedIn: 'linkedin.com/in/salma-elfassi', apolloEnriched: false,
-  },
-  {
-    id: 9009, name: 'Omar Berrada', company: 'Tanger Freight Link', role: 'Commercial Director', email: 'omar@tflink.ma',
-    phone: '+212601000111', city: 'Tanger', address: 'Zone Franche, Tanger', website: 'tflink.ma',
-    rating: '3.7', reviewCount: 23, sector: 'Transport', score: 58, status: 'cold',
-    linkedIn: 'linkedin.com/in/omar-berrada', apolloEnriched: false,
-  },
-  {
-    id: 9010, name: 'Laila Ouhajjou', company: 'Essaouira Trips', role: 'Agency Lead', email: 'laila@essaouiratrips.ma',
-    phone: '+212601111222', city: 'Essaouira', address: 'Bab Doukkala, Essaouira', website: '',
-    rating: '3.6', reviewCount: 16, sector: 'Tourisme', score: 55, status: 'cold',
-    linkedIn: 'linkedin.com/in/laila-ouhajjou', apolloEnriched: false,
-  },
-  {
-    id: 9011, name: 'Mehdi Ait Lahcen', company: 'Souss Fresh Foods', role: 'CEO', email: 'mehdi@soussfresh.ma',
-    phone: '+212601222333', city: 'Inezgane', address: 'Marché Central, Inezgane', website: 'soussfresh.ma',
-    rating: '3.5', reviewCount: 19, sector: 'Agroalimentaire', score: 52, status: 'cold',
-    linkedIn: 'linkedin.com/in/mehdi-aitlahcen', apolloEnriched: false,
-  },
-  {
-    id: 9012, name: 'Rachid Amzil', company: 'Oriental Finance Conseil', role: 'Advisor', email: 'rachid@ofconseil.ma',
-    phone: '+212601333444', city: 'Oujda', address: 'Hay Al Qods, Oujda', website: '',
-    rating: '3.4', reviewCount: 12, sector: 'Finance', score: 49, status: 'cold',
-    linkedIn: 'linkedin.com/in/rachid-amzil', apolloEnriched: false,
-  },
-];
-
 // ── Toggle Component ──────────────────────────────────────────────────────────
 const Toggle = ({ value, onChange, label, sublabel, icon }: {
   value: boolean; onChange: (v: boolean) => void;
@@ -329,7 +260,7 @@ export function AccountCrmLeadsContent() {
     try { localStorage.setItem('crm_scan_history', JSON.stringify(scanHistory)); } catch {}
   }, [scanHistory]);
 
-  const [view,         setView]         = useState<'dashboard' | 'scan' | 'leads' | 'crm' | 'pipeline' | 'interactions' | "messenger">('dashboard');
+  const [view,         setView]         = useState<'dashboard' | 'scan' | 'leads' | 'crm' | 'pipeline' | 'messenger' | 'templates'>('dashboard');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [currentPage,  setCurrentPage]  = useState(1);
   const [sortBy,       setSortBy]       = useState<'score' | 'name' | 'city'>('score');
@@ -342,7 +273,6 @@ export function AccountCrmLeadsContent() {
   const [scanStep,     setScanStep]     = useState(0);
   const [scanLog,      setScanLog]      = useState<string[]>([]);
   const [emailSentFor, setEmailSentFor] = useState<number | null>(null);
-  const [isDemoLeads,  setIsDemoLeads]  = useState(false);
   const [interactions, setInteractions] = useState<Interaction[]>(() => {
     try {
       const raw = localStorage.getItem('crm_interactions');
@@ -388,12 +318,6 @@ export function AccountCrmLeadsContent() {
     baseURL: (import.meta as any).env?.VITE_GATEWAY_BASE_URL || 'http://localhost:8081/api'
   }), []);
 
-  const loadDemoLeads = useCallback(() => {
-    setLeads(DEMO_LEADS);
-    setIsDemoLeads(true);
-    setView('leads');
-  }, []);
-
   const refreshLeadsFromDb = useCallback(async () => {
     try {
       const resp = await gateway.get('/leads');
@@ -421,29 +345,22 @@ export function AccountCrmLeadsContent() {
         };
       });
       setLeads(mapped);
-      setIsDemoLeads(false);
       if (mapped.length > 0) setView('leads');
       return mapped.length;
     } catch (err) {
       console.error('[GET /leads] failed', err);
       setLeads([]);
-      setIsDemoLeads(false);
       setView('scan');
       return 0;
     }
   }, [gateway]);
 
-  const tryLoadRealLeads = useCallback(async () => {
-    const count = await refreshLeadsFromDb();
-    if (count === 0) loadDemoLeads();
-  }, [refreshLeadsFromDb, loadDemoLeads]);
-
   // ── Load prospects from DB on mount ────────────────────────────────────────
   useEffect(() => {
     (async () => {
-      await tryLoadRealLeads();
+      await refreshLeadsFromDb();
     })();
-  }, [tryLoadRealLeads]);
+  }, [refreshLeadsFromDb]);
 
   const toggleCity = (cityName: string) =>
     setFilters(p => ({
@@ -453,11 +370,6 @@ export function AccountCrmLeadsContent() {
         : [...p.cities, cityName],
     }));
 
-  const emailTemplate = {
-    subject: 'Collaboration digitale — {{company}}',
-    body: 'Bonjour {{firstName}},\n\nJ\'ai découvert {{company}}. Seriez-vous disponible pour un échange de 15 minutes ?\n\nCordialement,\nAbderrahim\nELBAHI.NET',
-  };
-
   const applyTemplate = useCallback((lead: Lead) => {
     const vars: Record<string, string> = {
       '{{firstName}}': lead.name.split(' ')[0],
@@ -465,9 +377,9 @@ export function AccountCrmLeadsContent() {
       '{{sector}}':    lead.sector,
       '{{city}}':      lead.city,
     };
-    let s = emailTemplate.subject, b = emailTemplate.body;
-    Object.entries(vars).forEach(([k, v]) => { s = s.split(k).join(v); b = b.split(k).join(v); });
-    return { subject: s, body: b };
+    const firstStepTemplate =
+      loadMessageSequenceTemplates()[0] ?? DEFAULT_MESSAGE_SEQUENCE_TEMPLATES[0];
+    return applyMessageTemplateVariables(firstStepTemplate, vars);
   }, []);
 
   // ── Fetch real results from backend with polling ──────────────────────────
@@ -651,7 +563,6 @@ export function AccountCrmLeadsContent() {
     const count = await refreshLeadsFromDb();
     if (count === 0 && unique.length > 0) {
       setLeads(unique);
-      setIsDemoLeads(false);
     }
     setIsScanning(false);
     setView('leads');
@@ -732,9 +643,8 @@ export function AccountCrmLeadsContent() {
               { k: 'leads' as const, label: 'Prospects', fa: 'fa-solid fa-users'          },
               { k: 'crm' as const, label: 'Crm', fa: 'fa-solid fa-address-card' },
               { k: 'messenger' as const, label: 'Interactions', fa: 'fa-solid fa-comments' },
-              { k: 'crm' as const, label: 'CRM', fa: 'fa-solid fa-address-book'},
+              { k: 'templates' as const, label: 'Templates', fa: 'fa-solid fa-envelope-open-text' },
               { k: 'pipeline' as const, label: 'Pipeline', fa: 'fa-solid fa-diagram-project'},
-              { k: 'interactions' as const, label: 'Interactions', fa: 'fa-solid fa-comments' },
             ]).map(tab => (
               <button
                 key={tab.k}
@@ -802,37 +712,19 @@ export function AccountCrmLeadsContent() {
         </div>
       )}
 
-      {view === 'crm' && (
-        <div className="max-w-[1100px] mx-auto">
-          <CRM
-            leads={leads.map(l => ({
-              id: l.id,
-              name: l.name,
-              company: l.company,
-              role: l.role,
-              email: l.email,
-              phone: l.phone,
-              city: l.city,
-              sector: l.sector,
-              score: l.score,
-              status: l.status,
-              website: l.website,
-              linkedin: l.linkedIn,
-              enriched: l.apolloEnriched,
-            })) as any}
-          />
-        </div>
+      {view === 'templates' && (
+        <MessageSequenceTemplatesView />
       )}
 
       {/* ══════════════════ DASHBOARD ══════════════════════════════════════════ */}
-      {view === 'dashboard' && (
+      {/* {view === 'dashboard' && (
         <DashboardSectionView
           leads={leads}
           scanHistory={scanHistory}
           onStartScan={() => setView('scan')}
           onOpenLeads={() => setView('leads')}
         />
-      )}
+      )} */}
       {/* ══════════════════ SCAN ══════════════════════════════════════════ */}
       {view === 'scan' && (
         <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
@@ -1297,32 +1189,10 @@ export function AccountCrmLeadsContent() {
                 >
                   <Fa icon="fa-solid fa-satellite-dish" /> Aller au scan
                 </button>
-                <button
-                  onClick={loadDemoLeads}
-                  className="mt-2 inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-500"
-                >
-                  <Fa icon="fa-solid fa-flask" /> Charger des données de démo
-                </button>
               </CardContent>
             </Card>
           ) : (
             <>
-              {isDemoLeads && (
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  <span className="flex items-center gap-2">
-                    <Fa icon="fa-solid fa-flask" className="text-amber-600" />
-                    Données de démonstration chargées pour visualiser la page.
-                  </span>
-                  <button
-                    onClick={() => { void tryLoadRealLeads(); }}
-                    className="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 hover:border-amber-500"
-                  >
-                    <Fa icon="fa-solid fa-rotate" className="text-[10px]" />
-                    Recharger les leads réels
-                  </button>
-                </div>
-              )}
-
               {/* KPI strip */}
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
@@ -1597,17 +1467,13 @@ export function AccountCrmLeadsContent() {
         </>
       )}
 
-      {/* ══════════════════ CRM ══════════════════════════════════════════ */}
-      {view === 'crm' && <CrmSectionView leads={leads} />}
-      {/* ══════════════════ CRM ══════════════════════════════════════════ */}
+      {/* ══════════════════ pipeline ══════════════════════════════════════════ */}
       {view === 'pipeline' && (
         <PipelineSectionView
           leads={leads}
           onOpenProspects={() => setView('leads')}
         />
       )}
-
-      {view === 'interactions' && <LeadsInteractionsSection leads={leads} />}
 
       {/* ══════════════════ MODAL ════════════════════════════════════════ */}
       {selectedLead && (
