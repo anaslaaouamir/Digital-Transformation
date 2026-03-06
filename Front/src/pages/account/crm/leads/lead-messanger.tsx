@@ -485,7 +485,7 @@ function ComposeModal({ lead, onClose, onSend, onStartSequence }) {
 /* ══════════════════════════════════════════
    CONVERSATION DETAIL PANEL
 ══════════════════════════════════════════ */
-function Conversation({ detail, onCompose, incoming }) {
+function Conversation({ detail, onCompose, incoming, history = [] as any[] }) {
   const [msg,    setMsg]  = useState('');
   const htmlToPlain = (html: string) => {
     if (!html) return '';
@@ -500,16 +500,30 @@ function Conversation({ detail, onCompose, incoming }) {
     t = t.replace(/`/g, '').trim();
     return t;
   };
-  const [thread, setTh]   = useState(() => {
+  const baseThread = useMemo(() => {
     const items: any[] = [];
-    if (detail.content || detail.subject) {
-      const base = detail.content ? htmlToPlain(detail.content) : String(detail.subject || '');
-      if (base) items.push({ from:'you', txt: base, at: detail.sentAt || new Date().toISOString() });
+    if (Array.isArray(history) && history.length) {
+      const sorted = [...history].sort((a,b) => (a.sentAt||'').localeCompare(b.sentAt||''));
+      for (const h of sorted) {
+        const txt = htmlToPlain(h.content || h.subject || '');
+        if (txt) {
+          const from = (h.interactionType === 'RESPONSE' || h.type === 'RESPONSE') ? 'lead' : 'you';
+          items.push({ from, txt, at: h.sentAt || new Date().toISOString() });
+        }
+        if (h.openedAt) items.push({ from:'system', txt:'Ouverture du message', at:h.openedAt });
+      }
+    } else {
+      if (detail.content || detail.subject) {
+        const base = detail.content ? htmlToPlain(detail.content) : String(detail.subject || '');
+        if (base) items.push({ from:'you', txt: base, at: detail.sentAt || new Date().toISOString() });
+      }
+      if (detail.openedAt) items.push({ from:'system', txt:'Ouverture du message', at:detail.openedAt });
+      if (detail.repliedAt)items.push({ from:'lead', txt:'Reponse recue', at:detail.repliedAt });
     }
-    if (detail.openedAt) items.push({ from:'system', txt:'Ouverture du message', at:detail.openedAt });
-    if (detail.repliedAt)items.push({ from:'lead', txt:'Reponse recue', at:detail.repliedAt });
     return items;
-  });
+  }, [history, detail?.content, detail?.subject, detail?.sentAt, detail?.openedAt, detail?.repliedAt]);
+  const [thread, setTh]   = useState(baseThread);
+  useEffect(() => { setTh(baseThread); }, [baseThread]);
 
   const send = () => {
     if (!msg.trim()) return;
@@ -637,6 +651,7 @@ export default function LeadMessanger({ leads = EMPTY_LEADS }) {
   const [composeLead,  setComposeLead]  = useState(null);
   const [toast,        setToast]        = useState('');
   const [incomingMsg,  setIncomingMsg]  = useState(null);
+  const [leadHistory,  setLeadHistory]  = useState<Interaction[]>([]);
   const PER_PAGE = 8;
   const API_BASE = (import.meta as any).env?.VITE_GATEWAY_BASE_URL || 'http://localhost:8081/api';
 
@@ -681,9 +696,15 @@ export default function LeadMessanger({ leads = EMPTY_LEADS }) {
     })();
   }, [API_BASE]);
 
-  /* Filtered + sorted rows */
+  /* Latest per lead + filtered + sorted rows */
   const filtered = useMemo(() => {
-    let rows = interactions;
+    const latestByLead: Record<number, Interaction> = {};
+    for (const it of interactions) {
+      const key = it.leadId;
+      const cur = latestByLead[key];
+      if (!cur || (String(it.sentAt||'') > String(cur.sentAt||''))) latestByLead[key] = it;
+    }
+    let rows = Object.values(latestByLead);
     if (filter !== 'all') rows = rows.filter(r => r.status===filter);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -729,6 +750,38 @@ export default function LeadMessanger({ leads = EMPTY_LEADS }) {
     setComposeLead(getLeadForRow(row));
   }, [getLeadForRow]);
 
+  const openDetail = useCallback((row: any) => {
+    setDetail(row);
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/interactions/lead/${row.leadId}`, { method: 'GET' });
+        const data = await res.json().catch(() => []);
+        const list = Array.isArray(data) ? data : (data?.data ?? []);
+        const mapped: Interaction[] = list.map((it: any) => ({
+          id: String(it.id ?? `${row.leadId}-${Date.now()}`),
+          leadId: Number(it.leadId ?? it.lead_id ?? row.leadId),
+          company: it.company ?? row.company ?? '',
+          contactName: it.contactName ?? it.contact_name ?? row.contactName ?? '',
+          city: it.city ?? row.city ?? '',
+          sector: it.sector ?? row.sector ?? '',
+          phone: it.phone ?? row.phone ?? '',
+          email: it.email ?? row.email ?? '',
+          subject: it.subject ?? '',
+          content: it.content ?? '',
+          channel: (String(it.channel ?? 'EMAIL').toUpperCase() === 'WHATSAPP') ? 'WHATSAPP' : 'EMAIL',
+          status: (String(it.status ?? 'SENT').toUpperCase() as any),
+          contactStatus: it.contactStatus ?? it.contact_status ?? row.contactStatus,
+          interactionType: it.interactionType ?? it.interaction_type ?? row.interactionType,
+          sequenceStatus: it.sequenceStatus ?? it.sequence_status ?? row.sequenceStatus,
+          sentAt: it.sentAt ?? it.sent_at ?? new Date().toISOString(),
+          openedAt: it.openedAt ?? it.opened_at ?? undefined,
+          repliedAt: it.repliedAt ?? it.replied_at ?? undefined,
+        }));
+        setLeadHistory(mapped.sort((a,b) => (b.sentAt||'').localeCompare(a.sentAt||'')));
+      } catch { setLeadHistory([]); }
+    })();
+  }, [API_BASE]);
+
   /* Handle send from modal */
   const handleSend = useCallback(async (data) => {
     const lead   = composeLead;
@@ -761,8 +814,48 @@ export default function LeadMessanger({ leads = EMPTY_LEADS }) {
         return;
       }
     }
-    // Do not add any row to the Interactions table; only update badges and keep thread message
-    setDetail(prev => prev && prev.leadId === lead.id ? { ...prev, contactStatus: 'MANUAL_EMAIL_ENVOYE' } : prev);
+    // Create a DB-backed interaction so it appears in the table and persists
+    try {
+      const resp = await fetch(`${API_BASE}/interactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId: lead.id,
+          subject: data.subject || '(Sans objet)',
+          content: data.body || '',
+          channel: 'EMAIL',
+          type: 'MANUAL',
+          status: 'SENT'
+        }),
+      });
+      if (resp.ok) {
+        const created = await resp.json().catch(() => null);
+        if (created) {
+          const mapped = {
+            id: String(created.id ?? `${lead.id}-${Date.now()}`),
+            leadId: lead.id,
+            company: lead.company,
+            contactName: lead.name,
+            city: lead.city,
+            sector: lead.sector,
+            phone: lead.phone,
+            email: lead.email,
+            subject: created.subject || data.subject || '',
+            content: created.content || data.body || '',
+            channel: 'EMAIL',
+            status: 'SENT',
+            contactStatus: 'MANUAL_EMAIL_ENVOYE',
+            interactionType: 'MANUAL',
+            sequenceStatus: 'ACTIVE',
+            sentAt: created.sentAt || new Date().toISOString(),
+            openedAt: undefined,
+            repliedAt: undefined,
+          } as any;
+          setInteractions(prev => [mapped, ...(prev||[])]);
+          setDetail(prev => prev && prev.leadId === lead.id ? { ...prev, contactStatus: 'MANUAL_EMAIL_ENVOYE' } : prev);
+        }
+      }
+    } catch {}
     setIncomingMsg({ leadId: lead.id, at: nowIso, from:'you', txt: textOut });
     setComposeLead(null);
     setToast(chKey==='WHATSAPP' ? 'WhatsApp envoyé' : 'Statut mis à jour');
@@ -846,10 +939,16 @@ export default function LeadMessanger({ leads = EMPTY_LEADS }) {
 
           {/* Conversation card */}
           <div style={{ ...S.card, padding:'22px 24px' }}>
+            {detail.subject && (
+              <div style={{ marginBottom:10, fontSize:13, fontWeight:700, color:'#0f172a' }}>
+                Objet: {detail.subject}
+              </div>
+            )}
             <Conversation
               detail={detail}
               onCompose={() => setComposeLead(getLeadForRow(detail))}
               incoming={incomingMsg}
+              history={leadHistory}
             />
           </div>
         </div>
@@ -956,7 +1055,7 @@ export default function LeadMessanger({ leads = EMPTY_LEADS }) {
                   {pageRows.map(r => (
                     <tr
                       key={r.id}
-                      onClick={() => setDetail(r)}
+                      onClick={() => openDetail(r)}
                       style={{ borderBottom:'1px solid #f1f5f9', cursor:'pointer', transition:'background 0.1s' }}
                       onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
                       onMouseLeave={e => e.currentTarget.style.background='transparent'}
