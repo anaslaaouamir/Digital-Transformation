@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+dist/
+build/
+
+# IDEs and Tools
+.idea/
+.vscode/
+.metals/
+*.suo
+*.ntvs*
+*.njsproj
+.nvmrc
+
+# Environment Secrets (Very Important!)
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db

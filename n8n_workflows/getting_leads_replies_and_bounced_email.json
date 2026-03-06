@@ -1,0 +1,238 @@
+{
+  "name": "replies",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -128,
+        0
+      ],
+      "id": "47d3d142-7746-4184-9ddf-b3e302f20127",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "hPuYr8AaUYn3ruRO",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{ $json.id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        64,
+        0
+      ],
+      "id": "f582784f-a830-4e80-8274-5c21c04d836c",
+      "name": "Get a message",
+      "webhookId": "01c79281-f24c-47c7-af42-25c320b1ea3d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "hPuYr8AaUYn3ruRO",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\n// This loop is mandatory to handle 5 bounces at once instead of just 1\nfor (const item of $input.all()) {\n  const json = item.json;\n  const payload = json.payload || {};\n  let fullBody = \"\";\n\n  // Recursive extractor to dig through Google's nested multipart/report formats\n  function extractData(part) {\n    if (part.body && part.body.data) {\n      fullBody += Buffer.from(part.body.data, 'base64').toString('utf8') + \"\\n\";\n    }\n    if (part.parts && Array.isArray(part.parts)) {\n      for (const p of part.parts) {\n        extractData(p);\n      }\n    }\n  }\n\n  extractData(payload);\n  \n  if (!fullBody && json.snippet) { \n    fullBody += json.snippet; \n  }\n\n  const rawFrom = json.headers?.from || json.From || \"\";\n  const subject = json.headers?.subject || json.Subject || \"\";\n\n  const isBounce = rawFrom.toLowerCase().includes(\"mailer-daemon@googlemail.com\");\n\n  let targetEmail = \"\";\n  let cleanBody = fullBody;\n\n  if (isBounce) {\n    // Regex based exactly on your screenshots\n    const bounceMatch = fullBody.match(/(?:Votre message n'est pas parvenu à|Your message wasn't delivered to)\\s*([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\\.[a-zA-Z0-9_-]+)/i);\n    \n    if (bounceMatch && bounceMatch[1]) {\n      targetEmail = bounceMatch[1].trim();\n    } else {\n      const fallbackMatch = fullBody.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\\.[a-zA-Z0-9_-]+)/);\n      targetEmail = fallbackMatch ? fallbackMatch[1].trim() : \"unknown_bounce\";\n    }\n  } else {\n    const emailMatch = rawFrom.match(/<([^>]+)>/);\n    targetEmail = emailMatch ? emailMatch[1] : rawFrom.trim();\n\n    const replyMarkers = [\n      /(?:\\s|^)Le\\s+.*?\\s+à\\s+.*?\\s+a\\s+écrit\\s*:/i,\n      /(?:\\s|^)On\\s+.*?\\s+wrote\\s*:/i,\n      /(?:\\s|^)---\\s*Original\\s+Message\\s*---/i,\n      /(?:\\s|^)________________________________/i,\n      /\\n\\s*>/ \n    ];\n\n    for (const marker of replyMarkers) {\n      const index = cleanBody.search(marker);\n      if (index !== -1) cleanBody = cleanBody.substring(0, index);\n    }\n  }\n\n  let date_iso = \"\";\n  if (json.internalDate) {\n    const d = new Date(Number(json.internalDate));\n    if (!isNaN(d)) date_iso = d.toISOString().slice(0, 19); \n  }\n\n  results.push({\n    json: {\n      isBounce: isBounce,\n      email: targetEmail,\n      subject: subject,\n      emailBody: cleanBody.trim(),\n      repliedAt: date_iso\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "id": "2b0b97c0-06d3-498b-8cf2-30a961826620",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8081/api/webhooks/email-reply",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "={{ $json.email }}"
+            },
+            {
+              "name": "=subject",
+              "value": "={{ $json.subject }}"
+            },
+            {
+              "name": "emailBody",
+              "value": "={{ $json.emailBody }}"
+            },
+            {
+              "name": "repliedAt",
+              "value": "={{ $json.repliedAt }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        752,
+        80
+      ],
+      "id": "81a35d0b-89ee-4979-845b-038e1d269ef5",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0f758b7c-e1ab-4878-8406-6a47cd196801",
+              "leftValue": "={{ $json.isBounce }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "96b20f61-bb57-4ce5-aa39-ae8b416e21c5",
+              "leftValue": "={{ $json.isBounce }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        0
+      ],
+      "id": "e3e77b4a-b506-426e-8e3e-870e25174f6e",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8081/api/webhooks/email-bounce",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "={{ $json.email }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        720,
+        -128
+      ],
+      "id": "c68338be-d422-4aef-ac0d-c1419109fff6",
+      "name": "HTTP Request1",
+      "retryOnFail": false,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a message": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "e9572aa8-0e7e-4313-87b7-7eb711a7c5ca",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "19608886e3e17c7fa08aa6249e02f43d090f84b9e2f1863d8af8ff9691f099f7"
+  },
+  "id": "Vepair4SKYQ5V03j",
+  "tags": []
+}
