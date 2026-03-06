@@ -1,0 +1,161 @@
+{
+  "name": "claude",
+  "nodes": [
+    {
+      "parameters": {
+        "sendTo": "={{ $('Webhook').item.json.body.email }}",
+        "subject": "={{ JSON.parse($json.content[0].text).subject }}",
+        "message": "={{ JSON.parse($json.content[0].text).body }}<br>{{ $('Webhook').item.json.body.pixelHtml }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -64,
+        64
+      ],
+      "id": "e22e006a-b7ef-4521-9ec0-8b58fbd6857c",
+      "name": "Send a message",
+      "webhookId": "07519885-8eae-4b43-827b-1ef3cabde781",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "hPuYr8AaUYn3ruRO",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-3-haiku-20240307",
+          "mode": "list",
+          "cachedResultName": "claude-3-haiku-20240307"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an expert B2B sales development representative. Write a concise, highly personalized email.\n\n<lead_data>\nCompany: {{ $('Webhook').item.json.body.lead.companyName }}\nRating: {{ $('Webhook').item.json.body.lead.googleRating }}\nIndustry/Type: {{ $('Webhook').item.json.body.lead.googleTypes }}\n</lead_data>\n\n<instructions>\n{{ $('Webhook').item.json.body.userPrompt }}\n</instructions>\n\nSTRICT RULES:\n1. MISSING DATA: If any data point in <lead_data> is blank, empty, \"null\", or missing (like the rating or industry), DO NOT bring it up. Do not guess it. Ignore it completely.\n2. NO PLACEHOLDERS: You are strictly forbidden from using bracketed placeholders like [Name], [Lead Name], [Company], or [Your Name]. \n3. GREETING: If you do not have a specific contact name, use a general professional greeting like \"Dear Team at {{ $('Webhook').item.json.body.lead.companyName }},\" or just \"Hello,\".\n4. SIGN-OFF: End the email professionally, but do not use a placeholder for the sender's name. Just end it with \"Best regards,\" or similar.\n5. FORMAT: Use HTML <br> tags for line breaks.\n\nOUTPUT EXACTLY THIS JSON AND NOTHING ELSE:\n{\n  \"subject\": \"Your generated subject\",\n  \"body\": \"Your generated body\"\n}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        -576,
+        16
+      ],
+      "id": "eebd077e-1dc2-48c5-9f2d-e886cf7bc537",
+      "name": "Message a model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "R7cZsIFwf0KEtVEl",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate_email",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -304,
+        272
+      ],
+      "id": "a2b8a492-d01f-47b5-bbc9-7c593a1c51dc",
+      "name": "Webhook",
+      "webhookId": "bfe126ba-f270-458a-b403-9e8a20e96e1c"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "592cf0e9-c841-490f-b79b-1151cb41c454",
+              "name": "subject",
+              "value": "={{ JSON.parse($('Message a model').item.json.content[0].text).subject }}",
+              "type": "string"
+            },
+            {
+              "id": "e6073caa-4edf-4598-ab8b-ee902e729643",
+              "name": "body",
+              "value": "={{ JSON.parse($('Message a model').item.json.content[0].text).body }}",
+              "type": "string"
+            },
+            {
+              "id": "59f06bc5-1cff-4e5f-8888-8849eb721928",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        144
+      ],
+      "id": "9e478611-477e-40cd-9965-5c2d9a39f1fc",
+      "name": "Edit Fields"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "669ed0c8-5f04-43a4-9ae5-7d0f275d85cc",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "19608886e3e17c7fa08aa6249e02f43d090f84b9e2f1863d8af8ff9691f099f7"
+  },
+  "id": "z7TgeITucg7Js5HO",
+  "tags": []
+}
