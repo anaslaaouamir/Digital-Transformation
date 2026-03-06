@@ -1,0 +1,140 @@
+{
+  "name": "whats_envoi",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        80,
+        -16
+      ],
+      "id": "b2211293-0f6d-4441-aae6-4da90d34acd6",
+      "name": "WhatsApp Trigger",
+      "webhookId": "7ba9b15a-7b96-4bfe-b184-17700ac72bf2",
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "RLREn6DtF8dl17Ui",
+          "name": "WhatsApp OAuth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "1010688965467631",
+        "recipientPhoneNumber": "={{ $json.body.phoneNumber}}",
+        "textBody": "={{ $json.body.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        416,
+        -208
+      ],
+      "id": "5d6e8d8e-85ab-4b7e-bafc-69d81f21a4f1",
+      "name": "Send message",
+      "webhookId": "6df4b233-6759-4365-9e12-9747828fc31b",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "nyrFlHC7k3PfErGp",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send_message",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        128,
+        -192
+      ],
+      "id": "ef0743c7-5c6f-42dc-8b83-7617f341e2a1",
+      "name": "Webhook",
+      "webhookId": "226cf164-fe1a-4aa7-bd84-579835b96245"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8081/api/webhooks/whatsapp-reply",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "phoneNumber",
+              "value": "={{ $json.contacts[0].wa_id }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.messages[0].text.body }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ $json.messages[0].timestamp }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        368,
+        0
+      ],
+      "id": "b03acf55-fbcf-4a0e-9199-abf60979a54b",
+      "name": "HTTP Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "ac710ea4-a318-4360-b69e-eb96d4680c86",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "19608886e3e17c7fa08aa6249e02f43d090f84b9e2f1863d8af8ff9691f099f7"
+  },
+  "id": "KoUzkGYgkGgMYx21",
+  "tags": []
+}

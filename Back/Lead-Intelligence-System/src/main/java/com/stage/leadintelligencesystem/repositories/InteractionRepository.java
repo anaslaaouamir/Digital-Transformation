@@ -31,4 +31,6 @@ public interface InteractionRepository extends JpaRepository<Interaction, Long> 
     List<Interaction> findByLeadId(Long leadId);
 
     Optional<Interaction> findBySentAtAndType(LocalDateTime sentAt, String type);
+
+    List<Interaction> findByLeadAndChannelAndStatusInOrderBySentAtDesc(Lead lead, String channel, List<String> statuses);
 }
