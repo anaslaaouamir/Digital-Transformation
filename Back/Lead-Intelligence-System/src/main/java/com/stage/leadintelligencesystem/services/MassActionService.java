@@ -35,27 +35,21 @@ public class MassActionService {
     }
 
     @Transactional
-    public List<SimulatedEmailDto> simulateMassEmails(List<Long> leadIds) {
+    public List<SimulatedEmailDto> simulateMassEmails() {
         List<SimulatedEmailDto> generatedEmails = new ArrayList<>();
 
-        // 1. Try to fetch the "Première approche" template; fall back to defaults if missing
-        MessageTemplate template = templateRepository.findByName("Première approche").orElse(null);
-        String defaultSubject = "Collaboration digitale — {{company}}";
-        String defaultBody = "Bonjour,\n\nJ'ai découvert {{company}}. Disponible pour 15 minutes cette semaine ?\n\nCordialement,\nAbderrahim\nELBAHI.NET";
+        // 1. Fetch the "Première approche" template [cite: 11, 12]
+        MessageTemplate template = templateRepository.findByName("Première approche")
+                .orElseThrow(() -> new RuntimeException("Template 'Première approche' not found"));
 
-        // 2. Fetch leads: prefer explicit IDs from payload, otherwise default HOT/NON_CONTACTE
-        List<Lead> hotLeads;
-        if (leadIds != null && !leadIds.isEmpty()) {
-            hotLeads = leadRepository.findAllById(leadIds);
-        } else {
-            hotLeads = leadRepository.findByTemperatureAndContactStatusAndEmailIsNotNull("HOT", "NON_CONTACTE");
-        }
+        // 2. Fetch leads (Adjust the repository method to match your exact fields)
+        // Assuming you have a method like: findByTemperatureAndContactStatusAndEmailIsNotNull
+        List<Lead> hotLeads = leadRepository.findByTemperatureAndContactStatusAndEmailIsNotNull("HOT", "NON_CONTACTE");
+        System.out.println("********************************************");
+        System.out.println(hotLeads);
 
         // 3. Loop through leads and perform the string replacement
         for (Lead lead : hotLeads) {
-            if (lead.getEmail() == null || lead.getEmail().isBlank()) {
-                continue;
-            }
 
             // Safety check: if company name is null, use a generic fallback
             String companyName = (lead.getCompanyName() != null && !lead.getCompanyName().isEmpty())
@@ -63,10 +57,8 @@ public class MassActionService {
                     : "votre entreprise";
 
             // The exact String Replacement logic!
-            String subjectBase = (template != null ? template.getSubject() : defaultSubject);
-            String bodyBase    = (template != null ? template.getBody()    : defaultBody);
-            String personalizedSubject = subjectBase.replace("{{company}}", companyName);
-            String personalizedBody    = bodyBase.replace("{{company}}", companyName).replace("\n", "<br>");
+            String personalizedSubject = template.getSubject().replace("{{company}}", companyName);
+            String personalizedBody = template.getBody().replace("{{company}}", companyName).replace("\n", "<br>");
 
             // 4. Update the database (Simulating that n8n returned a success)
 
@@ -122,18 +114,9 @@ public class MassActionService {
 
     @Transactional
     public void sendManualEmail(SimulatedEmailDto request) {
-        if ((request.getLeadId() == null || request.getLeadId() <= 0) && (request.getEmail() == null || request.getEmail().isBlank())) {
-            throw new IllegalArgumentException("leadId or email is required");
-        }
-        // Prefer leadId lookup to avoid failures when email is missing/mismatched
-        Lead lead;
-        if (request.getLeadId() != null && request.getLeadId() > 0) {
-            lead = leadRepository.findById(request.getLeadId())
-                    .orElseThrow(() -> new IllegalArgumentException("Lead not found: id=" + request.getLeadId()));
-        } else {
-            lead = leadRepository.findByEmail(request.getEmail())
-                    .orElseThrow(() -> new IllegalArgumentException("Lead not found with email: " + request.getEmail()));
-        }
+        // 1. Fetch the lead to ensure it exists and to link the interaction
+        Lead lead = leadRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("Lead not found with email: " + request.getEmail()));
 
         // 2. Create the Interaction record (MANUAL type)
         String companyName = (lead.getCompanyName() != null && !lead.getCompanyName().isEmpty())
@@ -167,22 +150,8 @@ public class MassActionService {
             leadRepository.save(lead);
         }
 
-        // 4. Forward to the same n8n Webhook (best-effort, don't fail the request)
-        try {
-            forwardToN8n(lead.getEmail(), request.getSubject(), finalBodyWithPixel);
-        } catch (Exception e) {
-            // Log only; do not throw to keep 200 OK when DB is updated
-            System.err.println("n8n forward failed: " + e.getMessage());
-        }
-    }
-
-    @Transactional
-    public void updateLeadContactStatus(Long leadId, String status) {
-        if (leadId == null || leadId <= 0) throw new IllegalArgumentException("leadId is required");
-        Lead lead = leadRepository.findById(leadId)
-                .orElseThrow(() -> new IllegalArgumentException("Lead not found: id=" + leadId));
-        lead.setContactStatus(status != null && !status.isBlank() ? status : "MANUAL_EMAIL_ENVOYE");
-        leadRepository.save(lead);
+        // 4. Forward to the same n8n Webhook
+        forwardToN8n(request.getEmail(), request.getSubject(), finalBodyWithPixel);
     }
 
     // Helper method to keep code clean

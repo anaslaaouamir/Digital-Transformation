@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -133,27 +133,27 @@ const DEFAULT_TEMPLATES: EmailTemplate[] = [
   {
     id: "t1", name: "🎯 Première approche",
     subject: "Collaboration digitale — {{company}}",
-    body: "Bonjour,\n\nJ'ai eu l'occasion de découvrir {{company}} et votre positionnement dans le secteur {{sector}} à {{city}}.\n\nChez ELBAHI.NET, nous accompagnons les entreprises marocaines dans leur transformation digitale avec des résultats mesurables.\n\nSeriez-vous disponible pour un échange de 15 minutes cette semaine ?\n\nCordialement,\nAbderrahim\nELBAHI.NET",
+    body: "Bonjour {{firstName}},\n\nJ'ai eu l'occasion de découvrir {{company}} et votre positionnement dans le secteur {{sector}} à {{city}}.\n\nChez ELBAHI.NET, nous accompagnons les entreprises marocaines dans leur transformation digitale avec des résultats mesurables.\n\nSeriez-vous disponible pour un échange de 15 minutes cette semaine ?\n\nCordialement,\nAbderrahim\nELBAHI.NET",
   },
   {
     id: "t2", name: "🔄 Relance J+3",
     subject: "Re: Collaboration digitale — {{company}}",
-    body: "Bonjour ,\n\nJe me permets de revenir vers vous suite à mon précédent message. Je comprends que votre emploi du temps est chargé.\n\nJe serais ravi de vous présenter en 10 minutes comment nous avons aidé des entreprises similaires à {{company}} à augmenter leur visibilité en ligne de +150%.\n\nQuand seriez-vous disponible ?\n\nBien cordialement,\nAbderrahim\nELBAHI.NET",
+    body: "Bonjour {{firstName}},\n\nJe me permets de revenir vers vous suite à mon précédent message. Je comprends que votre emploi du temps est chargé.\n\nJe serais ravi de vous présenter en 10 minutes comment nous avons aidé des entreprises similaires à {{company}} à augmenter leur visibilité en ligne de +150%.\n\nQuand seriez-vous disponible ?\n\nBien cordialement,\nAbderrahim\nELBAHI.NET",
   },
   {
     id: "t3", name: "🎁 Offre valeur",
     subject: "Audit gratuit pour {{company}}",
-    body: "Bonjour ,\n\nPour vous montrer concrètement ce qu'ELBAHI.NET peut apporter à {{company}}, je vous propose un audit digital gratuit de votre présence en ligne.\n\nCet audit inclut :\n- Analyse SEO de votre site\n- Benchmark concurrentiel\n- Recommandations personnalisées\n\nIntéressé(e) ? Un simple \"oui\" suffit et je vous l'envoie dans les 48h.\n\nCordialement,\nAbderrahim\nELBAHI.NET",
+    body: "Bonjour {{firstName}},\n\nPour vous montrer concrètement ce qu'ELBAHI.NET peut apporter à {{company}}, je vous propose un audit digital gratuit de votre présence en ligne.\n\nCet audit inclut :\n- Analyse SEO de votre site\n- Benchmark concurrentiel\n- Recommandations personnalisées\n\nIntéressé(e) ? Un simple \"oui\" suffit et je vous l'envoie dans les 48h.\n\nCordialement,\nAbderrahim\nELBAHI.NET",
   },
   {
     id: "t4", name: "👋 Dernier follow-up",
     subject: "Dernière tentative — {{company}}",
-    body: "Bonjour ,\n\nJe ne veux pas encombrer votre boîte mail, donc ce sera mon dernier message.\n\nSi le digital n'est pas une priorité pour {{company}} en ce moment, je comprends tout à fait.\n\nJe vous souhaite une excellente continuation.\n\nCordialement,\nAbderrahim\nELBAHI.NET",
+    body: "Bonjour {{firstName}},\n\nJe ne veux pas encombrer votre boîte mail, donc ce sera mon dernier message.\n\nSi le digital n'est pas une priorité pour {{company}} en ce moment, je comprends tout à fait.\n\nJe vous souhaite une excellente continuation.\n\nCordialement,\nAbderrahim\nELBAHI.NET",
   },
   {
     id: "t5", name: "🏆 Social proof",
     subject: "Comment nous avons aidé une entreprise similaire à {{company}}",
-    body: "Bonjour ,\n\nNous avons récemment accompagné une entreprise du secteur {{sector}} à {{city}}. Résultats en 3 mois :\n\n→ +180% de trafic qualifié\n→ +85 leads/mois via le site\n→ ROI de 4.5x sur les campagnes\n\nJe serais heureux de discuter comment reproduire ces résultats pour {{company}}.\n\n15 minutes cette semaine ?\n\nAbderrahim\nELBAHI.NET",
+    body: "Bonjour {{firstName}},\n\nNous avons récemment accompagné une entreprise du secteur {{sector}} à {{city}}. Résultats en 3 mois :\n\n→ +180% de trafic qualifié\n→ +85 leads/mois via le site\n→ ROI de 4.5x sur les campagnes\n\nJe serais heureux de discuter comment reproduire ces résultats pour {{company}}.\n\n15 minutes cette semaine ?\n\nAbderrahim\nELBAHI.NET",
   },
 ];
 
@@ -164,77 +164,6 @@ export function CRM({ leads }: { leads: Lead[] }) {
   const [emailCompose, setEmailCompose] = useState<EmailCompose | null>(null);
   const [crmFilter, setCrmFilter] = useState("all");
   const emailTemplates = DEFAULT_TEMPLATES;
-  const API_BASE = (import.meta as any).env?.VITE_GATEWAY_BASE_URL || 'http://localhost:8081/api';
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadCache = () => {
-      try {
-        const raw = localStorage.getItem('crm_emails_cache');
-        if (raw) {
-          const cached = JSON.parse(raw) as Email[];
-          if (!cancelled && Array.isArray(cached) && cached.length) setEmails(cached);
-        }
-      } catch {}
-    };
-    const saveCache = (rows: Email[]) => {
-      try { localStorage.setItem('crm_emails_cache', JSON.stringify(rows.slice(0, 500))); } catch {}
-    };
-    const mapRows = (rows: any[]): Email[] =>
-      rows
-        .filter((it: any) => String(it.channel || 'EMAIL').toUpperCase() === 'EMAIL')
-        .map((it: any): Email => {
-          const t = String(it.type || 'MANUAL').toUpperCase();
-          const mapType =
-            t === 'SEQUENCE' ? 'sequence' :
-            t === 'MASSE' ? 'bulk' :
-            t === 'MANUAL' ? 'manual' : t.toLowerCase();
-          const s = String(it.status || 'SENT').toUpperCase();
-          const mapStatus: "sent" | "scheduled" | "draft" | "bounced" =
-            s === 'BOUNCED' ? 'bounced' : 'sent';
-          return {
-            id: Number(it.id ?? Date.now()),
-            leadId: Number(it.leadId ?? it.lead_id ?? 0),
-            to: it.email ?? '',
-            subject: it.subject ?? '',
-            body: it.content ?? '',
-            status: mapStatus,
-            sentAt: it.sentAt ?? null,
-            openedAt: it.openedAt ?? null,
-            repliedAt: it.repliedAt ?? null,
-            type: mapType,
-          };
-        });
-    const fetchAll = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/interactions`);
-        const data = await res.json().catch(() => []);
-        const rows = Array.isArray(data) ? data : (data?.data ?? []);
-        if (rows && rows.length) {
-          const mapped = mapRows(rows);
-          if (!cancelled) { setEmails(mapped); saveCache(mapped); }
-          return;
-        }
-      } catch {}
-      // Fallback: fetch per-lead (limit to 60)
-      try {
-        const firstLeads = leads.slice(0, 60);
-        const results = await Promise.all(firstLeads.map(async (l) => {
-          try {
-            const r = await fetch(`${API_BASE}/interactions/lead/${l.id}`);
-            const d = await r.json().catch(() => []);
-            return Array.isArray(d) ? d : (d?.data ?? []);
-          } catch { return []; }
-        }));
-        const flat = ([] as any[]).concat(...results);
-        const mapped = mapRows(flat);
-        if (!cancelled) { setEmails(mapped); saveCache(mapped); }
-      } catch {}
-    };
-    loadCache();
-    fetchAll();
-    return () => { cancelled = true; };
-  }, [API_BASE, leads]);
 
   // ── Apply template vars ───────────────────────────────────────────────────
   const applyTemplate = useCallback((template: EmailTemplate, lead: Lead) => {
@@ -268,36 +197,6 @@ export function CRM({ leads }: { leads: Lead[] }) {
     setEmailCompose(null);
     return newEmail;
   }, []);
-
-  // ── Backend actions ───────────────────────────────────────────────────────
-  const sendManualEmailApi = useCallback(async (leadId: number, to: string, subject: string, body: string) => {
-    try {
-      const r = await fetch(`${API_BASE}/actions/send-manual-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadId, email: to, subject, body }),
-      });
-      return r.ok;
-    } catch {
-      return false;
-    }
-  }, [API_BASE]);
-
-  const startSequenceApi = useCallback(async (leadId: number) => {
-    try {
-      await fetch(`${API_BASE}/sequences/start/${leadId}`, { method: "POST" });
-    } catch {}
-  }, [API_BASE]);
-
-  const simulateMassEmailsApi = useCallback(async (leadIds: number[]) => {
-    try {
-      await fetch(`${API_BASE}/actions/simulate-mass-emails`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadIds }),
-      });
-    } catch {}
-  }, [API_BASE]);
 
   // ── Create sequence ───────────────────────────────────────────────────────
   const handleCreateSequence = useCallback((leadIds: number[], templateIds: string[], intervalDays = 3) => {
@@ -381,9 +280,8 @@ export function CRM({ leads }: { leads: Lead[] }) {
                   fa: "fa-solid fa-fire",
                   sub: `${leads.filter(l => l.status === "hot" && !emails.some(e => e.leadId === l.id)).length} à contacter`,
                   onClick: () => {
-                    const hotLeads = leads.filter(l => l.status === "hot" && !emails.some(e => e.leadId === l.id)).slice(0, 5);
-                    simulateMassEmailsApi(hotLeads.map(l => l.id));
-                    hotLeads.forEach(lead => {
+                    const hotLeads = leads.filter(l => l.status === "hot" && !emails.some(e => e.leadId === l.id));
+                    hotLeads.slice(0, 5).forEach(lead => {
                       const { subject, body } = applyTemplate(emailTemplates[0], lead);
                       handleSendEmail({ leadId: lead.id, to: lead.email, subject, body, type: "bulk" });
                     });
@@ -831,7 +729,6 @@ export function CRM({ leads }: { leads: Lead[] }) {
                 <button
                   onClick={() => {
                     if (emailCompose.leadId) {
-                      startSequenceApi(emailCompose.leadId);
                       handleCreateSequence([emailCompose.leadId], [], 3);
                     }
                   }}
@@ -842,15 +739,12 @@ export function CRM({ leads }: { leads: Lead[] }) {
                 </button>
                 {emailCompose.channel !== "whatsapp" && (
                   <button
-                    onClick={async () => {
-                      if (emailCompose.leadId && emailCompose.subject && emailCompose.body && emailCompose.to) {
-                        const ok = await sendManualEmailApi(emailCompose.leadId!, emailCompose.to, emailCompose.subject, emailCompose.body);
-                        if (ok) {
-                          handleSendEmail({ leadId: emailCompose.leadId, to: emailCompose.to, subject: emailCompose.subject, body: emailCompose.body, type: emailCompose.type, attachments: emailCompose.attachments });
-                        }
+                    onClick={() => {
+                      if (emailCompose.leadId && emailCompose.subject && emailCompose.body) {
+                        handleSendEmail({ leadId: emailCompose.leadId, to: emailCompose.to, subject: emailCompose.subject, body: emailCompose.body, type: emailCompose.type, attachments: emailCompose.attachments });
                       }
                     }}
-                    disabled={!emailCompose.leadId || !emailCompose.subject || !emailCompose.body || !emailCompose.to}
+                    disabled={!emailCompose.leadId || !emailCompose.subject || !emailCompose.body}
                     style={{ padding: "9px 22px", background: (emailCompose.leadId && emailCompose.subject && emailCompose.body) ? "linear-gradient(135deg, #66C39E, #0A3A40)" : "rgba(227,255,204,0.04)", border: "none", borderRadius: 8, color: emailCompose.leadId ? "#fff" : "rgba(227,255,204,0.2)", fontSize: 13, fontWeight: 700, cursor: (emailCompose.leadId && emailCompose.subject && emailCompose.body) ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 6, fontFamily: "'Urbanist', sans-serif", boxShadow: (emailCompose.leadId && emailCompose.subject && emailCompose.body) ? "0 4px 16px rgba(102,195,158,0.25)" : "none" }}
                   >
                     <i className="fa-solid fa-paper-plane" /> Envoyer
