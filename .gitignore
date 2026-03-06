@@ -10,6 +10,7 @@ build/
 *.suo
 *.ntvs*
 *.njsproj
+.nvmrc
 
 # Environment Secrets (Very Important!)
 .env

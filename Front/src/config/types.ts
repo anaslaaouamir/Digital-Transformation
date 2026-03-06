@@ -24,7 +24,6 @@ export interface Settings {
   layouts: {
     demo1: {
       sidebarCollapse: boolean;
-      sidebarTheme: 'light' | 'dark';
     };
     demo2: {
       headerSticky: boolean;

@@ -14,6 +14,16 @@ import { cn } from '@/lib/utils';
 import { LeadsDashboard } from './leads-dashboard';
 import { CRM } from './crm';
 import LeadMessanger, { Interaction } from './lead-messanger';
+// import { DashboardSectionView } from './components/dashboard-view';
+// import { CrmSectionView } from './components/crm-view';
+// import { LeadsInteractionsSection } from './components/leads-interactions-view';
+import {
+  applyMessageTemplateVariables,
+  DEFAULT_MESSAGE_SEQUENCE_TEMPLATES,
+  loadMessageSequenceTemplates,
+  MessageSequenceTemplatesView,
+} from './components/message-sequence-templates-view';
+import { PipelineSectionView } from './components/pipeline-view';
 
 // ── Inject Font Awesome CDN automatically ────────────────────────────────────
 function useFontAwesome() {
@@ -250,7 +260,7 @@ export function AccountCrmLeadsContent() {
     try { localStorage.setItem('crm_scan_history', JSON.stringify(scanHistory)); } catch {}
   }, [scanHistory]);
 
-  const [view,         setView]         = useState<'dashboard' | 'scan' | 'leads' | 'messenger'>('scan');
+  const [view,         setView]         = useState<'dashboard' | 'scan' | 'leads' | 'crm' | 'pipeline' | 'messenger' | 'templates'>('dashboard');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [currentPage,  setCurrentPage]  = useState(1);
   const [sortBy,       setSortBy]       = useState<'score' | 'name' | 'city'>('score');
@@ -335,7 +345,7 @@ export function AccountCrmLeadsContent() {
         };
       });
       setLeads(mapped);
-      setView('leads');
+      if (mapped.length > 0) setView('leads');
       return mapped.length;
     } catch (err) {
       console.error('[GET /leads] failed', err);
@@ -347,8 +357,10 @@ export function AccountCrmLeadsContent() {
 
   // ── Load prospects from DB on mount ────────────────────────────────────────
   useEffect(() => {
-    refreshLeadsFromDb();
-  }, []);
+    (async () => {
+      await refreshLeadsFromDb();
+    })();
+  }, [refreshLeadsFromDb]);
 
   const toggleCity = (cityName: string) =>
     setFilters(p => ({
@@ -358,11 +370,6 @@ export function AccountCrmLeadsContent() {
         : [...p.cities, cityName],
     }));
 
-  const emailTemplate = {
-    subject: 'Collaboration digitale — {{company}}',
-    body: 'Bonjour {{firstName}},\n\nJ\'ai découvert {{company}}. Seriez-vous disponible pour un échange de 15 minutes ?\n\nCordialement,\nAbderrahim\nELBAHI.NET',
-  };
-
   const applyTemplate = useCallback((lead: Lead) => {
     const vars: Record<string, string> = {
       '{{firstName}}': lead.name.split(' ')[0],
@@ -370,9 +377,9 @@ export function AccountCrmLeadsContent() {
       '{{sector}}':    lead.sector,
       '{{city}}':      lead.city,
     };
-    let s = emailTemplate.subject, b = emailTemplate.body;
-    Object.entries(vars).forEach(([k, v]) => { s = s.split(k).join(v); b = b.split(k).join(v); });
-    return { subject: s, body: b };
+    const firstStepTemplate =
+      loadMessageSequenceTemplates()[0] ?? DEFAULT_MESSAGE_SEQUENCE_TEMPLATES[0];
+    return applyMessageTemplateVariables(firstStepTemplate, vars);
   }, []);
 
   // ── Fetch real results from backend with polling ──────────────────────────
@@ -631,12 +638,13 @@ export function AccountCrmLeadsContent() {
         <CardContent className="p-1.5">
           <nav className="flex items-center gap-1">
             {([
-              { k: 'dashboard' as const, label: 'Dashboard', fa: 'fa-solid fa-chart-pie' },
+              { k: 'dashboard'  as const, label: 'Dashboard', fa: 'fa-solid fa-chart-line'},
               { k: 'scan'  as const, label: 'Scan',      fa: 'fa-solid fa-satellite-dish' },
               { k: 'leads' as const, label: 'Prospects', fa: 'fa-solid fa-users'          },
               { k: 'crm' as const, label: 'Crm', fa: 'fa-solid fa-address-card' },
               { k: 'messenger' as const, label: 'Interactions', fa: 'fa-solid fa-comments' },
-                
+              { k: 'templates' as const, label: 'Templates', fa: 'fa-solid fa-envelope-open-text' },
+              { k: 'pipeline' as const, label: 'Pipeline', fa: 'fa-solid fa-diagram-project'},
             ]).map(tab => (
               <button
                 key={tab.k}
@@ -704,6 +712,19 @@ export function AccountCrmLeadsContent() {
         </div>
       )}
 
+      {view === 'templates' && (
+        <MessageSequenceTemplatesView />
+      )}
+
+      {/* ══════════════════ DASHBOARD ══════════════════════════════════════════ */}
+      {/* {view === 'dashboard' && (
+        <DashboardSectionView
+          leads={leads}
+          scanHistory={scanHistory}
+          onStartScan={() => setView('scan')}
+          onOpenLeads={() => setView('leads')}
+        />
+      )} */}
       {/* ══════════════════ SCAN ══════════════════════════════════════════ */}
       {view === 'scan' && (
         <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
@@ -1444,6 +1465,14 @@ export function AccountCrmLeadsContent() {
             </>
           )}
         </>
+      )}
+
+      {/* ══════════════════ pipeline ══════════════════════════════════════════ */}
+      {view === 'pipeline' && (
+        <PipelineSectionView
+          leads={leads}
+          onOpenProspects={() => setView('leads')}
+        />
       )}
 
       {/* ══════════════════ MODAL ════════════════════════════════════════ */}

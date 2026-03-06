@@ -60,8 +60,8 @@ export function CallbackPage() {
         saveAuth(authModel);
         console.log('Auth data saved to context');
 
-        // Get the next URL - either from query param or default to root
-        const nextPath = searchParams.get('next') || '/';
+        // Get the next URL - either from query param or default to CRM leads
+        const nextPath = searchParams.get('next') || '/account/crm/leads';
 
         // Navigate to the target page
         console.log('Redirecting to:', nextPath);
