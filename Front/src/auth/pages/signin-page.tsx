@@ -102,8 +102,7 @@ export function SignInPage() {
       localStorage.setItem('auth_token', data.token); 
       console.log('success: ', data.token);
       
-      // Redirect to dashboard
-      navigate('/account/home/get-started'); 
+      navigate('/account/crm/leads');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Connection failed');
     } finally {

@@ -34,3 +34,4 @@ public interface InteractionRepository extends JpaRepository<Interaction, Long> 
 
     List<Interaction> findByLeadAndChannelAndStatusInOrderBySentAtDesc(Lead lead, String channel, List<String> statuses);
 }
+
