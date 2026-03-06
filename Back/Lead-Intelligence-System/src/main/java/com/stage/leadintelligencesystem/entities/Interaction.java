@@ -1,5 +1,6 @@
 package com.stage.leadintelligencesystem.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -17,6 +18,7 @@ public class Interaction {
 
     @ManyToOne
     @JoinColumn(name = "lead_id")
+    @JsonIgnoreProperties({"interactions", "decisionMakers", "secteur"})
     private Lead lead;
 
     // Options: EMAIL, WHATSAPP

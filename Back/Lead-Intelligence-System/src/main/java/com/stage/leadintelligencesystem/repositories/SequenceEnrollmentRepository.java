@@ -16,4 +16,7 @@ public interface SequenceEnrollmentRepository extends JpaRepository<SequenceEnro
     List<SequenceEnrollment> findAllDueBefore(@Param("endOfToday") LocalDateTime endOfToday);
     // Find the currently running sequence for this lead
     Optional<SequenceEnrollment> findByLeadAndStatus(Lead lead, String status);
+
+    List<SequenceEnrollment> findByStatus(String status);
+    List<SequenceEnrollment> findByLeadId(Long leadId);
 }

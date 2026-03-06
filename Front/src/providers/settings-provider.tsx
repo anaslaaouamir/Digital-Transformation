@@ -86,8 +86,13 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
           setToPath(init, path, value);
         }
       });
+
+    // Ensure layout is always defined to avoid blank screens on first run.
+    if (!init.layout) {
+      init.layout = APP_SETTINGS.layout;
+    }
     setSettings(init);
-  }, []); // Empty dependency array to run once on mount
+  }, []); // Run once on mout
 
   const getOption = useCallback(
     <T,>(path: string): T => {

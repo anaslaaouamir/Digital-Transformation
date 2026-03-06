@@ -1,4 +1,5 @@
 package com.stage.leadintelligencesystem.entities;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -15,6 +16,7 @@ public class SequenceEnrollment {
 
     @ManyToOne
     @JoinColumn(name = "lead_id")
+    @JsonIgnoreProperties({"sequenceEnrollments", "interactions", "decisionMakers"})
     private Lead lead;
 
     @ManyToOne

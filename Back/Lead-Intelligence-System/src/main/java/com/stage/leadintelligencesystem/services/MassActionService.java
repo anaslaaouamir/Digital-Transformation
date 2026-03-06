@@ -8,6 +8,7 @@ import com.stage.leadintelligencesystem.entities.MessageTemplate;
 import com.stage.leadintelligencesystem.repositories.InteractionRepository;
 import com.stage.leadintelligencesystem.repositories.LeadRepository;
 import com.stage.leadintelligencesystem.repositories.MessageTemplateRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -24,6 +25,8 @@ public class MassActionService {
     private final LeadRepository leadRepository;
     private final InteractionRepository interactionRepository;
     private final MessageTemplateRepository templateRepository;
+    @Value("${app.tracking.url}")
+    private String trackingBaseUrl;
 
     public MassActionService(LeadRepository leadRepository, InteractionRepository interactionRepository, MessageTemplateRepository templateRepository) {
         this.leadRepository = leadRepository;
@@ -79,27 +82,38 @@ public class MassActionService {
             interaction = interactionRepository.save(interaction);
 
             // 5. INJECT THE SPY PIXEL
-            String trackingUrl = "https://philips-considered-academy-musicians.trycloudflare.com/api/tracking/open/" + interaction.getId();
+            //String trackingUrl = "https://info-contribution-aims-lightweight.trycloudflare.com/api/tracking/open/" + interaction.getId();
+            String trackingUrl = trackingBaseUrl+ "/api/tracking/open/" + interaction.getId();
             String pixelHtml = "<img src=\"" + trackingUrl + "\" width=\"1\" height=\"1\" alt=\"\" style=\"display:none;\"/>";
 
             String finalBodyWithPixel = personalizedBody + "<br>" + pixelHtml;
 
-            // Optional: Update the DB content to include the exact HTML sent
-            interaction.setContent(finalBodyWithPixel);
-            interactionRepository.save(interaction);
+            // ---> MINIMAL FIX START <---
+            try {
+                // Try to send to n8n FIRST using your existing helper
+                forwardToN8n(lead.getEmail(), personalizedSubject, finalBodyWithPixel);
 
-            // Update Lead Status
-            lead.setContactStatus("MASS_EMAIL_ENVOYE");
-            leadRepository.save(lead);
+                // If it succeeds, finalize the DB updates
+                interaction.setContent(finalBodyWithPixel);
+                interactionRepository.save(interaction);
 
-            // 6. Add to the results list (Give n8n the body WITH the pixel)
-            generatedEmails.add(new SimulatedEmailDto(
-                    lead.getId(),
-                    lead.getEmail(),
-                    personalizedSubject,
-                    finalBodyWithPixel
-            ));
+                lead.setContactStatus("MASS_EMAIL_ENVOYE");
+                leadRepository.save(lead);
 
+                generatedEmails.add(new SimulatedEmailDto(
+                        lead.getId(), lead.getEmail(), personalizedSubject, finalBodyWithPixel
+                ));
+
+            } catch (Exception e) {
+                // If n8n fails, just delete the interaction we saved in step 4
+                interactionRepository.delete(interaction);
+                System.err.println("n8n failed for " + lead.getEmail() + ". Email not saved.");
+            }
+            // ---> MINIMAL FIX END <---
+        }
+
+        if (!hotLeads.isEmpty() && generatedEmails.isEmpty()) {
+            throw new RuntimeException("n8n webhook failed. Attempted to send to " + hotLeads.size() + " hot leads, but none were sent.");
         }
 
         return generatedEmails;
@@ -139,7 +153,8 @@ public class MassActionService {
         interaction = interactionRepository.save(interaction);
 
         // 3. Inject the Spy Pixel
-        String trackingUrl = "https://philips-considered-academy-musicians.trycloudflare.com/api/tracking/open/" + interaction.getId();
+        //String trackingUrl = "https://info-contribution-aims-lightweight.trycloudflare.com/api/tracking/open/" + interaction.getId();
+        String trackingUrl = trackingBaseUrl+ "/api/tracking/open/" + interaction.getId();
         String pixelHtml = "<img src=\"" + trackingUrl + "\" width=\"1\" height=\"1\" alt=\"\" style=\"display:none;\"/>";
         String finalBodyWithPixel = personalizedBody.replace("\n", "<br>") + "<br>" + pixelHtml;
 

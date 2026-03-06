@@ -62,9 +62,4 @@ public class LeadsController {
                 .collect(Collectors.toList());
     }
 
-    @GetMapping("/{id}")
-    public LeadDTO get(@PathVariable Long id) {
-        Lead l = leadRepository.findById(id).orElse(null);
-        return l != null ? new LeadDTO(l) : null;
-    }
 }
