@@ -4,7 +4,6 @@ import com.stage.leadintelligencesystem.entities.Lead;
 import com.stage.leadintelligencesystem.repositories.LeadRepository;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,7 +26,6 @@ public class LeadsController {
         public String companyName;
         public String city;
         public String phoneNumber;
-        public String email;
         public String website;
         public String linkedinUrl;
         public Double googleRating;
@@ -35,14 +33,12 @@ public class LeadsController {
         public Integer aiScore;
         public String temperature;
         public String secteurName;
-        public String contactStatus;
 
         LeadDTO(Lead l) {
             this.id = l.getId();
             this.companyName = l.getCompanyName();
             this.city = l.getCity();
             this.phoneNumber = l.getPhoneNumber();
-            this.email = l.getEmail();
             this.website = l.getWebsite();
             this.linkedinUrl = l.getLinkedinUrl();
             this.googleRating = l.getGoogleRating();
@@ -50,7 +46,6 @@ public class LeadsController {
             this.aiScore = l.getAiScore();
             this.temperature = l.getTemperature();
             this.secteurName = l.getSecteur() != null ? l.getSecteur().getName() : null;
-            this.contactStatus = l.getContactStatus();
         }
     }
 

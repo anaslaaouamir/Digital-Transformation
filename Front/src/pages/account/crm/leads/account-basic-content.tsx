@@ -129,27 +129,6 @@ const postalCodeForCity = (cityName: string): string => {
   return '';
 };
 
-function cleanStr(v?: string): string {
-  return String(v || '')
-    .replace(/`/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function pickField(obj: any, variants: string[], cleaner?: (v?: string) => string): string {
-  if (!obj) return '';
-  const lcMap: Record<string, string> = {};
-  for (const k of Object.keys(obj)) lcMap[k.toLowerCase()] = k;
-  for (const v of variants) {
-    const k = lcMap[v.toLowerCase()];
-    if (k && obj[k] != null && String(obj[k]).trim() !== '') {
-      const val = String(obj[k]);
-      return cleaner ? cleaner(val) : val;
-    }
-  }
-  return '';
-}
-
 const SECTORS: Record<string, { faIcon: string; googleType: string }> = {
   Restauration:    { faIcon: 'fa-solid fa-utensils',       googleType: 'restaurant' },
   Hôtellerie:      { faIcon: 'fa-solid fa-hotel',           googleType: 'lodging' },
@@ -294,10 +273,20 @@ export function AccountCrmLeadsContent() {
   const [scanStep,     setScanStep]     = useState(0);
   const [scanLog,      setScanLog]      = useState<string[]>([]);
   const [emailSentFor, setEmailSentFor] = useState<number | null>(null);
+  const [interactions, setInteractions] = useState<Interaction[]>(() => {
+    try {
+      const raw = localStorage.getItem('crm_interactions');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
-    try { localStorage.setItem('crm_view', view); } catch {}
-  }, [view]);
+    try {
+      localStorage.setItem('crm_interactions', JSON.stringify(interactions));
+    } catch {}
+  }, [interactions]);
 
   const [filters, setFilters] = useState({
     sectors:    [] as string[],
@@ -333,10 +322,7 @@ export function AccountCrmLeadsContent() {
     try {
       const resp = await gateway.get('/leads');
       const rows: any[] = resp?.data ?? [];
-      if (rows && rows.length) {
-        try { console.debug('[GET /leads] sample keys:', Object.keys(rows[0] || {})); } catch {}
-      }
-      let mapped: Lead[] = rows.map(l => {
+      const mapped: Lead[] = rows.map(l => {
         const temp = String(l.temperature || '').toLowerCase();
         const status = temp === 'hot' || temp === 'warm' || temp === 'cold' ? temp : statusOf(Number(l.aiScore || 0));
         return {
@@ -344,57 +330,30 @@ export function AccountCrmLeadsContent() {
           name: '',
           company: l.companyName || '',
           role: '',
-          email: pickField(l, ['email','emailAddress','email_address','contactEmail','contact_email','primaryEmail','leadEmail','decisionMakerEmail','dmEmail'], cleanStr),
-          phone: pickField(l, ['phoneNumber','phone','telephone'], cleanStr),
+          email: '',
+          phone: l.phoneNumber || '',
           city: l.city || '',
           address: '',
-          website: pickField(l, ['website','site','websiteUrl','url'], cleanStr),
+          website: l.website || '',
           rating: l.googleRating != null ? String(l.googleRating) : '',
           reviewCount: l.googleReviews != null ? Number(l.googleReviews) : undefined,
           sector: l.secteurName || '—',
           score: l.aiScore != null ? Number(l.aiScore) : 0,
           status,
-          linkedIn: pickField(l, ['linkedinUrl','linkedin','linkedin_url'], cleanStr),
+          linkedIn: l.linkedinUrl || '',
           apolloEnriched: false,
         };
       });
-      const needEmail = mapped.filter(l => !l.email).slice(0, 10);
-      if (needEmail.length > 0) {
-        const filled = await Promise.all(needEmail.map(async (ld) => {
-          try {
-            const r = await gateway.get(`/leads/${ld.id}`).catch(() => null);
-            const d = r?.data || {};
-            let em = cleanStr(
-              d.email || d.emailAddress || d.email_address || d.contactEmail || d.contact_email || d.primaryEmail || d.leadEmail || d.decisionMakerEmail || d.dmEmail || ''
-            );
-            if (!em) {
-              const ri = await gateway.get(`/interactions/lead/${ld.id}`).catch(() => null);
-              const rowsI: any[] = ri?.data ?? [];
-              const first = rowsI.find(r2 => String(r2.channel || r2.channel_type || '').toUpperCase() === 'EMAIL');
-              em = cleanStr(first?.to_email || first?.toEmail || first?.email || first?.contactEmail || first?.contact_email || '');
-            }
-            return { id: ld.id, email: em };
-          } catch {
-            return { id: ld.id, email: '' };
-          }
-        }));
-        if (filled.some(f => f.email)) {
-          mapped = mapped.map(l => {
-            const f = filled.find(x => x.id === l.id);
-            return f && f.email ? { ...l, email: f.email } : l;
-          });
-        }
-      }
       setLeads(mapped);
       if (mapped.length > 0) setView('leads');
       return mapped.length;
     } catch (err) {
       console.error('[GET /leads] failed', err);
       setLeads([]);
-      if (!['crm','leads','messenger'].includes(view)) setView('scan');
+      setView('scan');
       return 0;
     }
-  }, [gateway, view, setView]);
+  }, [gateway]);
 
   // ── Load prospects from DB on mount ────────────────────────────────────────
   useEffect(() => {
@@ -402,48 +361,6 @@ export function AccountCrmLeadsContent() {
       await refreshLeadsFromDb();
     })();
   }, [refreshLeadsFromDb]);
-
-  useEffect(() => {
-    const hydrateEmail = async () => {
-      if (!selectedLead || selectedLead.email) return;
-      try {
-        // Try lead details endpoint first (some backends include email only here)
-        const rLead = await gateway.get(`/leads/${selectedLead.id}`).catch(() => null);
-        const d = rLead?.data;
-        let foundEmail = cleanStr(
-          d?.email ||
-          d?.emailAddress ||
-          d?.email_address ||
-          d?.contactEmail ||
-          d?.contact_email ||
-          d?.primaryEmail ||
-          d?.leadEmail ||
-          d?.decisionMakerEmail ||
-          d?.dmEmail ||
-          ''
-        );
-        // Fallback: look into interactions for any email target
-        if (!foundEmail) {
-          const resp = await gateway.get(`/interactions/lead/${selectedLead.id}`).catch(() => null);
-          const rows: any[] = resp?.data ?? [];
-          const first = rows.find(r => (String(r.channel || r.channel_type || '').toUpperCase() === 'EMAIL'));
-          foundEmail = cleanStr(
-            first?.to_email ||
-            first?.toEmail ||
-            first?.email ||
-            first?.contactEmail ||
-            first?.contact_email ||
-            ''
-          );
-        }
-        if (foundEmail) {
-          setSelectedLead(prev => prev ? { ...prev, email: foundEmail } : prev);
-          setLeads(prev => prev.map(l => l.id === selectedLead.id ? { ...l, email: foundEmail } : l));
-        }
-      } catch {}
-    };
-    hydrateEmail();
-  }, [selectedLead, gateway]);
 
   const toggleCity = (cityName: string) =>
     setFilters(p => ({
@@ -746,7 +663,11 @@ export function AccountCrmLeadsContent() {
                     {leads.length}
                   </span>
                 )}
-                {/* count badge removed for interactions to avoid using local storage */}
+                {tab.k === 'messenger' && interactions.length > 0 && (
+                  <span className="rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
+                    {interactions.length}
+                  </span>
+                )}
               </button>
             ))}
           </nav>
@@ -764,7 +685,8 @@ export function AccountCrmLeadsContent() {
 
       {view === 'messenger' && (
         <LeadMessanger
-          leads={leads.map(l => ({ id: l.id, company: l.company, name: l.name, city: l.city, sector: l.sector, email: l.email, phone: l.phone }))}
+          leads={leads.map(l => ({ id: l.id, company: l.company, name: l.name, city: l.city, sector: l.sector }))}
+          interactions={interactions}
         />
       )}
 
