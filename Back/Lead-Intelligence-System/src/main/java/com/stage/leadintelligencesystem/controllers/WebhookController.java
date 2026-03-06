@@ -2,6 +2,7 @@ package com.stage.leadintelligencesystem.controllers;
 
 import com.stage.leadintelligencesystem.dto.IncomingReplyDto;
 import com.stage.leadintelligencesystem.services.SequenceService;
+import com.stage.leadintelligencesystem.services.WhatsAppMassActionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -15,9 +16,11 @@ import java.util.Map;
 public class WebhookController {
 
     private final SequenceService sequenceService;
+    private final WhatsAppMassActionService whatsAppMassActionService;
 
-    public WebhookController(SequenceService sequenceService) {
+    public WebhookController(SequenceService sequenceService, WhatsAppMassActionService whatsAppMassActionService) {
         this.sequenceService = sequenceService;
+        this.whatsAppMassActionService = whatsAppMassActionService;
     }
 
     /**
@@ -42,6 +45,17 @@ public class WebhookController {
             sequenceService.handleBouncedEmail(email);
             return ResponseEntity.ok("{\"status\": \"success\", \"message\": \"Bounce processed\"}");
         } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body("{\"status\": \"error\", \"message\": \"" + e.getMessage() + "\"}");
+        }
+    }
+
+    @PostMapping("/whatsapp-reply")
+    public ResponseEntity<String> handleWhatsAppReply(@RequestBody Map<String, String> payload) {
+        try {
+            whatsAppMassActionService.processIncomingWhatsApp(payload);
+            return ResponseEntity.ok("{\"status\": \"success\", \"message\": \"WhatsApp reply processed\"}");
+        } catch (RuntimeException e) {
+            // Returns 400 Bad Request with the error message if the phone number doesn't match a lead
             return ResponseEntity.badRequest().body("{\"status\": \"error\", \"message\": \"" + e.getMessage() + "\"}");
         }
     }
