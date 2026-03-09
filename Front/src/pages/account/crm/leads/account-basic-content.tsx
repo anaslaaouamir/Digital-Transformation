@@ -13,17 +13,7 @@ import {
 import { cn } from '@/lib/utils';
 import { LeadsDashboard } from './leads-dashboard';
 import { CRM } from './crm';
-import LeadMessanger, { Interaction } from './lead-messanger';
-// import { DashboardSectionView } from './components/dashboard-view';
-// import { CrmSectionView } from './components/crm-view';
-// import { LeadsInteractionsSection } from './components/leads-interactions-view';
-import {
-  applyMessageTemplateVariables,
-  DEFAULT_MESSAGE_SEQUENCE_TEMPLATES,
-  loadMessageSequenceTemplates,
-  MessageSequenceTemplatesView,
-} from './components/message-sequence-templates-view';
-import { PipelineSectionView } from './components/pipeline-view';
+import LeadMessanger from './lead-messanger';
 
 // ── Inject Font Awesome CDN automatically ────────────────────────────────────
 function useFontAwesome() {
@@ -128,6 +118,27 @@ const postalCodeForCity = (cityName: string): string => {
   }
   return '';
 };
+
+function cleanStr(v?: string): string {
+  return String(v || '')
+    .replace(/`/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function pickField(obj: any, variants: string[], cleaner?: (v?: string) => string): string {
+  if (!obj) return '';
+  const lcMap: Record<string, string> = {};
+  for (const k of Object.keys(obj)) lcMap[k.toLowerCase()] = k;
+  for (const v of variants) {
+    const k = lcMap[v.toLowerCase()];
+    if (k && obj[k] != null && String(obj[k]).trim() !== '') {
+      const val = String(obj[k]);
+      return cleaner ? cleaner(val) : val;
+    }
+  }
+  return '';
+}
 
 const SECTORS: Record<string, { faIcon: string; googleType: string }> = {
   Restauration:    { faIcon: 'fa-solid fa-utensils',       googleType: 'restaurant' },
@@ -260,7 +271,9 @@ export function AccountCrmLeadsContent() {
     try { localStorage.setItem('crm_scan_history', JSON.stringify(scanHistory)); } catch {}
   }, [scanHistory]);
 
-  const [view,         setView]         = useState<'dashboard' | 'scan' | 'leads' | 'crm' | 'pipeline' | 'messenger' | 'templates'>('dashboard');
+  const [view,         setView]         = useState<'dashboard' | 'scan' | 'leads' | 'messenger'>(() => {
+    try { return (localStorage.getItem('crm_view') as any) || 'leads'; } catch { return 'leads'; }
+  });
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [currentPage,  setCurrentPage]  = useState(1);
   const [sortBy,       setSortBy]       = useState<'score' | 'name' | 'city'>('score');
@@ -273,20 +286,10 @@ export function AccountCrmLeadsContent() {
   const [scanStep,     setScanStep]     = useState(0);
   const [scanLog,      setScanLog]      = useState<string[]>([]);
   const [emailSentFor, setEmailSentFor] = useState<number | null>(null);
-  const [interactions, setInteractions] = useState<Interaction[]>(() => {
-    try {
-      const raw = localStorage.getItem('crm_interactions');
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  });
 
   useEffect(() => {
-    try {
-      localStorage.setItem('crm_interactions', JSON.stringify(interactions));
-    } catch {}
-  }, [interactions]);
+    try { localStorage.setItem('crm_view', view); } catch {}
+  }, [view]);
 
   const [filters, setFilters] = useState({
     sectors:    [] as string[],
@@ -322,7 +325,10 @@ export function AccountCrmLeadsContent() {
     try {
       const resp = await gateway.get('/leads');
       const rows: any[] = resp?.data ?? [];
-      const mapped: Lead[] = rows.map(l => {
+      if (rows && rows.length) {
+        try { console.debug('[GET /leads] sample keys:', Object.keys(rows[0] || {})); } catch {}
+      }
+      let mapped: Lead[] = rows.map(l => {
         const temp = String(l.temperature || '').toLowerCase();
         const status = temp === 'hot' || temp === 'warm' || temp === 'cold' ? temp : statusOf(Number(l.aiScore || 0));
         return {
@@ -330,37 +336,104 @@ export function AccountCrmLeadsContent() {
           name: '',
           company: l.companyName || '',
           role: '',
-          email: '',
-          phone: l.phoneNumber || '',
+          email: pickField(l, ['email','emailAddress','email_address','contactEmail','contact_email','primaryEmail','leadEmail','decisionMakerEmail','dmEmail'], cleanStr),
+          phone: pickField(l, ['phoneNumber','phone','telephone'], cleanStr),
           city: l.city || '',
           address: '',
-          website: l.website || '',
+          website: pickField(l, ['website','site','websiteUrl','url'], cleanStr),
           rating: l.googleRating != null ? String(l.googleRating) : '',
           reviewCount: l.googleReviews != null ? Number(l.googleReviews) : undefined,
           sector: l.secteurName || '—',
           score: l.aiScore != null ? Number(l.aiScore) : 0,
           status,
-          linkedIn: l.linkedinUrl || '',
+          linkedIn: pickField(l, ['linkedinUrl','linkedin','linkedin_url'], cleanStr),
           apolloEnriched: false,
         };
       });
+      const needEmail = mapped.filter(l => !l.email).slice(0, 10);
+      if (needEmail.length > 0) {
+        const filled = await Promise.all(needEmail.map(async (ld) => {
+          try {
+            const r = await gateway.get(`/leads/${ld.id}`).catch(() => null);
+            const d = r?.data || {};
+            let em = cleanStr(
+              d.email || d.emailAddress || d.email_address || d.contactEmail || d.contact_email || d.primaryEmail || d.leadEmail || d.decisionMakerEmail || d.dmEmail || ''
+            );
+            if (!em) {
+              const ri = await gateway.get(`/interactions/lead/${ld.id}`).catch(() => null);
+              const rowsI: any[] = ri?.data ?? [];
+              const first = rowsI.find(r2 => String(r2.channel || r2.channel_type || '').toUpperCase() === 'EMAIL');
+              em = cleanStr(first?.to_email || first?.toEmail || first?.email || first?.contactEmail || first?.contact_email || '');
+            }
+            return { id: ld.id, email: em };
+          } catch {
+            return { id: ld.id, email: '' };
+          }
+        }));
+        if (filled.some(f => f.email)) {
+          mapped = mapped.map(l => {
+            const f = filled.find(x => x.id === l.id);
+            return f && f.email ? { ...l, email: f.email } : l;
+          });
+        }
+      }
       setLeads(mapped);
-      if (mapped.length > 0) setView('leads');
+      if (view === 'scan') setView('leads');
       return mapped.length;
     } catch (err) {
       console.error('[GET /leads] failed', err);
       setLeads([]);
-      setView('scan');
+      if (!['crm','leads','messenger'].includes(view)) setView('scan');
       return 0;
     }
-  }, [gateway]);
+  }, [gateway, view, setView]);
 
   // ── Load prospects from DB on mount ────────────────────────────────────────
   useEffect(() => {
-    (async () => {
-      await refreshLeadsFromDb();
-    })();
-  }, [refreshLeadsFromDb]);
+    refreshLeadsFromDb();
+  }, []);
+
+  useEffect(() => {
+    const hydrateEmail = async () => {
+      if (!selectedLead || selectedLead.email) return;
+      try {
+        // Try lead details endpoint first (some backends include email only here)
+        const rLead = await gateway.get(`/leads/${selectedLead.id}`).catch(() => null);
+        const d = rLead?.data;
+        let foundEmail = cleanStr(
+          d?.email ||
+          d?.emailAddress ||
+          d?.email_address ||
+          d?.contactEmail ||
+          d?.contact_email ||
+          d?.primaryEmail ||
+          d?.leadEmail ||
+          d?.decisionMakerEmail ||
+          d?.dmEmail ||
+          ''
+        );
+        // Fallback: look into interactions for any email target
+        if (!foundEmail) {
+          const resp = await gateway.get(`/interactions/lead/${selectedLead.id}`).catch(() => null);
+          const rows: any[] = resp?.data ?? [];
+          const first = rows.find(r => (String(r.channel || r.channel_type || '').toUpperCase() === 'EMAIL'));
+          foundEmail = cleanStr(
+            first?.to_email ||
+            first?.toEmail ||
+            first?.email ||
+            first?.contactEmail ||
+            first?.contact_email ||
+            ''
+          );
+        }
+        if (foundEmail) {
+          setSelectedLead(prev => prev ? { ...prev, email: foundEmail } : prev);
+          setLeads(prev => prev.map(l => l.id === selectedLead.id ? { ...l, email: foundEmail } : l));
+        }
+      } catch {}
+    };
+    hydrateEmail();
+  }, [selectedLead, gateway]);
 
   const toggleCity = (cityName: string) =>
     setFilters(p => ({
@@ -370,6 +443,11 @@ export function AccountCrmLeadsContent() {
         : [...p.cities, cityName],
     }));
 
+  const emailTemplate = {
+    subject: 'Collaboration digitale — {{company}}',
+    body: 'Bonjour,\n\nJ\'ai découvert {{company}}. Seriez-vous disponible pour un échange de 15 minutes ?\n\nCordialement,\nAbderrahim\nELBAHI.NET',
+  };
+
   const applyTemplate = useCallback((lead: Lead) => {
     const vars: Record<string, string> = {
       '{{firstName}}': lead.name.split(' ')[0],
@@ -377,9 +455,9 @@ export function AccountCrmLeadsContent() {
       '{{sector}}':    lead.sector,
       '{{city}}':      lead.city,
     };
-    const firstStepTemplate =
-      loadMessageSequenceTemplates()[0] ?? DEFAULT_MESSAGE_SEQUENCE_TEMPLATES[0];
-    return applyMessageTemplateVariables(firstStepTemplate, vars);
+    let s = emailTemplate.subject, b = emailTemplate.body;
+    Object.entries(vars).forEach(([k, v]) => { s = s.split(k).join(v); b = b.split(k).join(v); });
+    return { subject: s, body: b };
   }, []);
 
   // ── Fetch real results from backend with polling ──────────────────────────
@@ -638,13 +716,12 @@ export function AccountCrmLeadsContent() {
         <CardContent className="p-1.5">
           <nav className="flex items-center gap-1">
             {([
-              { k: 'dashboard'  as const, label: 'Dashboard', fa: 'fa-solid fa-chart-line'},
+              { k: 'dashboard' as const, label: 'Dashboard', fa: 'fa-solid fa-chart-pie' },
               { k: 'scan'  as const, label: 'Scan',      fa: 'fa-solid fa-satellite-dish' },
               { k: 'leads' as const, label: 'Prospects', fa: 'fa-solid fa-users'          },
               { k: 'crm' as const, label: 'Crm', fa: 'fa-solid fa-address-card' },
               { k: 'messenger' as const, label: 'Interactions', fa: 'fa-solid fa-comments' },
-              { k: 'templates' as const, label: 'Templates', fa: 'fa-solid fa-envelope-open-text' },
-              { k: 'pipeline' as const, label: 'Pipeline', fa: 'fa-solid fa-diagram-project'},
+                
             ]).map(tab => (
               <button
                 key={tab.k}
@@ -663,11 +740,7 @@ export function AccountCrmLeadsContent() {
                     {leads.length}
                   </span>
                 )}
-                {tab.k === 'messenger' && interactions.length > 0 && (
-                  <span className="rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
-                    {interactions.length}
-                  </span>
-                )}
+                {/* count badge removed for interactions to avoid using local storage */}
               </button>
             ))}
           </nav>
@@ -685,8 +758,7 @@ export function AccountCrmLeadsContent() {
 
       {view === 'messenger' && (
         <LeadMessanger
-          leads={leads.map(l => ({ id: l.id, company: l.company, name: l.name, city: l.city, sector: l.sector }))}
-          interactions={interactions}
+          leads={leads.map(l => ({ id: l.id, company: l.company, name: l.name, city: l.city, sector: l.sector, email: l.email, phone: l.phone }))}
         />
       )}
 
@@ -712,19 +784,6 @@ export function AccountCrmLeadsContent() {
         </div>
       )}
 
-      {view === 'templates' && (
-        <MessageSequenceTemplatesView />
-      )}
-
-      {/* ══════════════════ DASHBOARD ══════════════════════════════════════════ */}
-      {/* {view === 'dashboard' && (
-        <DashboardSectionView
-          leads={leads}
-          scanHistory={scanHistory}
-          onStartScan={() => setView('scan')}
-          onOpenLeads={() => setView('leads')}
-        />
-      )} */}
       {/* ══════════════════ SCAN ══════════════════════════════════════════ */}
       {view === 'scan' && (
         <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
@@ -1465,14 +1524,6 @@ export function AccountCrmLeadsContent() {
             </>
           )}
         </>
-      )}
-
-      {/* ══════════════════ pipeline ══════════════════════════════════════════ */}
-      {view === 'pipeline' && (
-        <PipelineSectionView
-          leads={leads}
-          onOpenProspects={() => setView('leads')}
-        />
       )}
 
       {/* ══════════════════ MODAL ════════════════════════════════════════ */}

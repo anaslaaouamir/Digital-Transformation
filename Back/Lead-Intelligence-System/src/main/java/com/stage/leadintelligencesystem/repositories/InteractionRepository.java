@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,4 +34,6 @@ public interface InteractionRepository extends JpaRepository<Interaction, Long> 
     Optional<Interaction> findBySentAtAndType(LocalDateTime sentAt, String type);
 
     List<Interaction> findByLeadAndChannelAndStatusInOrderBySentAtDesc(Lead lead, String channel, List<String> statuses);
+
+    List<Interaction> findByLead(Lead lead);
 }

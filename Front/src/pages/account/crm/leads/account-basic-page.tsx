@@ -2,6 +2,7 @@ import { Fragment } from 'react';
 import { PageNavbar } from '@/pages/account';
 import {
   Toolbar,
+  ToolbarActions,
   ToolbarDescription,
   ToolbarHeading,
   ToolbarPageTitle,
@@ -9,6 +10,7 @@ import {
 import { useSettings } from '@/providers/settings-provider';
 import { Container } from '@/components/common/container';
 import { AccountCrmLeadsContent } from './account-basic-content';
+
 
 export function AccountCrmLeadsPage() {
   const { settings } = useSettings();
@@ -21,10 +23,11 @@ export function AccountCrmLeadsPage() {
           <Toolbar>
             <ToolbarHeading>
               <ToolbarPageTitle text="Leads" />
-            <ToolbarDescription>
+              <ToolbarDescription>
                 ProspectAI — Google Places, Apollo.io & Claude. Manage and track your prospects.
               </ToolbarDescription>
             </ToolbarHeading>
+            
           </Toolbar>
         </Container>
       )}
