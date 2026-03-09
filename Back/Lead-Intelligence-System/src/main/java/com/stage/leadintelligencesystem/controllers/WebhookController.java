@@ -4,15 +4,13 @@ import com.stage.leadintelligencesystem.dto.IncomingReplyDto;
 import com.stage.leadintelligencesystem.services.SequenceService;
 import com.stage.leadintelligencesystem.services.WhatsAppMassActionService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/webhooks")
+@CrossOrigin(origins = "*")
 public class WebhookController {
 
     private final SequenceService sequenceService;
@@ -33,7 +31,7 @@ public class WebhookController {
             sequenceService.processIncomingReply(replyDto);
             return ResponseEntity.ok("{\"status\": \"success\", \"message\": \"Reply processed\"}");
         } catch (RuntimeException e) {
-    
+
             // You might want to return 200 OK even on failure so n8n doesn't keep retrying forever
             return ResponseEntity.badRequest().body("{\"status\": \"error\", \"message\": \"" + e.getMessage() + "\"}");        }
     }

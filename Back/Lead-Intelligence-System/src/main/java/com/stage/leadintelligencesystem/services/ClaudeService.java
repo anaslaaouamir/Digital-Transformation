@@ -3,6 +3,7 @@ package com.stage.leadintelligencesystem.services;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stage.leadintelligencesystem.dto.SimulatedEmailDto;
+import com.stage.leadintelligencesystem.dto.SimulatedWhatsAppDto;
 import com.stage.leadintelligencesystem.entities.Interaction;
 import com.stage.leadintelligencesystem.entities.Lead;
 import com.stage.leadintelligencesystem.repositories.InteractionRepository;
@@ -23,6 +24,8 @@ public class ClaudeService {
     private final InteractionRepository interactionRepository;
     @Value("${app.tracking.url}")
     private String trackingBaseUrl;
+    @Value("${n8n.for.whatsap}")
+    private String n8n_public;
 
     public ClaudeService(LeadRepository leadRepository, InteractionRepository interactionRepository) {
         this.leadRepository = leadRepository;
@@ -90,6 +93,62 @@ public class ClaudeService {
             // 10. n8n or Gmail failed -> Wipe the interaction to restore original state
             interactionRepository.delete(interaction);
             throw new RuntimeException("Failed to generate or send AI email: " + e.getMessage());
+        }
+    }
+
+    @Transactional
+    public SimulatedWhatsAppDto generateAndSendClaudeWhatsapp(String phoneNumber, String userPrompt) {
+        // 1. Fetch the lead by phone number (ensure this method exists in LeadRepository!)
+        Lead lead = leadRepository.findByPhoneNumber(phoneNumber)
+                .orElseThrow(() -> new RuntimeException("Lead not found with phone: " + phoneNumber));
+
+        // 2. Create the interaction (Starts as SENT)
+        Interaction interaction = new Interaction();
+        interaction.setLead(lead);
+        interaction.setChannel("WHATSAPP"); // Updated channel
+        interaction.setType("AI_GENERATED");
+        interaction.setStatus("SENT");
+        interaction.setSentAt(LocalDateTime.now());
+
+        interaction = interactionRepository.save(interaction);
+
+        // 3. Prepare the payload for n8n (No pixel needed)
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("phoneNumber", phoneNumber);
+        payload.put("lead", lead);
+        payload.put("userPrompt", userPrompt);
+
+        RestTemplate restTemplate = new RestTemplate();
+        // Pointing to your specific ngrok webhook for WhatsApp
+        String n8nWebhookUrl = n8n_public+"/webhook/generate_whatsap_msg";
+
+        try {
+            // 4. Call n8n. Wait for the response.
+            String n8nResponseStr = restTemplate.postForObject(n8nWebhookUrl, payload, String.class);
+
+            // 5. Parse Claude's generated message from n8n's JSON response
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(n8nResponseStr);
+
+            // Extract the 'message' field that we set up in the n8n "Edit Fields" node
+            String generatedMessage = root.path("message").asText();
+
+            // 6. Update the interaction with actual generated content
+            interaction.setContent(generatedMessage);
+            interactionRepository.save(interaction);
+
+            // 7. Update Lead Status (Only if not in sequence)
+            if (!"EN_SEQUENCE".equals(lead.getContactStatus())) {
+                lead.setContactStatus("AI_WHATSAPP_ENVOYE"); // Custom status for WA
+                leadRepository.save(lead);
+            }
+
+            return new SimulatedWhatsAppDto(lead.getId(), lead.getPhoneNumber(), generatedMessage);
+
+        } catch (Exception e) {
+            // 8. n8n or WhatsApp failed -> Wipe the interaction to restore original state
+            interactionRepository.delete(interaction);
+            throw new RuntimeException("Failed to generate or send AI WhatsApp: " + e.getMessage());
         }
     }
 }
