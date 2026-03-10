@@ -286,6 +286,7 @@ export function AccountCrmLeadsContent() {
   const [scanStep,     setScanStep]     = useState(0);
   const [scanLog,      setScanLog]      = useState<string[]>([]);
   const [emailSentFor, setEmailSentFor] = useState<number | null>(null);
+  const [composeForLeadId, setComposeForLeadId] = useState<number | null>(null);
 
   useEffect(() => {
     try { localStorage.setItem('crm_view', view); } catch {}
@@ -759,6 +760,7 @@ export function AccountCrmLeadsContent() {
       {view === 'messenger' && (
         <LeadMessanger
           leads={leads.map(l => ({ id: l.id, company: l.company, name: l.name, city: l.city, sector: l.sector, email: l.email, phone: l.phone }))}
+          composeForLeadId={composeForLeadId ?? undefined}
         />
       )}
 
@@ -1606,22 +1608,16 @@ export function AccountCrmLeadsContent() {
               </div>
 
               <div className="flex gap-2 pt-1">
-                {emailSentFor === selectedLead.id ? (
-                  <div className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2.5 text-sm font-semibold text-emerald-700">
-                    <Fa icon="fa-solid fa-circle-check" /> Email envoyé !
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => {
-                      applyTemplate(selectedLead);
-                      setEmailSentFor(selectedLead.id);
-                      setTimeout(() => { setEmailSentFor(null); setSelectedLead(null); }, 1500);
-                    }}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
-                  >
-                    <Fa icon="fa-solid fa-paper-plane" /> Envoyer message
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    setComposeForLeadId(selectedLead.id);
+                    setView('messenger');
+                    setSelectedLead(null);
+                  }}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
+                >
+                  <Fa icon="fa-solid fa-paper-plane" /> Envoyer propositions
+                </button>
                 <button
                   onClick={() => setSelectedLead(null)}
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-400"

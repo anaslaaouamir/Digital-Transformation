@@ -1,6 +1,6 @@
 {
   "name": "webhook",
-  "nodes": [
+ "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
@@ -46,7 +46,6 @@
       }
     }
   ],
-  "pinData": {},
   "connections": {
     "Webhook": {
       "main": [
@@ -66,11 +65,11 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "259add1b-953e-405f-877e-5d2dad333a4e",
+  "versionId": "new-docker-friendly",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "19608886e3e17c7fa08aa6249e02f43d090f84b9e2f1863d8af8ff9691f099f7"
+    "instanceId": "docker-friendly-instance"
   },
-  "id": "ddPWWsjBSiLd0Twm",
+  "id": "workflow-docker-backend",
   "tags": []
 }
