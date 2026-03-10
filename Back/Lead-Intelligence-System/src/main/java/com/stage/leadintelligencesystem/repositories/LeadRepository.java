@@ -12,4 +12,6 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
     Optional<Lead> findByEmail(String email);
     List<Lead> findByTemperatureAndContactStatusAndPhoneNumberIsNotNull(String temperature, String contactStatus);
     Optional<Lead> findByPhoneNumber(String phoneNumber);
+
+    List<Lead> findByIsEnrichedFalse();
 }
