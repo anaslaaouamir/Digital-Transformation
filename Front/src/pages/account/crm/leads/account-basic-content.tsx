@@ -796,7 +796,7 @@ export function AccountCrmLeadsContent() {
 
       {view === 'edit' && (
         <LeadEditView
-          leadId={288}
+          leadId={289}
           onClose={() => setView('leads')}
           onSaved={refreshLeadsFromDb}
         />
