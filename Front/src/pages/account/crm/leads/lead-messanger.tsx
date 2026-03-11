@@ -34,7 +34,14 @@ const EMPTY_LEADS: any[] = [];
 
 const CHANNEL_LIST           = ['EMAIL', 'WHATSAPP'];
 const STATUS_LIST            = ['SENT', 'OPENED', 'REPLIED', 'BOUNCED'];
-const CONTACT_STATUS_LIST    = ['NON_CONTACTE','EN_SEQUENCE','TERMINE_SANS_REPONSE','A_REPONDU','MASS_EMAIL_ENVOYE','EMAIL_BOUNCED','MANUAL_EMAIL_ENVOYE'];
+const CONTACT_STATUS_LIST = [
+  'NON_CONTACTE','EN_SEQUENCE',
+  'MASSE_EMAIL_ENVOYE','MASS_WHATSAPP_ENVOYE',
+  'MANUAL_EMAIL_ENVOYE','MANUAL_WHATSAPP_ENVOYE',
+  'AI_EMAIL_ENVOYE','AI_WHATSAPP_ENVOYE',
+  'TERMINE_SANS_REPONSE','A_REPONDU',
+  'BOUNCED_EMAIL','BOUNCED_PHONENUMBER',
+];
 const INTERACTION_TYPE_LIST  = ['MANUAL','SEQUENCE','AI_GENERATED','MASSE','RESPONSE'];
 const SEQ_ENROLLMENT_STATUS  = ['ACTIVE','PAUSED','COMPLETED','CANCELLED'];
 
@@ -89,13 +96,18 @@ const CHANNEL_CFG = {
 };
 
 const CONTACT_STATUS_CFG = {
-  NON_CONTACTE:         { bg:'#f1f5f9', text:'#475569', border:'#e2e8f0', icon:'fa-solid fa-circle',               label:'Non contacte'    },
-  EN_SEQUENCE:          { bg:'#eef2ff', text:'#4338ca', border:'#a5b4fc', icon:'fa-solid fa-diagram-project',      label:'En sequence'     },
-  TERMINE_SANS_REPONSE: { bg:'#fff7ed', text:'#9a3412', border:'#fdba74', icon:'fa-solid fa-clock-rotate-left',    label:'Sans reponse'    },
-  A_REPONDU:            { bg:'#ecfdf5', text:'#047857', border:'#6ee7b7', icon:'fa-solid fa-check',                label:'A repondu'       },
-  MASS_EMAIL_ENVOYE:    { bg:'#f5f3ff', text:'#5b21b6', border:'#c4b5fd', icon:'fa-solid fa-bullhorn',             label:'Email masse'     },
-  EMAIL_BOUNCED:        { bg:'#fef2f2', text:'#b91c1c', border:'#fecaca', icon:'fa-solid fa-triangle-exclamation', label:'Bounce'          },
-  MANUAL_EMAIL_ENVOYE:  { bg:'#f0f9ff', text:'#0369a1', border:'#bae6fd', icon:'fa-solid fa-keyboard',            label:'Email manuel'    },
+  NON_CONTACTE:           { bg:'#f1f5f9', text:'#475569', border:'#e2e8f0', icon:'fa-solid fa-circle',               label:'Non contacte'     },
+  EN_SEQUENCE:            { bg:'#eef2ff', text:'#4338ca', border:'#a5b4fc', icon:'fa-solid fa-diagram-project',      label:'En sequence'      },
+  MASSE_EMAIL_ENVOYE:     { bg:'#f5f3ff', text:'#5b21b6', border:'#c4b5fd', icon:'fa-solid fa-bullhorn',             label:'Email masse'      },
+  MASS_WHATSAPP_ENVOYE:   { bg:'#f0fdf4', text:'#15803d', border:'#bbf7d0', icon:'fa-brands fa-whatsapp',            label:'WA masse'         },
+  MANUAL_EMAIL_ENVOYE:    { bg:'#f0f9ff', text:'#0369a1', border:'#bae6fd', icon:'fa-solid fa-keyboard',             label:'Email manuel'     },
+  MANUAL_WHATSAPP_ENVOYE: { bg:'#dcfce7', text:'#166534', border:'#86efac', icon:'fa-brands fa-whatsapp',            label:'WA manuel'        },
+  AI_EMAIL_ENVOYE:        { bg:'#fdf4ff', text:'#7c3aed', border:'#e9d5ff', icon:'fa-solid fa-robot',                label:'Email IA'         },
+  AI_WHATSAPP_ENVOYE:     { bg:'#faf5ff', text:'#6d28d9', border:'#d8b4fe', icon:'fa-solid fa-robot',                label:'WA IA'            },
+  TERMINE_SANS_REPONSE:   { bg:'#fff7ed', text:'#9a3412', border:'#fdba74', icon:'fa-solid fa-clock-rotate-left',    label:'Sans reponse'     },
+  A_REPONDU:              { bg:'#ecfdf5', text:'#047857', border:'#6ee7b7', icon:'fa-solid fa-check',                label:'A repondu'        },
+  BOUNCED_EMAIL:          { bg:'#fef2f2', text:'#b91c1c', border:'#fecaca', icon:'fa-solid fa-triangle-exclamation', label:'Email bounce'     },
+  BOUNCED_PHONENUMBER:    { bg:'#fff1f2', text:'#be123c', border:'#fda4af', icon:'fa-solid fa-phone-slash',          label:'WA bounce'        },
 };
 
 const ITYPE_CFG = {
@@ -645,14 +657,18 @@ function Conversation({ detail, onCompose, incoming, history = [] as any[] }) {
     const items: any[] = [];
     if (Array.isArray(history) && history.length) {
       const sorted = [...history].sort((a,b) => (a.sentAt||'').localeCompare(b.sentAt||''));
-      let lastYou = '';
       for (const h of sorted) {
         const txt = htmlToPlain(h.content || h.subject || '');
         if (txt) {
           const from = (h.interactionType === 'RESPONSE' || h.type === 'RESPONSE') ? 'lead' : 'you';
-          const replyTo = from === 'lead' ? lastYou : undefined;
+          let replyTo = undefined;
+          if (from === 'lead') {
+            const originMsg = sorted.find(m => m.status === 'REPLIED' && m.repliedAt === h.sentAt);
+            if (originMsg) {
+              replyTo = htmlToPlain(originMsg.content || originMsg.subject || '');
+            }
+          }
           items.push({ from, txt, at: h.sentAt || new Date().toISOString(), status: h.status, type: h.interactionType || h.type, channel: h.channel, replyTo });
-          if (from === 'you') lastYou = txt;
         }
         if (h.openedAt) items.push({ from:'system', txt:'Ouverture du message', at:h.openedAt });
       }
@@ -672,10 +688,14 @@ function Conversation({ detail, onCompose, incoming, history = [] as any[] }) {
   useEffect(() => {
     if (incoming && incoming.leadId === detail.leadId) {
       setTh(t => {
-        const arr = [...t].reverse();
-        const lastYou  = arr.find(x => x.from === 'you');
+        
         const from = incoming.from || 'you';
-        const replyTo = from === 'lead' ? (lastYou?.txt || undefined) : undefined;
+        // ✅ ADDED: Match incoming real-time lead messages to the history using the exact timestamp rule
+        let replyTo = undefined;
+        if (from === 'lead') {
+          const originMsg = history.find(m => m.status === 'REPLIED' && m.repliedAt === incoming.at);
+          if (originMsg) replyTo = htmlToPlain(originMsg.content || originMsg.subject || '');
+        }
         return [...t, { from, txt: incoming.txt || '', at: incoming.at || new Date().toISOString(), replyTo }];
       });
     }
@@ -956,7 +976,7 @@ export default function LeadMessanger({ leads = EMPTY_LEADS, composeForLeadId }:
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             phoneNumber,
-            message: data.waBody || '',
+            body: data.waBody || '',
           }),
         });
         if (!resp.ok) {
