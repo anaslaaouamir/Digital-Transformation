@@ -261,4 +261,46 @@ public class SequenceService {
             interactionRepository.save(interaction);
         });
     }
+
+
+
+
+    @Transactional
+    public void cancelSequenceForLead(Long leadId) {
+        Lead lead = leadRepository.findById(leadId)
+                .orElseThrow(() -> new RuntimeException("Lead not found: " + leadId));
+
+        SequenceEnrollment enrollment = enrollmentRepository
+                .findByLeadAndStatus(lead, "ACTIVE")
+                .or(() -> enrollmentRepository.findByLeadAndStatus(lead, "PAUSED"))
+                .orElseThrow(() -> new RuntimeException("No active sequence found for lead: " + leadId));
+
+        enrollment.setStatus("CANCELLED");
+        enrollment.setNextExecutionDate(null);
+        enrollmentRepository.save(enrollment);
+
+        // Determine new status based on last outbound interaction
+        String newStatus = interactionRepository
+                .findTopByLeadAndTypeNotOrderBySentAtDesc(lead, "RESPONSE")
+                .map(last -> {
+                    String channel = String.valueOf(last.getChannel()).toUpperCase();
+                    String type    = String.valueOf(last.getType()).toUpperCase();
+                    String status  = String.valueOf(last.getStatus()).toUpperCase();
+
+                    if ("REPLIED".equals(status) || "A_REPONDU".equals(lead.getContactStatus())) {
+                        return "A_REPONDU";
+                    }
+                    return switch (type) {
+                        case "MASSE"        -> "EMAIL".equals(channel) ? "MASS_EMAIL_ENVOYE"    : "MASS_WHATSAPP_ENVOYE";
+                        case "MANUAL"       -> "EMAIL".equals(channel) ? "MANUAL_EMAIL_ENVOYE"  : "MANUAL_WHATSAPP_ENVOYE";
+                        case "AI_GENERATED" -> "EMAIL".equals(channel) ? "AI_EMAIL_ENVOYE"      : "AI_WHATSAPP_ENVOYE";
+                        case "SEQUENCE"     -> "EMAIL".equals(channel) ? "MANUAL_EMAIL_ENVOYE"  : "MANUAL_WHATSAPP_ENVOYE";
+                        default             -> "NON_CONTACTE";
+                    };
+                })
+                .orElse("NON_CONTACTE");
+
+        lead.setContactStatus(newStatus);
+        leadRepository.save(lead);
+    }
 }

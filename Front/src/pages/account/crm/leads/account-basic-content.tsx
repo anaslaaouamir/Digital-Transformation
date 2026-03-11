@@ -14,6 +14,8 @@ import { cn } from '@/lib/utils';
 import { LeadsDashboard } from './leads-dashboard';
 import { CRM } from './crm';
 import LeadMessanger from './lead-messanger';
+import { MessageSequenceTemplatesView } from './components/message-sequence-templates-view';
+import { LeadEditView } from './edit-lead';
 
 // ── Inject Font Awesome CDN automatically ────────────────────────────────────
 function useFontAwesome() {
@@ -271,7 +273,7 @@ export function AccountCrmLeadsContent() {
     try { localStorage.setItem('crm_scan_history', JSON.stringify(scanHistory)); } catch {}
   }, [scanHistory]);
 
-  const [view,         setView]         = useState<'dashboard' | 'scan' | 'leads' | 'messenger'>(() => {
+  const [view,         setView]         = useState<'dashboard' | 'scan' | 'leads' | 'messenger' | 'templates' | 'edit'>(() => {
     try { return (localStorage.getItem('crm_view') as any) || 'leads'; } catch { return 'leads'; }
   });
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -722,6 +724,8 @@ export function AccountCrmLeadsContent() {
               { k: 'leads' as const, label: 'Prospects', fa: 'fa-solid fa-users'          },
               { k: 'crm' as const, label: 'Crm', fa: 'fa-solid fa-address-card' },
               { k: 'messenger' as const, label: 'Interactions', fa: 'fa-solid fa-comments' },
+              { k: 'templates'  as const, label: 'Templates',    fa: 'fa-solid fa-envelope-open-text' },
+              { k: 'edit' as const, label: 'Edit Test', fa: 'fa-solid fa-pen-to-square' },
                 
             ]).map(tab => (
               <button
@@ -784,6 +788,18 @@ export function AccountCrmLeadsContent() {
             })) as any}
           />
         </div>
+      )}
+
+      {view === 'templates' && (
+        <MessageSequenceTemplatesView />
+      )}
+
+      {view === 'edit' && (
+        <LeadEditView
+          leadId={288}
+          onClose={() => setView('leads')}
+          onSaved={refreshLeadsFromDb}
+        />
       )}
 
       {/* ══════════════════ SCAN ══════════════════════════════════════════ */}

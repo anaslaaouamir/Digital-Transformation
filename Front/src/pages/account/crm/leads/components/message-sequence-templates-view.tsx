@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
 import { CheckCircle2, Clock3, RefreshCw, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,173 +12,63 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
 export interface MessageSequenceTemplateStep {
-  id: number;
-  title: string;
+  id: number;           // sequence step id
+  templateId: number;   // template.id from API
+  title: string;        // e.g. "Étape 1 — Première approche"
+  stepOrder: number;
   delayDays: number;
   subject: string;
   body: string;
+  category: string;
+  sequenceName: string;
 }
 
-export const MESSAGE_SEQUENCE_TEMPLATES_STORAGE_KEY =
-  'crm_message_sequence_templates_v1';
-
-export const DEFAULT_MESSAGE_SEQUENCE_TEMPLATES: MessageSequenceTemplateStep[] = [
-  {
-    id: 1,
-    title: 'Étape 1 (Template 1)',
-    delayDays: 0,
-    subject: 'Collaboration digitale — {{company}}',
-    body: `Bonjour,
-
-J'ai récemment découvert {{company}} et j'ai été très impressionné par votre positionnement.
-Chez ELBAHI.NET, nous accompagnons les entreprises de votre secteur pour optimiser leur présence en ligne et générer plus d'opportunités.
-
-Aimeriez-vous que l'on prenne 10 minutes la semaine prochaine pour discuter des leviers de croissance adaptés à {{company}} ?
-
-Excellente journée,
-Cordialement,`,
-  },
-  {
-    id: 2,
-    title: 'Étape 2 (Template 2)',
-    delayDays: 3,
-    subject: 'Re: Collaboration digitale — {{company}}',
-    body: `Bonjour,
-
-Je me permets de faire suite à mon précédent e-mail concernant {{company}}.
-Avez-vous eu l'occasion d'y jeter un œil ?
-
-Je sais que votre emploi du temps est chargé, mais je suis convaincu que nous pourrions accomplir de belles choses ensemble.
-
-Dans l'attente de votre retour.
-Cordialement,`,
-  },
-  {
-    id: 3,
-    title: 'Étape 3 (Template 3)',
-    delayDays: 3,
-    subject: 'Audit gratuit pour {{company}}',
-    body: `Bonjour,
-
-Pour vous montrer concrètement ce que nous pouvons apporter à {{company}}, j'ai pris la liberté de réaliser un pré-audit gratuit de votre présence en ligne.
-Il met en évidence deux axes d'amélioration rapide qui pourraient booster votre visibilité.
-
-Seriez-vous disponible pour que je vous le partage rapidement ?
-
-Bien à vous,`,
-  },
-  {
-    id: 4,
-    title: 'Étape 4 (Template 5)',
-    delayDays: 4,
-    subject:
-      'Comment nous avons aidé une entreprise similaire à {{company}}',
-    body: `Bonjour,
-
-Récemment, nous avons accompagné une entreprise de votre secteur rencontrant des défis très similaires à ceux de {{company}}.
-En quelques mois, nous avons réussi à augmenter leur taux de conversion de manière significative.
-
-Seriez-vous curieux de découvrir la stratégie que nous avons appliquée et comment elle pourrait s'adapter à {{company}} ?
-
-Au plaisir d'échanger avec vous.
-Cordialement,`,
-  },
-  {
-    id: 5,
-    title: 'Étape 5 (Template 4)',
-    delayDays: 5,
-    subject: 'Dernière tentative — {{company}}',
-    body: `Bonjour,
-
-N'ayant pas eu de retour de votre part, j'imagine que l'optimisation digitale de {{company}} n'est pas votre priorité du moment, ou que le timing n'est pas le bon.
-Ceci est mon dernier message.
-
-N'hésitez pas à revenir vers moi si vos priorités évoluent à l'avenir.
-Je vous souhaite une excellente continuation avec {{company}} !
-
-Cordialement,`,
-  },
-];
-
-
-//TODO: change based on the current active lead
-const currentLeadInfo = ['{{firstName}}', '{{company}}', '{{sector}}', '{{city}}'];
-
-const cloneTemplates = (templates: MessageSequenceTemplateStep[]) =>
-  templates.map((template) => ({ ...template }));
-
-const normalizeTemplate = (
-  candidate: Partial<MessageSequenceTemplateStep>,
-  fallback: MessageSequenceTemplateStep,
-): MessageSequenceTemplateStep => {
-  const parsedDelay = Number(candidate.delayDays);
-  const delayDays = Number.isFinite(parsedDelay)
-    ? Math.max(0, Math.floor(parsedDelay))
-    : fallback.delayDays;
-
-  return {
-    id: fallback.id,
-    title:
-      typeof candidate.title === 'string' && candidate.title.trim()
-        ? candidate.title
-        : fallback.title,
-    delayDays,
-    subject:
-      typeof candidate.subject === 'string' && candidate.subject.trim()
-        ? candidate.subject
-        : fallback.subject,
-    body:
-      typeof candidate.body === 'string' && candidate.body.trim()
-        ? candidate.body
-        : fallback.body,
+// Raw shape returned by GET /api/templates
+interface ApiSequenceStep {
+  id: number;
+  delayDays: number;
+  stepOrder: number;
+  sequence: {
+    id: number;
+    name: string;
   };
-};
+  template: {
+    id: number;
+    name: string;
+    subject: string;
+    body: string;
+    category: string;
+  };
+}
 
-const normalizeTemplates = (value: unknown): MessageSequenceTemplateStep[] => {
-  if (!Array.isArray(value)) {
-    return cloneTemplates(DEFAULT_MESSAGE_SEQUENCE_TEMPLATES);
-  }
+// ── API gateway (same pattern as account-basic-content & crm) ─────────────────
 
-  return DEFAULT_MESSAGE_SEQUENCE_TEMPLATES.map((fallback) => {
-    const match = value.find(
-      (item) =>
-        typeof item === 'object' &&
-        item !== null &&
-        'id' in item &&
-        Number((item as { id: unknown }).id) === fallback.id,
-    ) as Partial<MessageSequenceTemplateStep> | undefined;
-    return normalizeTemplate(match ?? {}, fallback);
-  });
-};
+const gateway = axios.create({
+  baseURL: (import.meta as any).env?.VITE_GATEWAY_BASE_URL || 'http://localhost:8081/api',
+});
 
-export const loadMessageSequenceTemplates = (): MessageSequenceTemplateStep[] => {
-  if (typeof window === 'undefined') {
-    return cloneTemplates(DEFAULT_MESSAGE_SEQUENCE_TEMPLATES);
-  }
+// ── Mapping helper ────────────────────────────────────────────────────────────
 
-  try {
-    const raw = window.localStorage.getItem(
-      MESSAGE_SEQUENCE_TEMPLATES_STORAGE_KEY,
-    );
-    if (!raw) {
-      return cloneTemplates(DEFAULT_MESSAGE_SEQUENCE_TEMPLATES);
-    }
-    return normalizeTemplates(JSON.parse(raw));
-  } catch {
-    return cloneTemplates(DEFAULT_MESSAGE_SEQUENCE_TEMPLATES);
-  }
-};
+function mapApiStep(step: ApiSequenceStep): MessageSequenceTemplateStep {
+  return {
+    id: step.id,
+    templateId: step.template.id,
+    title: `Étape ${step.stepOrder} — ${step.template.name}`,
+    stepOrder: step.stepOrder,
+    delayDays: step.delayDays,
+    subject: step.template.subject,
+    body: step.template.body,
+    category: step.template.category,
+    sequenceName: step.sequence.name,
+  };
+}
 
-export const saveMessageSequenceTemplates = (
-  templates: MessageSequenceTemplateStep[],
-) => {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(
-    MESSAGE_SEQUENCE_TEMPLATES_STORAGE_KEY,
-    JSON.stringify(templates),
-  );
-};
+// ── Variable helpers ──────────────────────────────────────────────────────────
+
+const currentLeadInfo = ['{{company}}'];
 
 export const applyMessageTemplateVariables = (
   template: Pick<MessageSequenceTemplateStep, 'subject' | 'body'>,
@@ -192,6 +83,8 @@ export const applyMessageTemplateVariables = (
   return { subject, body };
 };
 
+// ── Component ─────────────────────────────────────────────────────────────────
+
 interface MessageSequenceTemplatesViewProps {
   onTemplatesSaved?: (templates: MessageSequenceTemplateStep[]) => void;
 }
@@ -199,54 +92,82 @@ interface MessageSequenceTemplatesViewProps {
 export function MessageSequenceTemplatesView({
   onTemplatesSaved,
 }: MessageSequenceTemplatesViewProps) {
-  const initialTemplates = useMemo(loadMessageSequenceTemplates, []);
-  const [savedTemplates, setSavedTemplates] =
-    useState<MessageSequenceTemplateStep[]>(initialTemplates);
-  const [draftTemplates, setDraftTemplates] = useState<MessageSequenceTemplateStep[]>(
-    cloneTemplates(initialTemplates),
-  );
-  const [saveState, setSaveState] = useState<'idle' | 'saved' | 'error'>('idle');
+  const [savedTemplates, setSavedTemplates] = useState<MessageSequenceTemplateStep[]>([]);
+  const [draftTemplates, setDraftTemplates] = useState<MessageSequenceTemplateStep[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
+  // ── Fetch from API ──────────────────────────────────────────────────────────
+  const fetchTemplates = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const resp = await gateway.get('/templates');
+      const raw: ApiSequenceStep[] = resp?.data ?? [];
+      const mapped = [...raw]
+        .sort((a, b) => a.stepOrder - b.stepOrder)
+        .map(mapApiStep);
+      setSavedTemplates(mapped);
+      setDraftTemplates(mapped.map(t => ({ ...t })));
+    } catch (err: any) {
+      console.error('[GET /templates] failed', err);
+      setLoadError('Impossible de charger les templates depuis le serveur.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
+
+  // ── Dirty check ─────────────────────────────────────────────────────────────
   const isDirty = useMemo(
     () => JSON.stringify(savedTemplates) !== JSON.stringify(draftTemplates),
     [draftTemplates, savedTemplates],
   );
 
+  // ── Handlers ────────────────────────────────────────────────────────────────
   const updateTemplate = (
     stepId: number,
     changes: Partial<Pick<MessageSequenceTemplateStep, 'delayDays' | 'subject' | 'body'>>,
   ) => {
-    setDraftTemplates((previous) =>
-      previous.map((template) =>
-        template.id === stepId ? { ...template, ...changes } : template,
-      ),
+    setDraftTemplates(prev =>
+      prev.map(t => (t.id === stepId ? { ...t, ...changes } : t)),
     );
     setSaveState('idle');
   };
 
   const restoreSaved = () => {
-    setDraftTemplates(cloneTemplates(savedTemplates));
+    setDraftTemplates(savedTemplates.map(t => ({ ...t })));
     setSaveState('idle');
   };
 
-  const loadDefaults = () => {
-    setDraftTemplates(cloneTemplates(DEFAULT_MESSAGE_SEQUENCE_TEMPLATES));
-    setSaveState('idle');
-  };
-
-  const saveChanges = () => {
+  // Save: PUT /templates/bulk-update — sends all templates in one request
+  const saveChanges = async () => {
+    setSaveState('saving');
     try {
-      const normalized = normalizeTemplates(draftTemplates);
-      saveMessageSequenceTemplates(normalized);
-      setDraftTemplates(cloneTemplates(normalized));
-      setSavedTemplates(cloneTemplates(normalized));
-      onTemplatesSaved?.(cloneTemplates(normalized));
+      const payload = draftTemplates.map(draft => ({
+        templateId: draft.templateId,
+        subject: draft.subject,
+        body: draft.body,
+        delayDays: draft.delayDays,
+      }));
+
+      await gateway.put('/templates/bulk-update', payload);
+
+      setSavedTemplates(draftTemplates.map(t => ({ ...t })));
+      onTemplatesSaved?.(draftTemplates.map(t => ({ ...t })));
       setSaveState('saved');
       window.setTimeout(() => setSaveState('idle'), 2500);
-    } catch {
+    } catch (err: any) {
+      console.error('[PUT /templates] failed', err);
       setSaveState('error');
     }
   };
+
+  // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-4">
@@ -254,46 +175,51 @@ export function MessageSequenceTemplatesView({
         <CardHeader className="space-y-1">
           <CardTitle className="text-base">Templates de séquence</CardTitle>
           <CardDescription>
-            Gérez les messages envoyés par étape avec leur délai, sujet et corps.
+            {draftTemplates[0]?.sequenceName
+              ? `Séquence : ${draftTemplates[0].sequenceName}`
+              : 'Gérez les messages envoyés par étape avec leur délai, sujet et corps.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          {/* Variable badges */}
           <div className="flex flex-wrap gap-2 text-xs">
-            {currentLeadInfo.map(
-              (variable) => (
-                <span
-                  key={variable}
-                  className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 font-medium text-slate-600"
-                >
-                  {variable}
-                </span>
-              ),
-            )}
+            {currentLeadInfo.map(variable => (
+              <span
+                key={variable}
+                className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 font-medium text-slate-600"
+              >
+                {variable}
+              </span>
+            ))}
           </div>
+
+          {/* Toolbar */}
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs text-slate-500">
-              Les changements sont sauvegardés après
-              “Enregistrer”.
-            </p>
+          <p className="text-xs text-slate-500">
+            {'Les changements entre "{{...}}" sont remplacés par les données du prospect.'}
+          </p>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={loadDefaults}>
-                <RefreshCw className="size-3.5" />
-                Charger les valeurs par défaut
-              </Button>
+              
               <Button
                 size="sm"
                 variant="outline"
                 onClick={restoreSaved}
-                disabled={!isDirty}
+                disabled={!isDirty || loading}
               >
                 Annuler les modifications
               </Button>
-              <Button size="sm" onClick={saveChanges} disabled={!isDirty}>
+              <Button
+                size="sm"
+                onClick={saveChanges}
+                disabled={!isDirty || loading || saveState === 'saving'}
+              >
                 <Save className="size-3.5" />
-                Enregistrer
+                {saveState === 'saving' ? 'Enregistrement...' : 'Enregistrer'}
               </Button>
             </div>
           </div>
+
+          {/* Status messages */}
           {saveState === 'saved' && (
             <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
               <CheckCircle2 className="size-3.5" />
@@ -302,70 +228,95 @@ export function MessageSequenceTemplatesView({
           )}
           {saveState === 'error' && (
             <p className="text-xs font-medium text-red-600">
-              Erreur lors de l’enregistrement des templates.
+              Erreur lors de l'enregistrement des templates.
             </p>
           )}
         </CardContent>
       </Card>
 
-      <div className="grid gap-4">
-        {draftTemplates.map((template) => (
-          <Card key={template.id}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">{template.title}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid gap-3 md:grid-cols-[220px_1fr]">
-                <div>
-                  <label className="mb-1.5 inline-flex items-center gap-1 text-xs font-semibold text-slate-500">
-                    <Clock3 className="size-3.5" />
-                    Délai d&apos;envoi (jours)
-                  </label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={template.delayDays}
-                    onChange={(event) =>
-                      updateTemplate(template.id, {
-                        delayDays: Math.max(
-                          0,
-                          Number(event.target.value || 0),
-                        ),
-                      })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 inline-flex items-center gap-1 text-xs font-semibold text-slate-500">
-                    Sujet
-                  </label>
-                  <Input
-                    value={template.subject}
-                    onChange={(event) =>
-                      updateTemplate(template.id, {
-                        subject: event.target.value,
-                      })
-                    }
-                  />
-                </div>
-              </div>
+      {/* Loading state */}
+      {loading && (
+        <Card>
+          <CardContent className="flex items-center justify-center py-12 text-sm text-slate-400">
+            <RefreshCw className="mr-2 size-4 animate-spin" />
+            Chargement des templates...
+          </CardContent>
+        </Card>
+      )}
 
-              <div>
-                <label className="mb-1.5 inline-flex items-center gap-1 text-xs font-semibold text-slate-500">
-                  Corps du message
-                </label>
-                <Textarea
-                  rows={8}
-                  value={template.body}
-                  onChange={(event) =>
-                    updateTemplate(template.id, { body: event.target.value })
-                  }
-                />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Error state */}
+      {!loading && loadError && (
+        <Card>
+          <CardContent className="py-8 text-center">
+            <p className="text-sm font-medium text-red-600">{loadError}</p>
+            <Button size="sm" variant="outline" className="mt-3" onClick={fetchTemplates}>
+              <RefreshCw className="size-3.5" /> Réessayer
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Template cards */}
+      {!loading && !loadError && (
+        <div className="grid gap-4">
+          {draftTemplates.map(template => (
+            <Card key={template.id}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">{template.title}</CardTitle>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    {template.category}
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid gap-3 md:grid-cols-[220px_1fr]">
+                  <div>
+                    <label className="mb-1.5 inline-flex items-center gap-1 text-xs font-semibold text-slate-500">
+                      <Clock3 className="size-3.5" />
+                      Délai d&apos;envoi (jours)
+                    </label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={template.delayDays}
+                      onChange={e =>
+                        updateTemplate(template.id, {
+                          delayDays: Math.max(0, Number(e.target.value || 0)),
+                        })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 inline-flex items-center gap-1 text-xs font-semibold text-slate-500">
+                      Sujet
+                    </label>
+                    <Input
+                      value={template.subject}
+                      onChange={e =>
+                        updateTemplate(template.id, { subject: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 inline-flex items-center gap-1 text-xs font-semibold text-slate-500">
+                    Corps du message
+                  </label>
+                  <Textarea
+                    rows={8}
+                    value={template.body}
+                    onChange={e =>
+                      updateTemplate(template.id, { body: e.target.value })
+                    }
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
