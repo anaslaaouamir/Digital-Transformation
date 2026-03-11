@@ -1,10 +1,15 @@
 package com.stage.leadintelligencesystem.controllers;
 
 import com.stage.leadintelligencesystem.dto.SimulatedEmailDto;
+import com.stage.leadintelligencesystem.entities.Lead;
 import com.stage.leadintelligencesystem.entities.SequenceEnrollment;
+import com.stage.leadintelligencesystem.repositories.LeadRepository;
+import com.stage.leadintelligencesystem.repositories.SequenceEnrollmentRepository;
 import com.stage.leadintelligencesystem.services.SequenceService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -14,9 +19,13 @@ import java.util.List;
 public class SequenceController {
 
     private final SequenceService sequenceService;
+    private final LeadRepository leadRepository;
+    private final SequenceEnrollmentRepository sequenceEnrollmentRepository;
 
-    public SequenceController(SequenceService sequenceService) {
+    public SequenceController(SequenceService sequenceService, LeadRepository leadRepository, SequenceEnrollmentRepository sequenceEnrollmentRepository) {
         this.sequenceService = sequenceService;
+        this.leadRepository = leadRepository;
+        this.sequenceEnrollmentRepository = sequenceEnrollmentRepository;
     }
 
     @PostMapping("/start/{leadId}")
@@ -39,5 +48,19 @@ public class SequenceController {
     public ResponseEntity<List<SimulatedEmailDto>> processDailyBatch() {
         List<SimulatedEmailDto> sentEmails = sequenceService.processDailyEmails();
         return ResponseEntity.ok(sentEmails);
+    }
+
+
+
+
+
+    @PostMapping("/cancel/{leadId}")
+    public ResponseEntity<?> cancelSequence(@PathVariable Long leadId) {
+        try {
+            sequenceService.cancelSequenceForLead(leadId);
+            return ResponseEntity.ok("Sequence cancelled for lead " + leadId);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
     }
 }
