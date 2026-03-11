@@ -18,19 +18,7 @@ export function AccountCrmLeadsPage() {
   return (
     <Fragment>
       <PageNavbar />
-      {settings?.layout === 'demo1' && (
-        <Container>
-          <Toolbar>
-            <ToolbarHeading>
-              <ToolbarPageTitle text="Leads" />
-              <ToolbarDescription>
-                ProspectAI — Google Places, Apollo.io & Claude. Manage and track your prospects.
-              </ToolbarDescription>
-            </ToolbarHeading>
-            
-          </Toolbar>
-        </Container>
-      )}
+    
       <Container>
         <AccountCrmLeadsContent />
       </Container>

@@ -79,6 +79,7 @@ const STATUS_CFG = {
   SENT:    { bg:'#f8fafc', text:'#475569', border:'#cbd5e1', icon:'fa-solid fa-paper-plane',          label:'Envoye'  },
   OPENED:  { bg:'#fffbeb', text:'#b45309', border:'#fcd34d', icon:'fa-solid fa-envelope-open',        label:'Ouvert'  },
   REPLIED: { bg:'#ecfdf5', text:'#047857', border:'#6ee7b7', icon:'fa-solid fa-reply',                label:'Repondu' },
+  RECEIVED:{ bg:'#e0f2fe', text:'#0284c7', border:'#bae6fd', icon:'fa-solid fa-inbox',                label:'Recu'    },
   BOUNCED: { bg:'#fef2f2', text:'#b91c1c', border:'#fecaca', icon:'fa-solid fa-triangle-exclamation', label:'Bounce'  },
 };
 
@@ -131,6 +132,7 @@ const timeAgo = (iso) => {
   return "a l'instant";
 };
 const fmtSize = (b) => b > 1e6 ? `${(b/1e6).toFixed(1)} MB` : `${Math.round(b/1000)} KB`;
+const getReplyAt = (row: any) => row?.repliedAt || ((row?.interactionType === 'RESPONSE' || (row as any)?.type === 'RESPONSE') ? row?.sentAt : undefined);
 
 /* ─── Shared micro-styles ─── */
 const S = {
@@ -246,6 +248,75 @@ function PagBtn({ onClick, disabled, label, active }) {
 }
 
 /* ══════════════════════════════════════════
+   AI PREVIEW PANEL
+══════════════════════════════════════════ */
+function AiPreviewPanel({ preview, onUse, onDiscard, channel }) {
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg, #f0f4ff 0%, #faf5ff 100%)',
+      border: '1.5px solid #a5b4fc',
+      borderRadius: 12,
+      padding: '16px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12,
+    }}>
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, fontWeight:700, fontSize:13, color:'#4338ca' }}>
+          <i className="fa-solid fa-robot" style={{ fontSize:14 }} />
+          Aperçu généré par Claude AI
+        </div>
+        <div style={{ display:'flex', gap:6 }}>
+          <button
+            onClick={onDiscard}
+            style={{ padding:'5px 12px', border:'1px solid #e2e8f0', borderRadius:7, background:'#fff', color:'#64748b', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', display:'inline-flex', alignItems:'center', gap:5 }}
+          >
+            <i className="fa-solid fa-xmark" style={{ fontSize:10 }} />
+            Rejeter
+          </button>
+          <button
+            onClick={onUse}
+            style={{ padding:'5px 14px', border:'none', borderRadius:7, background:'#4338ca', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit', display:'inline-flex', alignItems:'center', gap:5 }}
+          >
+            <i className="fa-solid fa-check" style={{ fontSize:10 }} />
+            Utiliser ce message
+          </button>
+        </div>
+      </div>
+
+      {/* Preview content */}
+      {preview.subject && (channel === 'email' || channel === 'both') && (
+        <div>
+          <div style={{ fontSize:10, fontWeight:700, color:'#7c3aed', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:4 }}>Objet</div>
+          <div style={{ background:'#fff', border:'1px solid #c4b5fd', borderRadius:8, padding:'8px 12px', fontSize:13, color:'#0f172a', fontWeight:600 }}>
+            {preview.subject}
+          </div>
+        </div>
+      )}
+
+      {preview.body && (channel === 'email' || channel === 'both') && (
+        <div>
+          <div style={{ fontSize:10, fontWeight:700, color:'#7c3aed', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:4 }}>Message Email</div>
+          <div style={{ background:'#fff', border:'1px solid #c4b5fd', borderRadius:8, padding:'10px 12px', fontSize:13, color:'#334155', lineHeight:1.6, whiteSpace:'pre-wrap', maxHeight:160, overflowY:'auto' }}>
+            {preview.body}
+          </div>
+        </div>
+      )}
+
+      {preview.waBody && (channel === 'whatsapp' || channel === 'both') && (
+        <div>
+          <div style={{ fontSize:10, fontWeight:700, color:'#15803d', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:4 }}>Message WhatsApp</div>
+          <div style={{ background:'#fff', border:'1px solid #bbf7d0', borderRadius:8, padding:'10px 12px', fontSize:13, color:'#334155', lineHeight:1.6, whiteSpace:'pre-wrap', maxHeight:140, overflowY:'auto' }}>
+            {preview.waBody}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════
    COMPOSE MODAL
 ══════════════════════════════════════════ */
 function ComposeModal({ lead, onClose, onSend, onStartSequence }) {
@@ -255,6 +326,10 @@ function ComposeModal({ lead, onClose, onSend, onStartSequence }) {
   const [waBody,      setWaBody]   = useState('');
   const [waPhone,     setWaPhone]  = useState(lead?.phone || '');
   const [aiLoading,   setAiLoad]   = useState(false);
+  const [aiPrompt,    setAiPrompt] = useState("Tell him in one phrase no more something to win his attention");
+  // AI preview state: null = not generated yet, object = preview ready to review
+  const [aiPreview,   setAiPreview] = useState<{subject?:string; body?:string; waBody?:string} | null>(null);
+  const API_BASE = (import.meta as any).env?.VITE_GATEWAY_BASE_URL || 'http://localhost:8081/api';
 
   useEffect(() => {
     const { subject: s, body: b } = applyTemplate(EMAIL_TEMPLATES[0], lead);
@@ -266,24 +341,65 @@ function ComposeModal({ lead, onClose, onSend, onStartSequence }) {
   const pickEmailTmpl = (t) => { const { subject:s, body:b } = applyTemplate(t, lead); setSubject(s); setBody(b); };
   const pickWaTmpl    = (k) => { if (WA_TEMPLATES[k]) setWaBody(WA_TEMPLATES[k](lead)); };
 
-  const generateAI = async () => {
-    setAiLoad(true);
-    try {
-      const res  = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514', max_tokens: 1000,
-          messages: [{ role:'user', content:`Redige un objet et corps d'email de prospection pour ELBAHI.NET. Prospect: ${lead?.name}, ${lead?.company} (${lead?.sector}, ${lead?.city}). Reponds en JSON: {"subject":"...","body":"..."}. Max 120 mots body. Signe: Abderrahim, ELBAHI.NET` }]
-        }),
-      });
-      const data = await res.json();
-      const text = data.content?.[0]?.text || '';
-      try { const p = JSON.parse(text.replace(/```json|```/g,'').trim()); setSubject(p.subject); setBody(p.body); }
-      catch { setBody(text); }
-    } catch { pickEmailTmpl(EMAIL_TEMPLATES[0]); }
+  /* ── Generate with Claude AI (preview only, do NOT send) ── */
+const generateWithAI = async () => {
+  // Guard: WhatsApp requires a phone number
+  if ((channel === 'whatsapp' || channel === 'both') && !lead?.phone?.trim()) {
+    setToast('Numéro WhatsApp manquant pour ce lead');
+    setTimeout(() => setToast(''), 3000);
+    return;
+  }
+
+  setAiLoad(true);
+  setAiPreview(null);
+  try {
+    const res = await fetch(`${API_BASE}/claude/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email:      lead?.email  || '',
+        phone:      lead?.phone  || '',   // already guarded above
+        userPrompt: aiPrompt     || '',
+        channel,
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status}: ${errText}`);
+    }
+      const data = await res.json().catch(() => ({}));
+
+      // Fields match ClaudeGenerateDto exactly
+      const previewObj: any = {};
+      if (channel === 'email' || channel === 'both') {
+        previewObj.subject = data.subject || subject;
+        previewObj.body    = data.body    || body;
+      }
+      if (channel === 'whatsapp' || channel === 'both') {
+        previewObj.waBody  = data.waBody  || waBody;
+      }
+      setAiPreview(previewObj);
+
+    } catch (err) {
+      // Fallback: show current form values as preview so UX never breaks
+      const fallback: any = {};
+      if (channel === 'email'    || channel === 'both') { fallback.subject = subject; fallback.body = body; }
+      if (channel === 'whatsapp' || channel === 'both') { fallback.waBody = waBody; }
+      setAiPreview(fallback);
+    }
     setAiLoad(false);
   };
+  /* ── Accept the AI preview: push values into the form fields ── */
+  const useAiPreview = () => {
+    if (!aiPreview) return;
+    if (aiPreview.subject) setSubject(aiPreview.subject);
+    if (aiPreview.body)    setBody(aiPreview.body);
+    if (aiPreview.waBody)  setWaBody(aiPreview.waBody);
+    setAiPreview(null);
+  };
+
+  const discardAiPreview = () => setAiPreview(null);
 
   const handleSend = () => onSend({ subject, body, waBody, waPhone, channel });
   const canSendEmail = subject.trim() && body.trim();
@@ -341,7 +457,7 @@ function ComposeModal({ lead, onClose, onSend, onStartSequence }) {
               ].map(ch => (
                 <button
                   key={ch.k}
-                  onClick={() => setChannel(ch.k)}
+                  onClick={() => { setChannel(ch.k); setAiPreview(null); }}
                   style={{
                     flex:1, padding:'10px 8px', borderRadius:10, cursor:'pointer',
                     background: channel===ch.k ? '#f1f5f9' : '#f8fafc',
@@ -358,6 +474,49 @@ function ComposeModal({ lead, onClose, onSend, onStartSequence }) {
             </div>
           </div>
 
+          {/* ── Claude AI generate (preview only) ── */}
+          <div style={{ background:'#faf5ff', border:'1px solid #e9d5ff', borderRadius:12, padding:'14px 16px', display:'flex', flexDirection:'column', gap:10 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:7, fontWeight:700, fontSize:13, color:'#7c3aed' }}>
+              <i className="fa-solid fa-robot" />
+              Claude AI — Rédaction assistée
+            </div>
+            <div>
+              <label style={{ ...S.label, color:'#7c3aed' }}>Prompt</label>
+              <input
+                value={aiPrompt}
+                onChange={e => setAiPrompt(e.target.value)}
+                placeholder="Describe what you want Claude to write..."
+                style={{ ...S.input, borderColor:'#d8b4fe' }}
+              />
+            </div>
+            <button
+              onClick={generateWithAI}
+              disabled={aiLoading}
+              style={{
+                alignSelf:'flex-start', display:'inline-flex', alignItems:'center', gap:7,
+                padding:'8px 16px',
+                background: aiLoading ? '#f5f3ff' : 'linear-gradient(135deg, #7c3aed, #4338ca)',
+                border: 'none', borderRadius:8,
+                color: aiLoading ? '#a78bfa' : '#fff',
+                fontSize:13, fontWeight:700, cursor: aiLoading ? 'wait' : 'pointer', fontFamily:'inherit',
+                boxShadow: aiLoading ? 'none' : '0 2px 8px rgba(124,58,237,0.35)',
+              }}
+            >
+              <i className={aiLoading ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-wand-magic-sparkles'} style={{ fontSize:13 }} />
+              {aiLoading ? 'Génération en cours...' : 'Rédiger avec Claude AI'}
+            </button>
+
+            {/* AI Preview panel shown after generation */}
+            {aiPreview && (
+              <AiPreviewPanel
+                preview={aiPreview}
+                onUse={useAiPreview}
+                onDiscard={discardAiPreview}
+                channel={channel}
+              />
+            )}
+          </div>
+
           {/* ── Email section ── */}
           {(channel==='email' || channel==='both') && (
             <div style={emailSection}>
@@ -365,18 +524,6 @@ function ComposeModal({ lead, onClose, onSend, onStartSequence }) {
                 <i className="fa-solid fa-envelope" />
                 Email
               </div>
-
-          
-
-              {/* Claude AI */}
-              <button
-                onClick={generateAI}
-                disabled={aiLoading}
-                style={{ alignSelf:'flex-start', display:'inline-flex', alignItems:'center', gap:6, padding:'7px 14px', background: aiLoading?'#f1f5f9':'#0f172a', border:'none', borderRadius:8, color: aiLoading?'#94a3b8':'#fff', fontSize:12, fontWeight:700, cursor: aiLoading?'wait':'pointer', fontFamily:'inherit' }}
-              >
-                <i className={aiLoading ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-robot'} style={{ fontSize:12 }} />
-                {aiLoading ? 'Generation Claude...' : 'Rediger avec Claude AI'}
-              </button>
 
               {/* Subject */}
               <div>
@@ -443,7 +590,6 @@ function ComposeModal({ lead, onClose, onSend, onStartSequence }) {
             </div>
           )}
 
-          {/* No attachments section (removed) */}
         </div>
 
         {/* ─── Footer ─── */}
@@ -486,17 +632,12 @@ function ComposeModal({ lead, onClose, onSend, onStartSequence }) {
    CONVERSATION DETAIL PANEL
 ══════════════════════════════════════════ */
 function Conversation({ detail, onCompose, incoming, history = [] as any[] }) {
-  const [msg,    setMsg]  = useState('');
   const htmlToPlain = (html: string) => {
     if (!html) return '';
     let t = String(html);
-    // Remove tracking pixels and any img tags
     t = t.replace(/<img[\s\S]*?>/gi, '');
-    // Replace <br> with newlines
     t = t.replace(/<br\s*\/?>/gi, '\n');
-    // Strip remaining tags
     t = t.replace(/<[^>]+>/g, '');
-    // Trim backticks and spaces
     t = t.replace(/`/g, '').trim();
     return t;
   };
@@ -504,18 +645,21 @@ function Conversation({ detail, onCompose, incoming, history = [] as any[] }) {
     const items: any[] = [];
     if (Array.isArray(history) && history.length) {
       const sorted = [...history].sort((a,b) => (a.sentAt||'').localeCompare(b.sentAt||''));
+      let lastYou = '';
       for (const h of sorted) {
         const txt = htmlToPlain(h.content || h.subject || '');
         if (txt) {
           const from = (h.interactionType === 'RESPONSE' || h.type === 'RESPONSE') ? 'lead' : 'you';
-          items.push({ from, txt, at: h.sentAt || new Date().toISOString() });
+          const replyTo = from === 'lead' ? lastYou : undefined;
+          items.push({ from, txt, at: h.sentAt || new Date().toISOString(), status: h.status, type: h.interactionType || h.type, channel: h.channel, replyTo });
+          if (from === 'you') lastYou = txt;
         }
         if (h.openedAt) items.push({ from:'system', txt:'Ouverture du message', at:h.openedAt });
       }
     } else {
       if (detail.content || detail.subject) {
         const base = detail.content ? htmlToPlain(detail.content) : String(detail.subject || '');
-        if (base) items.push({ from:'you', txt: base, at: detail.sentAt || new Date().toISOString() });
+        if (base) items.push({ from:'you', txt: base, at: detail.sentAt || new Date().toISOString(), status: detail.status, type: detail.interactionType || (detail as any).type, channel: detail.channel });
       }
       if (detail.openedAt) items.push({ from:'system', txt:'Ouverture du message', at:detail.openedAt });
       if (detail.repliedAt)items.push({ from:'lead', txt:'Reponse recue', at:detail.repliedAt });
@@ -525,15 +669,15 @@ function Conversation({ detail, onCompose, incoming, history = [] as any[] }) {
   const [thread, setTh]   = useState(baseThread);
   useEffect(() => { setTh(baseThread); }, [baseThread]);
 
-  const send = () => {
-    if (!msg.trim()) return;
-    setTh(t => [...t, { from:'you', txt:msg.trim(), at:new Date().toISOString() }]);
-    setMsg('');
-  };
-
   useEffect(() => {
     if (incoming && incoming.leadId === detail.leadId) {
-      setTh(t => [...t, { from: incoming.from || 'you', txt: incoming.txt || '', at: incoming.at || new Date().toISOString() }]);
+      setTh(t => {
+        const arr = [...t].reverse();
+        const lastYou  = arr.find(x => x.from === 'you');
+        const from = incoming.from || 'you';
+        const replyTo = from === 'lead' ? (lastYou?.txt || undefined) : undefined;
+        return [...t, { from, txt: incoming.txt || '', at: incoming.at || new Date().toISOString(), replyTo }];
+      });
     }
   }, [incoming, detail.leadId]);
 
@@ -584,7 +728,7 @@ function Conversation({ detail, onCompose, incoming, history = [] as any[] }) {
           style={{ flexShrink:0, padding:'10px 20px', background:'#0f172a', border:'none', borderRadius:10, color:'#fff', fontSize:13, fontWeight:700, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:7, fontFamily:'inherit' }}
         >
           <i className="fa-solid fa-paper-plane" />
-          Prospect: {detail.company} {detail.sector}
+          Envoyer proposition
         </button>
       </div>
 
@@ -599,7 +743,7 @@ function Conversation({ detail, onCompose, incoming, history = [] as any[] }) {
           ) : (
             <div key={i} style={{
               alignSelf: m.from==='you' ? 'flex-end' : 'flex-start',
-              background: m.from==='you' ? '#0f172a' : '#f1f5f9',
+              background: m.from==='you' ? '#0f172a' : (m.status==='RECEIVED' ? '#e0f2fe' : '#f1f5f9'),
               color:      m.from==='you' ? '#fff'    : '#0f172a',
               border:'1px solid #e2e8f0', borderRadius:12, padding:'10px 14px', maxWidth:'72%',
             }}>
@@ -608,29 +752,26 @@ function Conversation({ detail, onCompose, incoming, history = [] as any[] }) {
                 {m.from==='you' ? 'Vous' : (detail.company || 'Prospect')}
                 &nbsp;&middot;&nbsp;{fmtDate(m.at)} {fmtTime(m.at)}
               </div>
+              <div style={{ fontSize:10, color:'#64748b', margin:'2px 0 6px' }}>
+                {(m.channel || '').toString().toUpperCase()} {m.type ? `· ${m.type}` : ''}
+              </div>
+              {m.replyTo && (
+                <div style={{ fontSize:12, lineHeight:1.4, marginBottom:8, background:'#fff', color:'#0f172a', border:'1px solid #e2e8f0', borderLeft:'3px solid #0f172a', borderRadius:8, padding:'8px 10px' }}>
+                  <div style={{ fontSize:10, fontWeight:700, color:'#64748b', marginBottom:4, display:'flex', alignItems:'center', gap:6 }}>
+                    <i className="fa-solid fa-reply" style={{ fontSize:10 }} />
+                    Reponse a
+                  </div>
+                  <div style={{ whiteSpace:'pre-wrap' }}>
+                    {String(m.replyTo).length > 220 ? `${String(m.replyTo).slice(0,220)}…` : String(m.replyTo)}
+                  </div>
+                </div>
+              )}
               <div style={{ fontSize:13, lineHeight:1.5 }}>{m.txt}</div>
             </div>
           )
         ))}
       </div>
 
-      {/* Reply input */}
-      <div style={{ display:'flex', gap:8 }}>
-        <input
-          value={msg}
-          onChange={e => setMsg(e.target.value)}
-          onKeyDown={e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-          placeholder="Ecrire une reponse..."
-          style={{ flex:1, border:'1px solid #e2e8f0', borderRadius:10, padding:'10px 14px', fontSize:13, color:'#0f172a', outline:'none', background:'#f8fafc', fontFamily:'inherit' }}
-        />
-        <button
-          onClick={send}
-          style={{ padding:'10px 16px', borderRadius:10, border:'none', background:'#0f172a', color:'#fff', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6, fontWeight:600, fontSize:13, fontFamily:'inherit' }}
-        >
-          <i className="fa-solid fa-paper-plane" />
-          Envoyer
-        </button>
-      </div>
     </div>
   );
 }
@@ -638,7 +779,7 @@ function Conversation({ detail, onCompose, incoming, history = [] as any[] }) {
 /* ══════════════════════════════════════════
    MAIN COMPONENT
 ══════════════════════════════════════════ */
-export default function LeadMessanger({ leads = EMPTY_LEADS }) {
+export default function LeadMessanger({ leads = EMPTY_LEADS, composeForLeadId }: any) {
   useFontAwesome();
 
   const [interactions, setInteractions] = useState<Interaction[]>([]);
@@ -654,6 +795,13 @@ export default function LeadMessanger({ leads = EMPTY_LEADS }) {
   const [leadHistory,  setLeadHistory]  = useState<Interaction[]>([]);
   const PER_PAGE = 8;
   const API_BASE = (import.meta as any).env?.VITE_GATEWAY_BASE_URL || 'http://localhost:8081/api';
+
+  useEffect(() => {
+    if (composeForLeadId && Array.isArray(leads) && leads.length) {
+      const l = leads.find((x: any) => x.id === composeForLeadId);
+      if (l) setComposeLead(l);
+    }
+  }, [composeForLeadId, leads]);
 
   /* Stats */
   const stats = useMemo(() => ({
@@ -684,7 +832,7 @@ export default function LeadMessanger({ leads = EMPTY_LEADS }) {
             channel: (String(it.channel ?? 'EMAIL').toUpperCase() === 'WHATSAPP') ? 'WHATSAPP' : 'EMAIL',
             status: (String(it.status ?? 'SENT').toUpperCase() as any),
             contactStatus: it.contactStatus ?? it.contact_status ?? undefined,
-            interactionType: it.interactionType ?? it.interaction_type ?? undefined,
+            interactionType: it.interactionType ?? it.interaction_type ?? it.type ?? undefined,
             sequenceStatus: it.sequenceStatus ?? it.sequence_status ?? undefined,
             sentAt: it.sentAt ?? it.sent_at ?? new Date().toISOString(),
             openedAt: it.openedAt ?? it.opened_at ?? undefined,
@@ -771,7 +919,7 @@ export default function LeadMessanger({ leads = EMPTY_LEADS }) {
           channel: (String(it.channel ?? 'EMAIL').toUpperCase() === 'WHATSAPP') ? 'WHATSAPP' : 'EMAIL',
           status: (String(it.status ?? 'SENT').toUpperCase() as any),
           contactStatus: it.contactStatus ?? it.contact_status ?? row.contactStatus,
-          interactionType: it.interactionType ?? it.interaction_type ?? row.interactionType,
+          interactionType: it.interactionType ?? it.interaction_type ?? it.type ?? row.interactionType,
           sequenceStatus: it.sequenceStatus ?? it.sequence_status ?? row.sequenceStatus,
           sentAt: it.sentAt ?? it.sent_at ?? new Date().toISOString(),
           openedAt: it.openedAt ?? it.opened_at ?? undefined,
@@ -798,67 +946,81 @@ export default function LeadMessanger({ leads = EMPTY_LEADS }) {
         data.waBody ? `WhatsApp: ${data.waBody}` : ''
       ].filter(Boolean).join('\n\n');
     }
-    if (data.channel !== 'whatsapp') {
+
+    // ── Send WhatsApp via correct API ──
+    if (data.channel === 'whatsapp' || data.channel === 'both') {
       try {
-        const r = await fetch(`${API_BASE}/actions/mark-contact-status`, {
+        const phoneNumber = String(data.waPhone || lead?.phone || '').replace(/\s+/g, '');
+        const resp = await fetch(`${API_BASE}/whatsapp/actions/send-manual-message`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ leadId: lead.id, status:'MANUAL_EMAIL_ENVOYE' }),
+          body: JSON.stringify({
+            phoneNumber,
+            message: data.waBody || '',
+          }),
         });
-        if (!r.ok) {
-          setToast('Echec mise à jour du statut contact');
-          return;
+        if (!resp.ok) {
+          setToast('Echec envoi WhatsApp');
+          if (data.channel === 'whatsapp') return;
         }
       } catch {
-        setToast('Echec mise à jour du statut (réseau)');
+        setToast('Echec envoi WhatsApp (réseau)');
+        if (data.channel === 'whatsapp') return;
+      }
+    }
+
+    // ── Send email via backend manual-email API ──
+    if (data.channel !== 'whatsapp') {
+      try {
+        const resp = await fetch(`${API_BASE}/actions/send-manual-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: lead.email,
+            subject: data.subject || '(Sans objet)',
+            body: data.body || '',
+          }),
+        });
+        if (!resp.ok) {
+          setToast('Echec envoi email');
+          return;
+        }
+        try {
+          const res2 = await fetch(`${API_BASE}/interactions`, { method: 'GET' });
+          const fresh = await res2.json().catch(() => []);
+          const rows = Array.isArray(fresh) ? fresh : (fresh?.data ?? []);
+          const mapped = rows.map((it: any) => ({
+            id: String(it.id ?? `${it.leadId}-${Date.now()}`),
+            leadId: Number(it.leadId ?? it.lead_id ?? 0),
+            company: it.company ?? it.companyName ?? '',
+            contactName: it.contactName ?? it.contact_name ?? '',
+            city: it.city ?? '',
+            sector: it.sector ?? '',
+            phone: it.phone ?? '',
+            email: it.email ?? '',
+            subject: it.subject ?? '',
+            content: it.content ?? '',
+            channel: (String(it.channel ?? 'EMAIL').toUpperCase() === 'WHATSAPP') ? 'WHATSAPP' : 'EMAIL',
+            status: (String(it.status ?? 'SENT').toUpperCase() as any),
+            contactStatus: it.contactStatus ?? it.contact_status ?? undefined,
+            interactionType: it.interactionType ?? it.interaction_type ?? it.type ?? undefined,
+            sequenceStatus: it.sequenceStatus ?? it.sequence_status ?? undefined,
+            sentAt: it.sentAt ?? it.sent_at ?? new Date().toISOString(),
+            openedAt: it.openedAt ?? it.opened_at ?? undefined,
+            repliedAt: it.repliedAt ?? it.replied_at ?? undefined,
+          }));
+          setInteractions(mapped.sort((a,b) => (b.sentAt||'').localeCompare(a.sentAt||'')));
+          setDetail(prev => prev && prev.leadId === lead.id ? { ...prev, contactStatus: 'MANUAL_EMAIL_ENVOYE' } : prev);
+        } catch {}
+      } catch {
+        setToast('Echec envoi email (réseau)');
         return;
       }
     }
-    // Create a DB-backed interaction so it appears in the table and persists
-    try {
-      const resp = await fetch(`${API_BASE}/interactions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          leadId: lead.id,
-          subject: data.subject || '(Sans objet)',
-          content: data.body || '',
-          channel: 'EMAIL',
-          type: 'MANUAL',
-          status: 'SENT'
-        }),
-      });
-      if (resp.ok) {
-        const created = await resp.json().catch(() => null);
-        if (created) {
-          const mapped = {
-            id: String(created.id ?? `${lead.id}-${Date.now()}`),
-            leadId: lead.id,
-            company: lead.company,
-            contactName: lead.name,
-            city: lead.city,
-            sector: lead.sector,
-            phone: lead.phone,
-            email: lead.email,
-            subject: created.subject || data.subject || '',
-            content: created.content || data.body || '',
-            channel: 'EMAIL',
-            status: 'SENT',
-            contactStatus: 'MANUAL_EMAIL_ENVOYE',
-            interactionType: 'MANUAL',
-            sequenceStatus: 'ACTIVE',
-            sentAt: created.sentAt || new Date().toISOString(),
-            openedAt: undefined,
-            repliedAt: undefined,
-          } as any;
-          setInteractions(prev => [mapped, ...(prev||[])]);
-          setDetail(prev => prev && prev.leadId === lead.id ? { ...prev, contactStatus: 'MANUAL_EMAIL_ENVOYE' } : prev);
-        }
-      }
-    } catch {}
+
     setIncomingMsg({ leadId: lead.id, at: nowIso, from:'you', txt: textOut });
     setComposeLead(null);
-    setToast(chKey==='WHATSAPP' ? 'WhatsApp envoyé' : 'Statut mis à jour');
+    setToast(chKey==='WHATSAPP' ? 'WhatsApp envoyé ✓' : data.channel === 'both' ? 'Email + WhatsApp envoyés ✓' : 'Email envoyé ✓');
     setTimeout(() => setToast(''), 3000);
   }, [composeLead]);
 
@@ -868,7 +1030,6 @@ export default function LeadMessanger({ leads = EMPTY_LEADS }) {
     (async () => {
       try {
         await fetch(`${API_BASE}/sequences/start/${lead.id}`, { method: 'POST' });
-        // Persist contact status so it stays after refresh
         await fetch(`${API_BASE}/actions/mark-contact-status`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -877,7 +1038,6 @@ export default function LeadMessanger({ leads = EMPTY_LEADS }) {
       } catch {}
     })();
     const nowIso = new Date().toISOString();
-    // Do not add an interaction row; only update the detail badge locally
     setComposeLead(null);
     setDetail(prev => prev ? { ...prev, contactStatus: 'EN_SEQUENCE', sequenceStatus: 'ACTIVE', status: 'SENT', sentAt: nowIso } : prev);
     setInteractions(prev => prev.map(r => r.leadId === lead.id ? { ...r, contactStatus: 'EN_SEQUENCE', sequenceStatus: 'ACTIVE' } : r));
@@ -891,7 +1051,6 @@ export default function LeadMessanger({ leads = EMPTY_LEADS }) {
     { label:'Canal',     col:'channel'          },
     { label:'Statut',    col:'status'           },
     { label:'Contact',   col:'contactStatus'    },
-    { label:'Sequence',  col:'sequenceStatus'   },
     { label:'Envoye',    col:'sentAt'           },
     { label:'Ouverture', col:'openedAt'         },
     { label:'Reponse',   col:'repliedAt'        },
@@ -1077,8 +1236,6 @@ export default function LeadMessanger({ leads = EMPTY_LEADS }) {
                         <ChannelBadge channel={r.channel} />
                       </td>
 
-                        
-
                       {/* Status */}
                       <td style={{ padding:'12px 14px' }}>
                         <StatusBadge status={r.status} />
@@ -1087,11 +1244,6 @@ export default function LeadMessanger({ leads = EMPTY_LEADS }) {
                       {/* Contact Status */}
                       <td style={{ padding:'12px 14px' }}>
                         <ContactStatusBadge status={r.contactStatus} />
-                      </td>
-
-                      {/* Sequence */}
-                      <td style={{ padding:'12px 14px' }}>
-                        <SeqBadge status={r.sequenceStatus} />
                       </td>
 
                       {/* Sent */}
@@ -1118,14 +1270,17 @@ export default function LeadMessanger({ leads = EMPTY_LEADS }) {
 
                       {/* Replied */}
                       <td style={{ padding:'12px 14px' }}>
-                        {r.repliedAt ? (
-                          <>
-                            <div style={{ color:'#334155', fontWeight:500 }}>
-                              {fmtDate(r.repliedAt)}
-                            </div>
-                            <div style={{ fontSize:11, color:'#94a3b8', marginTop:2 }}>{fmtTime(r.repliedAt)}</div>
-                          </>
-                        ) : <span style={{ color:'#e2e8f0', fontSize:16 }}>&#8212;</span>}
+                        {(() => {
+                          const rep = getReplyAt(r);
+                          return rep ? (
+                            <>
+                              <div style={{ color:'#334155', fontWeight:500 }}>
+                                {fmtDate(rep)}
+                              </div>
+                              <div style={{ fontSize:11, color:'#94a3b8', marginTop:2 }}>{fmtTime(rep)}</div>
+                            </>
+                          ) : <span style={{ color:'#e2e8f0', fontSize:16 }}>&#8212;</span>;
+                        })()}
                       </td>
 
                       {/* Action */}
@@ -1143,7 +1298,7 @@ export default function LeadMessanger({ leads = EMPTY_LEADS }) {
 
                   {pageRows.length === 0 && (
                     <tr>
-                      <td colSpan={9} style={{ padding:'60px 16px', textAlign:'center', color:'#94a3b8' }}>
+                      <td colSpan={8} style={{ padding:'60px 16px', textAlign:'center', color:'#94a3b8' }}>
                         <i className="fa-solid fa-inbox" style={{ fontSize:32, display:'block', marginBottom:10, opacity:0.4 }} />
                         <div style={{ fontWeight:600, fontSize:14 }}>Aucune interaction</div>
                         <div style={{ fontSize:12, marginTop:4 }}>Modifiez votre recherche ou filtre</div>
