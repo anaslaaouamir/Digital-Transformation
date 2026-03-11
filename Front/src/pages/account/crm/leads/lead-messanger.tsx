@@ -615,20 +615,54 @@ const generateWithAI = async () => {
               Annuler
             </button>
             {(channel==='whatsapp'||channel==='both') && (
-              <button onClick={handleSend} style={{ padding:'9px 20px', background:'#15803d', border:'none', borderRadius:8, color:'#fff', fontSize:13, fontWeight:700, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6, fontFamily:'inherit' }}>
+              <button
+                onClick={handleSend}
+                disabled={!!aiPreview}
+                style={{
+                  padding:'9px 20px',
+                  background: !!aiPreview ? '#e2e8f0' : '#15803d',
+                  border:'none',
+                  borderRadius:8,
+                  color: !!aiPreview ? '#94a3b8' : '#fff',
+                  fontSize:13, fontWeight:700,
+                  cursor: !!aiPreview ? 'not-allowed' : 'pointer',
+                  display:'inline-flex', alignItems:'center', gap:6, fontFamily:'inherit'
+                }}
+              >
                 <i className="fa-brands fa-whatsapp" />
                 WhatsApp
               </button>
             )}
             <button
               onClick={() => onStartSequence?.()}
-              style={{ padding:'9px 18px', background:'#0f172a', border:'none', borderRadius:8, color:'#fff', fontSize:13, fontWeight:700, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6, fontFamily:'inherit' }}
+              disabled={!!aiPreview}
+              style={{
+                padding:'9px 18px',
+                background: !!aiPreview ? '#e2e8f0' : '#0f172a',
+                border:'none', borderRadius:8,
+                color: !!aiPreview ? '#94a3b8' : '#fff',
+                fontSize:13, fontWeight:700,
+                cursor: !!aiPreview ? 'not-allowed' : 'pointer',
+                display:'inline-flex', alignItems:'center', gap:6, fontFamily:'inherit'
+              }}
             >
               <i className="fa-solid fa-rotate-right" />
               Lancer sequence
             </button>
             {channel !== 'whatsapp' && (
-              <button onClick={handleSend} disabled={!canSendEmail} style={{ padding:'9px 22px', background: canSendEmail?'#0f172a':'#e2e8f0', border:'none', borderRadius:8, color: canSendEmail?'#fff':'#94a3b8', fontSize:13, fontWeight:700, cursor: canSendEmail?'pointer':'not-allowed', display:'inline-flex', alignItems:'center', gap:6, fontFamily:'inherit' }}>
+              <button
+                onClick={handleSend}
+                disabled={!canSendEmail || !!aiPreview}
+                style={{
+                  padding:'9px 22px',
+                  background: (!canSendEmail || !!aiPreview) ? '#e2e8f0' : '#0f172a',
+                  border:'none', borderRadius:8,
+                  color: (!canSendEmail || !!aiPreview) ? '#94a3b8' : '#fff',
+                  fontSize:13, fontWeight:700,
+                  cursor: (!canSendEmail || !!aiPreview) ? 'not-allowed' : 'pointer',
+                  display:'inline-flex', alignItems:'center', gap:6, fontFamily:'inherit'
+                }}
+              >
                 <i className="fa-solid fa-paper-plane" />
                 Envoyer
               </button>

@@ -289,6 +289,8 @@ export function AccountCrmLeadsContent() {
   const [scanLog,      setScanLog]      = useState<string[]>([]);
   const [emailSentFor, setEmailSentFor] = useState<number | null>(null);
   const [composeForLeadId, setComposeForLeadId] = useState<number | null>(null);
+  const [editLeadId, setEditLeadId]             = useState<number | null>(null);
+  const [apolloLoading, setApolloLoading]       = useState(false);
 
   useEffect(() => {
     try { localStorage.setItem('crm_view', view); } catch {}
@@ -725,7 +727,6 @@ export function AccountCrmLeadsContent() {
               { k: 'crm' as const, label: 'Crm', fa: 'fa-solid fa-address-card' },
               { k: 'messenger' as const, label: 'Interactions', fa: 'fa-solid fa-comments' },
               { k: 'templates'  as const, label: 'Templates',    fa: 'fa-solid fa-envelope-open-text' },
-              { k: 'edit' as const, label: 'Edit Test', fa: 'fa-solid fa-pen-to-square' },
                 
             ]).map(tab => (
               <button
@@ -794,11 +795,11 @@ export function AccountCrmLeadsContent() {
         <MessageSequenceTemplatesView />
       )}
 
-      {view === 'edit' && (
+      {view === 'edit' && editLeadId != null && (
         <LeadEditView
-          leadId={289}
-          onClose={() => setView('leads')}
-          onSaved={refreshLeadsFromDb}
+          leadId={editLeadId}
+          onClose={() => { setView('leads'); setEditLeadId(null); }}
+          onSaved={async () => { await refreshLeadsFromDb(); }}
         />
       )}
 
@@ -1635,10 +1636,38 @@ export function AccountCrmLeadsContent() {
                   <Fa icon="fa-solid fa-paper-plane" /> Envoyer propositions
                 </button>
                 <button
-                  onClick={() => setSelectedLead(null)}
+                  onClick={() => {
+                    setEditLeadId(selectedLead.id);
+                    setSelectedLead(null);
+                    setView('edit');
+                  }}
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-400"
                 >
-                  <Fa icon="fa-solid fa-xmark" /> Fermer
+                  <Fa icon="fa-solid fa-pen-to-square" /> Éditer
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!selectedLead || apolloLoading) return;
+                    try {
+                      setApolloLoading(true);
+                      await gateway.post(`/enrichment/leads/${selectedLead.id}`);
+                      setSelectedLead(prev => prev ? { ...prev, apolloEnriched: true } : prev);
+                      setLeads(prev => prev.map(l => l.id === selectedLead.id ? { ...l, apolloEnriched: true } : l));
+                      await refreshLeadsFromDb();
+                    } catch (e) {
+                      console.error('[POST /enrichment/leads/{id}] failed', e);
+                      alert('Enrichissement Apollo échoué.');
+                    } finally {
+                      setApolloLoading(false);
+                    }
+                  }}
+                  disabled={apolloLoading}
+                  className={cn(
+                    'inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 transition',
+                    apolloLoading ? 'opacity-70 cursor-not-allowed' : 'hover:border-indigo-400 hover:bg-indigo-100'
+                  )}
+                >
+                  <Fa icon={apolloLoading ? 'fa-solid fa-circle-notch fa-spin' : 'fa-solid fa-rocket'} /> {apolloLoading ? 'Apollo…' : 'Apollo'}
                 </button>
               </div>
             </CardContent>
