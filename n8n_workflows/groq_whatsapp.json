@@ -1,0 +1,149 @@
+{
+  "name": "groq_whatsapp",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are an expert B2B sales development representative. Write a concise, highly personalized WhatsApp message. Keep it to 2-3 short sentences.\\n\\n<lead_data>\\nCompany: {{ $('Webhook').item.json.body.lead.companyName }}\\nRating: {{ $('Webhook').item.json.body.lead.googleRating }}\\nIndustry/Type: {{ $('Webhook').item.json.body.lead.googleTypes }}\\n</lead_data>\\n\\n<instructions>\\n{{ $('Webhook').item.json.body.userPrompt }}\\n</instructions>\\n\\nSTRICT RULES:\\n1. MISSING DATA: If any data point in <lead_data> is blank, empty, null, or missing, DO NOT bring it up.\\n2. NO PLACEHOLDERS: Do not use bracketed placeholders like [Name].\\n3. GREETING: Keep it casual but professional (e.g., Hi, or Hello,).\\n4. SIGN-OFF: Keep it very brief (e.g., Thanks,). No placeholder names.\\n5. FORMAT: Use standard newline characters for line breaks. Do not use HTML tags.\\n\\nOUTPUT EXACTLY THIS JSON AND NOTHING ELSE:\\n{\\n  \\\"message\\\": \\\"Your generated WhatsApp message here\\\"\\n}\"\n    }\n  ]\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "56e047de-d7cb-451d-846b-bcc0da5ec854",
+      "name": "Message a model",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "0GUgkiHGicus4KvZ",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate_whatsap_msg1",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        272,
+        240
+      ],
+      "id": "888562fb-94d4-4c3b-bfb7-540e2b121a36",
+      "name": "Webhook",
+      "webhookId": "bfe126ba-f270-458a-b403-9e8a20e96e1c"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "1010688965467631",
+        "recipientPhoneNumber": "={{ $('Webhook').item.json.body.phoneNumber }}",
+        "textBody": "={{ JSON.parse($('Message a model').item.json.choices[0].message.content).message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        496,
+        0
+      ],
+      "id": "5376e1d8-50ec-41fd-bb18-de2738685ea0",
+      "name": "Send message",
+      "webhookId": "6df4b233-6759-4365-9e12-9747828fc31b",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "nyrFlHC7k3PfErGp",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "592cf0e9-c841-490f-b79b-1151cb41c454",
+              "name": "message",
+              "value": "={{ JSON.parse($('Message a model').item.json.choices[0].message.content).message }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        752,
+        240
+      ],
+      "id": "ccb6336d-826b-4914-aa50-94b553e4e170",
+      "name": "Edit Fields"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send message": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "7589e152-041c-4dd6-9190-374c26a0cf14",
+  "meta": {
+    "instanceId": "19608886e3e17c7fa08aa6249e02f43d090f84b9e2f1863d8af8ff9691f099f7"
+  },
+  "id": "tO6etiXrFSVcN2qI",
+  "tags": []
+}

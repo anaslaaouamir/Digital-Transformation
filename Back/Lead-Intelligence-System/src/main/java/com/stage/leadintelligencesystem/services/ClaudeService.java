@@ -143,7 +143,7 @@ public class ClaudeService {
         payload.put("pixelHtml",  pixelHtml);
 
         RestTemplate restTemplate  = new RestTemplate();
-        String       n8nWebhookUrl = "http://localhost:5678/webhook/generate_email";
+        String       n8nWebhookUrl = "http://localhost:5678/webhook/generate_email1";
 
         try {
             String   responseStr      = restTemplate.postForObject(n8nWebhookUrl, payload, String.class);
@@ -197,7 +197,7 @@ public class ClaudeService {
         payload.put("userPrompt",  userPrompt);
 
         RestTemplate restTemplate  = new RestTemplate();
-        String       n8nWebhookUrl = n8n_public + "/webhook/generate_whatsap_msg";
+        String       n8nWebhookUrl = n8n_public + "/webhook/generate_whatsap_msg1";
 
         try {
             String   responseStr      = restTemplate.postForObject(n8nWebhookUrl, payload, String.class);
