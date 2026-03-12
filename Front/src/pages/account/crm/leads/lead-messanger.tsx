@@ -36,7 +36,7 @@ const CHANNEL_LIST           = ['EMAIL', 'WHATSAPP'];
 const STATUS_LIST            = ['SENT', 'OPENED', 'REPLIED', 'BOUNCED'];
 const CONTACT_STATUS_LIST = [
   'NON_CONTACTE','EN_SEQUENCE',
-  'MASSE_EMAIL_ENVOYE','MASS_WHATSAPP_ENVOYE',
+  'MASS_EMAIL_ENVOYE','MASS_WHATSAPP_ENVOYE',
   'MANUAL_EMAIL_ENVOYE','MANUAL_WHATSAPP_ENVOYE',
   'AI_EMAIL_ENVOYE','AI_WHATSAPP_ENVOYE',
   'TERMINE_SANS_REPONSE','A_REPONDU',
@@ -90,7 +90,7 @@ const CHANNEL_CFG = {
 const CONTACT_STATUS_CFG = {
   NON_CONTACTE:           { bg:'#f1f5f9', text:'#475569', border:'#e2e8f0', icon:'fa-solid fa-circle',               label:'Non contacte'     },
   EN_SEQUENCE:            { bg:'#eef2ff', text:'#4338ca', border:'#a5b4fc', icon:'fa-solid fa-diagram-project',      label:'En sequence'      },
-  MASSE_EMAIL_ENVOYE:     { bg:'#f5f3ff', text:'#5b21b6', border:'#c4b5fd', icon:'fa-solid fa-bullhorn',             label:'Email masse'      },
+  MASS_EMAIL_ENVOYE:     { bg:'#f5f3ff', text:'#5b21b6', border:'#c4b5fd', icon:'fa-solid fa-bullhorn',             label:'Email masse'      },
   MASS_WHATSAPP_ENVOYE:   { bg:'#f0fdf4', text:'#15803d', border:'#bbf7d0', icon:'fa-brands fa-whatsapp',            label:'WA masse'         },
   MANUAL_EMAIL_ENVOYE:    { bg:'#f0f9ff', text:'#0369a1', border:'#bae6fd', icon:'fa-solid fa-keyboard',             label:'Email manuel'     },
   MANUAL_WHATSAPP_ENVOYE: { bg:'#dcfce7', text:'#166534', border:'#86efac', icon:'fa-brands fa-whatsapp',            label:'WA manuel'        },
@@ -318,20 +318,24 @@ function ComposeModal({ lead, onClose, onSend, onStartSequence }) {
     if ((channel === 'whatsapp' || channel === 'both') && !lead?.phone?.trim()) {
       setToast('Numéro WhatsApp manquant pour ce lead'); setTimeout(() => setToast(''), 3000); return;
     }
-    setAiLoad(true); setAiPreview(null);
+    setAiLoad(true);
     try {
-      const res = await fetch(`${API_BASE}/claude/generate`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email:lead?.email||'', phone:lead?.phone||'', userPrompt:aiPrompt||'', channel }) });
-      if (!res.ok) { const errText = await res.text().catch(()=>''); throw new Error(`HTTP ${res.status}: ${errText}`); }
-      const data = await res.json().catch(()=>({}));
-      const previewObj: any = {};
-      if (channel === 'email' || channel === 'both') { previewObj.subject = data.subject||subject; previewObj.body = data.body||body; }
-      if (channel === 'whatsapp' || channel === 'both') { previewObj.waBody = data.waBody||waBody; }
-      setAiPreview(previewObj);
+      if (channel === 'email' || channel === 'both') {
+        await fetch(`${API_BASE}/claude/generate-and-send`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: lead?.email, userPrompt: aiPrompt })
+        });
+      }
+      if (channel === 'whatsapp' || channel === 'both') {
+        await fetch(`${API_BASE}/claude/generate-and-send-whatsapp`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber: waPhone || lead?.phone, userPrompt: aiPrompt })
+        });
+      }
+      setToast('Message IA envoyé ✓'); setTimeout(() => setToast(''), 3000);
+      onClose();
     } catch {
-      const fallback: any = {};
-      if (channel === 'email' || channel === 'both') { fallback.subject = subject; fallback.body = body; }
-      if (channel === 'whatsapp' || channel === 'both') { fallback.waBody = waBody; }
-      setAiPreview(fallback);
+      setToast('Echec envoi IA'); setTimeout(() => setToast(''), 3000);
     }
     setAiLoad(false);
   };

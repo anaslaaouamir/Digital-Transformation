@@ -38,7 +38,7 @@ public class WhatsAppMassActionController {
 
             System.out.println("[WhatsApp] /simulate-mass-messages called with leadIds=" + leadIds);
 
-            List<SimulatedWhatsAppDto> result = massActionService.simulateMassWhatsApp(leadIds);
+            List<SimulatedWhatsAppDto> result = massActionService.simulateMassWhatsApp();
             return ResponseEntity.ok(result);
 
         } catch (RuntimeException e) {

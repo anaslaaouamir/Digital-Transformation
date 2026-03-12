@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/enrichment")
+@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class ApolloEnrichmentController {
 

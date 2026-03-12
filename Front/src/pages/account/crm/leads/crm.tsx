@@ -478,13 +478,7 @@ export function CRM({ leads }: { leads: Lead[] }) {
                   },
                   status: null,
                 },
-                {
-                  label: "Générer msg IA",
-                  fa: "fa-solid fa-robot",
-                  sub: "Claude personnalisé",
-                  onClick: () => { /* handled per-lead in LeadPanel */ },
-                  status: null,
-                },
+                
                 {
                   label: "WhatsApp en masse",
                   fa: "fa-brands fa-whatsapp",
