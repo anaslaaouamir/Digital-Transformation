@@ -75,7 +75,7 @@ public class ClaudeService {
             payload.put("pixelHtml",  ""); // no pixel for preview
 
             try {
-                String n8nUrl      = "http://localhost:5678/webhook/generate_email";
+                String n8nUrl      = "http://localhost:5678/webhook/generate_email1";
                 String responseStr = restTemplate.postForObject(n8nUrl, payload, String.class);
 
                 JsonNode root    = mapper.readTree(responseStr);
@@ -97,7 +97,7 @@ public class ClaudeService {
             payload.put("userPrompt",  userPrompt);
 
             try {
-                String n8nUrl      = n8n_public + "/webhook/generate_whatsap_msg";
+                String n8nUrl      = n8n_public + "/webhook/generate_whatsap_msg1";
                 String responseStr = restTemplate.postForObject(n8nUrl, payload, String.class);
 
                 JsonNode root   = mapper.readTree(responseStr);

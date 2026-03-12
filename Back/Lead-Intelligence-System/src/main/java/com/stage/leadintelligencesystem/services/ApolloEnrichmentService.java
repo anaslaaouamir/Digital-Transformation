@@ -158,7 +158,7 @@ public class ApolloEnrichmentService {
     }
 
     private String extractDomain(String website) {
-        if (website == null || website.isBlank()) return "unknown.ma";
+        if (website == null || website.isBlank()) return "temp-lead.com";
         return website
                 .replaceAll("https?://(www\\.)?", "")
                 .replaceAll("/.*", "")

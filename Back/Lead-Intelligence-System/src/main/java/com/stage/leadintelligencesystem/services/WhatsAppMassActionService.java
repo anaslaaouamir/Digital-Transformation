@@ -47,42 +47,12 @@ public class WhatsAppMassActionService {
         this.enrollmentRepository = enrollmentRepository;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // PHONE NORMALIZATION
-    // Converts any Moroccan format to international: +212XXXXXXXXX
-    // ─────────────────────────────────────────────────────────────────────────
-    private String normalizePhone(String raw) {
-        if (raw == null) return null;
-
-        // Strip all spaces, dashes, dots, parentheses
-        String cleaned = raw.replaceAll("[\\s\\-\\.\\(\\)]", "");
-
-        // Already in +212 format
-        if (cleaned.startsWith("+212")) return cleaned;
-
-        // 00212XXXXXXXXX → +212XXXXXXXXX
-        if (cleaned.startsWith("00212")) return "+" + cleaned.substring(2);
-
-        // 0XXXXXXXXX (local Moroccan) → +2126/7XXXXXXXX
-        if (cleaned.startsWith("0") && cleaned.length() == 10) {
-            return "+212" + cleaned.substring(1);
-        }
-
-        // Already without country code (6XXXXXXXX or 7XXXXXXXX, 9 digits)
-        if ((cleaned.startsWith("6") || cleaned.startsWith("7")) && cleaned.length() == 9) {
-            return "+212" + cleaned;
-        }
-
-        // Return as-is if we can't normalize — let n8n decide
-        System.out.println("[WhatsApp] Could not normalize phone, using raw: " + raw);
-        return cleaned;
-    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // MASS SEND
     // ─────────────────────────────────────────────────────────────────────────
     @Transactional
-    public List<SimulatedWhatsAppDto> simulateMassWhatsApp(List<Long> leadIds) {
+    public List<SimulatedWhatsAppDto> simulateMassWhatsApp() {
         List<SimulatedWhatsAppDto> generatedMessages = new ArrayList<>();
         List<String> errors = new ArrayList<>();
 
@@ -97,15 +67,10 @@ public class WhatsAppMassActionService {
 
         // 2. Fetch leads
         List<Lead> leadsToProcess;
-        if (leadIds != null && !leadIds.isEmpty()) {
-            leadsToProcess = leadRepository.findAllById(leadIds);
-            if (leadsToProcess.isEmpty()) {
-                throw new RuntimeException("No leads found for leadIds: " + leadIds);
-            }
-        } else {
+
             leadsToProcess = leadRepository.findByTemperatureAndContactStatusAndPhoneNumberIsNotNull(
                     "HOT", "NON_CONTACTE");
-        }
+
 
         System.out.println("[WhatsApp] Starting mass send for " + leadsToProcess.size() + " leads.");
         System.out.println("[WhatsApp] n8n URL: " + n8nPublic + "/webhook/send_message");
@@ -120,10 +85,7 @@ public class WhatsAppMassActionService {
                 continue;
             }
 
-            String normalizedPhone = normalizePhone(rawPhone);
-            System.out.println("[WhatsApp] leadId=" + lead.getId()
-                    + " rawPhone=" + rawPhone
-                    + " normalizedPhone=" + normalizedPhone);
+
 
             String companyName = (lead.getCompanyName() != null && !lead.getCompanyName().isBlank())
                     ? lead.getCompanyName()
@@ -143,13 +105,13 @@ public class WhatsAppMassActionService {
 
             // Attempt n8n call
             try {
-                forwardToN8nWhatsApp(normalizedPhone, personalizedBody);
+                forwardToN8nWhatsApp(lead.getPhoneNumber(), personalizedBody);
 
                 lead.setContactStatus("MASS_WHATSAPP_ENVOYE");
                 leadRepository.save(lead);
 
                 generatedMessages.add(new SimulatedWhatsAppDto(
-                        lead.getId(), normalizedPhone, personalizedBody));
+                        lead.getId(), lead.getPhoneNumber(), personalizedBody));
 
                 System.out.println("[WhatsApp] SUCCESS leadId=" + lead.getId());
 
@@ -161,9 +123,9 @@ public class WhatsAppMassActionService {
                 leadRepository.save(lead);
 
                 String reason = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-                errors.add("Lead " + lead.getId() + " (" + normalizedPhone + "): " + reason);
+                errors.add("Lead " + lead.getId() + " (" + lead.getPhoneNumber() + "): " + reason);
                 System.err.println("[WhatsApp] FAILED leadId=" + lead.getId()
-                        + " phone=" + normalizedPhone
+                        + " phone=" + lead.getPhoneNumber()
                         + " reason=" + reason);
             }
         }
@@ -201,7 +163,6 @@ public class WhatsAppMassActionService {
         String personalizedBody = (request.getBody() != null ? request.getBody() : "")
                 .replace("{{company}}", companyName);
 
-        String normalizedPhone = normalizePhone(lead.getPhoneNumber());
 
         Interaction interaction = new Interaction();
         interaction.setLead(lead);
@@ -217,9 +178,9 @@ public class WhatsAppMassActionService {
             leadRepository.save(lead);
         }
 
-        forwardToN8nWhatsApp(normalizedPhone, personalizedBody);
+        forwardToN8nWhatsApp(lead.getPhoneNumber(), personalizedBody);
 
-        return new SimulatedWhatsAppDto(lead.getId(), normalizedPhone, personalizedBody);
+        return new SimulatedWhatsAppDto(lead.getId(), lead.getPhoneNumber(), personalizedBody);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
