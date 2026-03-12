@@ -1,0 +1,188 @@
+{
+  "name": "groq_email",
+  "nodes": [
+    {
+      "parameters": {
+        "sendTo": "={{ $('Webhook').item.json.body.email }}",
+        "subject": "={{ JSON.parse($json.content[0].text).subject }}",
+        "message": "={{ JSON.parse($json.content[0].text).body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        512,
+        48
+      ],
+      "id": "f8d45c2c-34bf-4246-8be1-74a3087ad49b",
+      "name": "Send a message",
+      "webhookId": "07519885-8eae-4b43-827b-1ef3cabde781",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "hPuYr8AaUYn3ruRO",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are an expert B2B sales development representative. Write a concise, highly personalized email.\\n\\n<lead_data>\\nCompany: {{ $('Webhook').item.json.body.lead.companyName }}\\nRating: {{ $('Webhook').item.json.body.lead.googleRating }}\\nIndustry/Type: {{ $('Webhook').item.json.body.lead.googleTypes }}\\n</lead_data>\\n\\n<instructions>\\n{{ $('Webhook').item.json.body.userPrompt }}\\n</instructions>\\n\\nSTRICT RULES:\\n1. MISSING DATA: If any data point in <lead_data> is blank, empty, \\\"null\\\", or missing (like the rating or industry), DO NOT bring it up. Do not guess it. Ignore it completely.\\n2. NO PLACEHOLDERS: You are strictly forbidden from using bracketed placeholders like [Name], [Lead Name], [Company], or [Your Name].\\n3. GREETING: If you do not have a specific contact name, use a general professional greeting like \\\"Dear Team at {{ $('Webhook').item.json.body.lead.companyName }},\\\" or just \\\"Hello,\\\".\\n4. SIGN-OFF: End the email professionally, but do not use a placeholder for the sender's name. Just end it with \\\"Best regards,\\\" or similar.\\n5. FORMAT: Use HTML <br> tags for line breaks.\\n\\nOUTPUT EXACTLY THIS JSON AND NOTHING ELSE:\\n{\\n  \\\"subject\\\": \\\"Your generated subject\\\",\\n  \\\"body\\\": \\\"Your generated body\\\"\\n}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "ceac5b99-ad02-4df3-87ee-86441af8422f",
+      "name": "Message a model",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "0GUgkiHGicus4KvZ",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aaa00001-0000-0000-0000-000000000001",
+              "name": "content",
+              "value": "={{ [{ text: $json.choices[0].message.content }] }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        288,
+        0
+      ],
+      "id": "8ddb1529-bc40-4eb4-b3ef-aefcfcb3d6b9",
+      "name": "Normalize Response"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate_email1",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        272,
+        256
+      ],
+      "id": "4685a066-f2db-45df-863b-962ffee72eff",
+      "name": "Webhook",
+      "webhookId": "bfe126ba-f270-458a-b403-9e8a20e96e1c"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "592cf0e9-c841-490f-b79b-1151cb41c454",
+              "name": "subject",
+              "value": "={{ JSON.parse($('Message a model').item.json.choices[0].message.content).subject }}",
+              "type": "string"
+            },
+            {
+              "id": "e6073caa-4edf-4598-ab8b-ee902e729643",
+              "name": "body",
+              "value": "={{ JSON.parse($('Message a model').item.json.choices[0].message.content).body }}",
+              "type": "string"
+            },
+            {
+              "id": "59f06bc5-1cff-4e5f-8888-8849eb721928",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        784,
+        128
+      ],
+      "id": "bb2b29e3-dbac-4aa8-8daa-d1b401fd3cff",
+      "name": "Edit Fields"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Normalize Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Response": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "686663e3-46ee-488d-9042-bb40f2c6055b",
+  "meta": {
+    "instanceId": "19608886e3e17c7fa08aa6249e02f43d090f84b9e2f1863d8af8ff9691f099f7"
+  },
+  "id": "EmcN7ZGJFHFrdA76",
+  "tags": []
+}

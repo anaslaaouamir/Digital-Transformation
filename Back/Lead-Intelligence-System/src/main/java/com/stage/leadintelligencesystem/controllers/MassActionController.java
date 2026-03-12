@@ -3,10 +3,7 @@ package com.stage.leadintelligencesystem.controllers;
 import com.stage.leadintelligencesystem.dto.SimulatedEmailDto;
 import com.stage.leadintelligencesystem.services.MassActionService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
@@ -15,6 +12,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/actions")
+@CrossOrigin(origins = "*")
 public class MassActionController {
 
     private final MassActionService massActionService;

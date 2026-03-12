@@ -10,8 +10,14 @@ import com.stage.leadintelligencesystem.repositories.LeadRepository;
 import com.stage.leadintelligencesystem.repositories.MessageTemplateRepository;
 import com.stage.leadintelligencesystem.repositories.SequenceEnrollmentRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
@@ -26,40 +32,68 @@ public class WhatsAppMassActionService {
     private final InteractionRepository interactionRepository;
     private final MessageTemplateRepository templateRepository;
     private final SequenceEnrollmentRepository enrollmentRepository;
+
     @Value("${n8n.for.whatsap}")
-    private String n8n_public;
+    private String n8nPublic;
 
-
-    public WhatsAppMassActionService(LeadRepository leadRepository, InteractionRepository interactionRepository, MessageTemplateRepository templateRepository, SequenceEnrollmentRepository enrollmentRepository) {
+    public WhatsAppMassActionService(
+            LeadRepository leadRepository,
+            InteractionRepository interactionRepository,
+            MessageTemplateRepository templateRepository,
+            SequenceEnrollmentRepository enrollmentRepository) {
         this.leadRepository = leadRepository;
         this.interactionRepository = interactionRepository;
         this.templateRepository = templateRepository;
         this.enrollmentRepository = enrollmentRepository;
     }
 
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MASS SEND
+    // ─────────────────────────────────────────────────────────────────────────
     @Transactional
     public List<SimulatedWhatsAppDto> simulateMassWhatsApp() {
         List<SimulatedWhatsAppDto> generatedMessages = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
 
-        // 1. Fetch the "Première approche" template
+        // 1. Fetch template
         MessageTemplate template = templateRepository.findByName("Première approche")
-                .orElseThrow(() -> new RuntimeException("Template 'Première approche' not found"));
+                .orElseThrow(() -> new RuntimeException(
+                        "Template 'Première approche' not found. Please seed it in the DB."));
 
-        // 2. Fetch leads (HOT, NON_CONTACTE, and MUST have a phone number)
-        List<Lead> hotLeads = leadRepository.findByTemperatureAndContactStatusAndPhoneNumberIsNotNull("HOT", "NON_CONTACTE");
+        if (template.getBody() == null || template.getBody().isBlank()) {
+            throw new RuntimeException("Template 'Première approche' has an empty body.");
+        }
 
-        // 3. Loop through leads and perform the string replacement
-        for (Lead lead : hotLeads) {
+        // 2. Fetch leads
+        List<Lead> leadsToProcess;
 
-            // Safety check: if company name is null, use a generic fallback
-            String companyName = (lead.getCompanyName() != null && !lead.getCompanyName().isEmpty())
+            leadsToProcess = leadRepository.findByTemperatureAndContactStatusAndPhoneNumberIsNotNull(
+                    "HOT", "NON_CONTACTE");
+
+
+        System.out.println("[WhatsApp] Starting mass send for " + leadsToProcess.size() + " leads.");
+        System.out.println("[WhatsApp] n8n URL: " + n8nPublic + "/webhook/send_message");
+
+        // 3. Process each lead
+        for (Lead lead : leadsToProcess) {
+            String rawPhone = lead.getPhoneNumber();
+
+            if (rawPhone == null || rawPhone.isBlank()) {
+                System.err.println("[WhatsApp] SKIP leadId=" + lead.getId() + " — phone is null/blank.");
+                errors.add("Lead " + lead.getId() + ": no phone number");
+                continue;
+            }
+
+
+
+            String companyName = (lead.getCompanyName() != null && !lead.getCompanyName().isBlank())
                     ? lead.getCompanyName()
                     : "votre entreprise";
 
-            // WhatsApp formatting: NO HTML conversion, keep standard \n from the database
             String personalizedBody = template.getBody().replace("{{company}}", companyName);
 
-            // 4. Log the Interaction initially
+            // Save interaction optimistically
             Interaction interaction = new Interaction();
             interaction.setLead(lead);
             interaction.setChannel("WHATSAPP");
@@ -67,58 +101,69 @@ public class WhatsAppMassActionService {
             interaction.setStatus("SENT");
             interaction.setContent(personalizedBody);
             interaction.setSentAt(LocalDateTime.now());
-
-            // Save to get it in the database temporarily
             interaction = interactionRepository.save(interaction);
 
-            // 5. ATTEMPT TO SEND VIA N8N WITH ERROR HANDLING
+            // Attempt n8n call
             try {
-                // Call your existing helper method using the webhook
                 forwardToN8nWhatsApp(lead.getPhoneNumber(), personalizedBody);
 
-                // If successful (no exception thrown), finalize the Lead status
                 lead.setContactStatus("MASS_WHATSAPP_ENVOYE");
                 leadRepository.save(lead);
 
-                // Add to DTO list for Postman validation
                 generatedMessages.add(new SimulatedWhatsAppDto(
-                        lead.getId(), lead.getPhoneNumber(), personalizedBody
-                ));
+                        lead.getId(), lead.getPhoneNumber(), personalizedBody));
+
+                System.out.println("[WhatsApp] SUCCESS leadId=" + lead.getId());
 
             } catch (Exception e) {
-                // Any error (n8n down or bad number) -> Mark as bounced
                 interaction.setStatus("BOUNCED");
                 interactionRepository.save(interaction);
 
                 lead.setContactStatus("BOUNCED_PHONENUMBER");
                 leadRepository.save(lead);
 
-                // Log the failure, but let the loop continue to the next lead!
-                System.err.println("WhatsApp failed for phone " + lead.getPhoneNumber() + ". Marked as BOUNCED. Reason: " + e.getMessage());
+                String reason = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                errors.add("Lead " + lead.getId() + " (" + lead.getPhoneNumber() + "): " + reason);
+                System.err.println("[WhatsApp] FAILED leadId=" + lead.getId()
+                        + " phone=" + lead.getPhoneNumber()
+                        + " reason=" + reason);
             }
         }
 
-        // Only throw an error if we had leads to process but literally ALL of them failed
-        if (!hotLeads.isEmpty() && generatedMessages.isEmpty()) {
-            throw new RuntimeException("WhatsApp mass send failed entirely. Attempted " + hotLeads.size() + " leads, but all failed.");
+        // All failed → throw with detail
+        if (!leadsToProcess.isEmpty() && generatedMessages.isEmpty()) {
+            String detail = String.join(" | ", errors.stream().limit(5).toList());
+            throw new RuntimeException(
+                    "WhatsApp mass send failed entirely. Attempted " + leadsToProcess.size()
+                    + " leads — all bounced. First errors: " + detail);
         }
 
+        System.out.println("[WhatsApp] Done. Sent=" + generatedMessages.size()
+                + " Failed=" + errors.size());
         return generatedMessages;
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // MANUAL SEND
+    // ─────────────────────────────────────────────────────────────────────────
     @Transactional
     public SimulatedWhatsAppDto sendManualWhatsApp(SimulatedWhatsAppDto request) {
-        // 1. Fetch the lead using phone number
-        Lead lead = leadRepository.findByPhoneNumber(request.getPhoneNumber())
-                .orElseThrow(() -> new RuntimeException("Lead not found with phone number: " + request.getPhoneNumber()));
+        if (request.getPhoneNumber() == null || request.getPhoneNumber().isBlank()) {
+            throw new RuntimeException("phoneNumber is required.");
+        }
 
-        // 2. Personalize the body (No HTML conversions)
-        String companyName = (lead.getCompanyName() != null && !lead.getCompanyName().isEmpty())
+        Lead lead = leadRepository.findByPhoneNumber(request.getPhoneNumber())
+                .orElseThrow(() -> new RuntimeException(
+                        "Lead not found with phone number: " + request.getPhoneNumber()));
+
+        String companyName = (lead.getCompanyName() != null && !lead.getCompanyName().isBlank())
                 ? lead.getCompanyName()
                 : "votre entreprise";
-        String personalizedBody = request.getBody().replace("{{company}}", companyName);
 
-        // 3. Create the Interaction record (MANUAL type)
+        String personalizedBody = (request.getBody() != null ? request.getBody() : "")
+                .replace("{{company}}", companyName);
+
+
         Interaction interaction = new Interaction();
         interaction.setLead(lead);
         interaction.setChannel("WHATSAPP");
@@ -126,10 +171,8 @@ public class WhatsAppMassActionService {
         interaction.setStatus("SENT");
         interaction.setContent(personalizedBody);
         interaction.setSentAt(LocalDateTime.now());
-
         interactionRepository.save(interaction);
 
-        // 4. Update Lead Status (Only if not already in a sequence)
         if (!"EN_SEQUENCE".equals(lead.getContactStatus())) {
             lead.setContactStatus("MANUAL_WHATSAPP_ENVOYE");
             leadRepository.save(lead);
@@ -137,62 +180,47 @@ public class WhatsAppMassActionService {
 
         forwardToN8nWhatsApp(lead.getPhoneNumber(), personalizedBody);
 
-        // 5. Return the payload to Postman
         return new SimulatedWhatsAppDto(lead.getId(), lead.getPhoneNumber(), personalizedBody);
     }
 
-
-    // Helper method to forward the data to n8n
-    private void forwardToN8nWhatsApp(String phoneNumber, String message) {
-        RestTemplate restTemplate = new RestTemplate();
-        // Replace with your actual n8n Webhook URL for WhatsApp
-        String n8nWebhookUrl = n8n_public+"/webhook/send_message";
-
-        Map<String, String> payload = new HashMap<>();
-        payload.put("phoneNumber", phoneNumber);
-        payload.put("message", message);
-
-        try {
-            restTemplate.postForObject(n8nWebhookUrl, payload, String.class);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to forward manual WhatsApp to n8n: " + e.getMessage());
-        }
-    }
-
-
+    // ─────────────────────────────────────────────────────────────────────────
+    // INCOMING WEBHOOK
+    // ─────────────────────────────────────────────────────────────────────────
     @Transactional
     public void processIncomingWhatsApp(Map<String, String> payload) {
-        String phoneNumber = payload.get("phoneNumber");
-        String message = payload.get("message");
-        String timestampStr = payload.get("timestamp"); // Grab the Unix timestamp
+        String phoneNumber  = payload.get("phoneNumber");
+        String message      = payload.get("message");
+        String timestampStr = payload.get("timestamp");
 
-        if (phoneNumber == null || message == null) {
-            throw new RuntimeException("Missing phoneNumber or message in the webhook payload");
+        if (phoneNumber == null || phoneNumber.isBlank()) {
+            throw new RuntimeException("Missing 'phoneNumber' in webhook payload.");
+        }
+        if (message == null || message.isBlank()) {
+            throw new RuntimeException("Missing 'message' in webhook payload.");
         }
 
-        // --- CONVERT UNIX TIMESTAMP TO LOCALDATETIME ---
-        LocalDateTime repliedAtTime = LocalDateTime.now(); // Default fallback
-        if (timestampStr != null && !timestampStr.isEmpty()) {
+        LocalDateTime repliedAtTime = LocalDateTime.now();
+        if (timestampStr != null && !timestampStr.isBlank()) {
             try {
-                long unixSeconds = Long.parseLong(timestampStr);
-                repliedAtTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(unixSeconds), ZoneId.systemDefault());
+                long unixSeconds = Long.parseLong(timestampStr.trim());
+                repliedAtTime = LocalDateTime.ofInstant(
+                        Instant.ofEpochSecond(unixSeconds), ZoneId.systemDefault());
             } catch (NumberFormatException e) {
-                System.err.println("Could not parse WhatsApp timestamp: " + timestampStr);
+                System.err.println("[WhatsApp] Could not parse timestamp: " + timestampStr);
             }
         }
 
-        // 1. Find the Lead by phone number
         Lead lead = leadRepository.findByPhoneNumber(phoneNumber)
-                .orElseThrow(() -> new RuntimeException("Lead not found with phone number: " + phoneNumber));
+                .orElseThrow(() -> new RuntimeException(
+                        "Lead not found with phone number: " + phoneNumber));
 
-        // 2. GLOBAL STATUS UPDATE
         if (!"A_REPONDU".equals(lead.getContactStatus())) {
             lead.setContactStatus("A_REPONDU");
             leadRepository.save(lead);
         }
 
-        // 3. STOP SEQUENCE
-        Optional<SequenceEnrollment> activeEnrollment = enrollmentRepository.findByLeadAndStatus(lead, "ACTIVE");
+        Optional<SequenceEnrollment> activeEnrollment =
+                enrollmentRepository.findByLeadAndStatus(lead, "ACTIVE");
         if (activeEnrollment.isPresent()) {
             SequenceEnrollment enrollment = activeEnrollment.get();
             enrollment.setStatus("CANCELLED");
@@ -200,44 +228,89 @@ public class WhatsAppMassActionService {
             enrollmentRepository.save(enrollment);
         }
 
-        // 4. FIND AND UPDATE PREVIOUS MESSAGES
-        List<Interaction> previousMessages = interactionRepository.findByLeadAndChannelAndStatusInOrderBySentAtDesc(
-                lead, "WHATSAPP", List.of("SENT")
-        );
+        List<Interaction> previousMessages =
+                interactionRepository.findByLeadAndChannelAndStatusInOrderBySentAtDesc(
+                        lead, "WHATSAPP", List.of("SENT"));
 
         if (!previousMessages.isEmpty()) {
-            // A. The most recent message gets the "REPLIED" status and the exact reply time
             Interaction mostRecent = previousMessages.get(0);
             mostRecent.setStatus("REPLIED");
-            mostRecent.setRepliedAt(repliedAtTime); // <-- Using exact WhatsApp time
+            mostRecent.setRepliedAt(repliedAtTime);
             mostRecent.setOpenedAt(repliedAtTime);
             interactionRepository.save(mostRecent);
 
-            // B. All older messages get marked as "OPENED" (Read)
             for (int i = 1; i < previousMessages.size(); i++) {
-                Interaction olderMessage = previousMessages.get(i);
-
-                if (!"OPENED".equals(olderMessage.getStatus())) {
-                    olderMessage.setStatus("OPENED");
-                    if (olderMessage.getOpenedAt() == null) {
-                        olderMessage.setOpenedAt(repliedAtTime); // <-- Assuming they read it right before replying
+                Interaction older = previousMessages.get(i);
+                if (!"OPENED".equals(older.getStatus())) {
+                    older.setStatus("OPENED");
+                    if (older.getOpenedAt() == null) {
+                        older.setOpenedAt(repliedAtTime);
                     }
-                    interactionRepository.save(olderMessage);
+                    interactionRepository.save(older);
                 }
             }
         }
 
-        // 5. LOG THE NEW RESPONSE
         Interaction responseInteraction = new Interaction();
         responseInteraction.setLead(lead);
         responseInteraction.setChannel("WHATSAPP");
         responseInteraction.setType("RESPONSE");
         responseInteraction.setStatus("RECEIVED");
         responseInteraction.setContent(message);
-        responseInteraction.setSentAt(repliedAtTime); // <-- Log the exact time they sent the text
-
+        responseInteraction.setSentAt(repliedAtTime);
         interactionRepository.save(responseInteraction);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // HELPER — forward to n8n with detailed error reporting
+    // ─────────────────────────────────────────────────────────────────────────
+    private void forwardToN8nWhatsApp(String phoneNumber, String message) {
+        RestTemplate restTemplate = new RestTemplate();
+        String webhookUrl = n8nPublic + "/webhook/send_message";
 
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, String> payload = new HashMap<>();
+        payload.put("phoneNumber", phoneNumber);
+        payload.put("message", message);
+
+        HttpEntity<Map<String, String>> entity = new HttpEntity<>(payload, headers);
+
+        try {
+            restTemplate.postForObject(webhookUrl, entity, String.class);
+
+        } catch (HttpClientErrorException e) {
+            // 4xx from n8n — bad request, wrong format, etc.
+            throw new RuntimeException(
+                    "n8n rejected request (HTTP " + e.getStatusCode() + "): " + e.getResponseBodyAsString());
+
+        } catch (HttpServerErrorException e) {
+            // 5xx from n8n — n8n workflow error
+            throw new RuntimeException(
+                    "n8n workflow error (HTTP " + e.getStatusCode() + "): " + e.getResponseBodyAsString());
+
+        } catch (ResourceAccessException e) {
+            // Connection refused / timeout — n8n is down or URL is wrong
+            throw new RuntimeException(
+                    "Cannot reach n8n at [" + webhookUrl + "]. Is n8n running? Detail: " + e.getMessage());
+
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Unexpected error calling n8n [" + webhookUrl + "]: " + e.getMessage());
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DEBUG — test n8n connectivity with a single fake message
+    // Call GET /api/whatsapp/actions/test-n8n to verify the webhook URL works
+    // ─────────────────────────────────────────────────────────────────────────
+    public String testN8nConnection() {
+        try {
+            forwardToN8nWhatsApp("+212600000000", "Test de connexion ELBAHI.NET");
+            return "SUCCESS — n8n webhook reachable at: " + n8nPublic + "/webhook/send_message";
+        } catch (Exception e) {
+            return "FAILED — " + e.getMessage();
+        }
+    }
 }

@@ -2,7 +2,9 @@ package com.stage.leadintelligencesystem.services;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.stage.leadintelligencesystem.dto.ClaudeGenerateDto;
 import com.stage.leadintelligencesystem.dto.SimulatedEmailDto;
+import com.stage.leadintelligencesystem.dto.SimulatedWhatsAppDto;
 import com.stage.leadintelligencesystem.entities.Interaction;
 import com.stage.leadintelligencesystem.entities.Lead;
 import com.stage.leadintelligencesystem.repositories.InteractionRepository;
@@ -19,66 +21,141 @@ import java.util.Map;
 @Service
 public class ClaudeService {
 
-    private final LeadRepository leadRepository;
+    private final LeadRepository        leadRepository;
     private final InteractionRepository interactionRepository;
+
     @Value("${app.tracking.url}")
     private String trackingBaseUrl;
 
-    public ClaudeService(LeadRepository leadRepository, InteractionRepository interactionRepository) {
-        this.leadRepository = leadRepository;
+    @Value("${n8n.for.whatsap}")
+    private String n8n_public;
+
+    public ClaudeService(LeadRepository leadRepository,
+                         InteractionRepository interactionRepository) {
+        this.leadRepository        = leadRepository;
         this.interactionRepository = interactionRepository;
     }
 
+    // ══════════════════════════════════════════════════════════════
+    // PREVIEW ONLY — no DB write, no email/WA sent
+    // ══════════════════════════════════════════════════════════════
+
+    public ClaudeGenerateDto generateOnly(String email,
+                                          String phone,
+                                          String userPrompt,
+                                          String channel) {
+
+        // ── Validate inputs before doing anything ──
+        boolean needsEmail = "email".equals(channel) || "both".equals(channel);
+        boolean needsPhone = "whatsapp".equals(channel) || "both".equals(channel);
+
+        if (needsEmail && (email == null || email.isBlank())) {
+            throw new RuntimeException("Email is required for channel: " + channel);
+        }
+        if (needsPhone && (phone == null || phone.isBlank())) {
+            throw new RuntimeException("Phone number is required for channel: " + channel);
+        }
+
+        RestTemplate restTemplate = new RestTemplate();
+        ObjectMapper mapper       = new ObjectMapper();
+
+        String generatedSubject = null;
+        String generatedBody    = null;
+        String generatedWaBody  = null;
+
+        // ── Email branch ──
+        if (needsEmail) {
+            Lead lead = leadRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("No lead found with email: " + email));
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("email",      lead.getEmail());
+            payload.put("lead",       lead);
+            payload.put("userPrompt", userPrompt);
+            payload.put("pixelHtml",  ""); // no pixel for preview
+
+            try {
+                String n8nUrl      = "http://localhost:5678/webhook/generate_email1";
+                String responseStr = restTemplate.postForObject(n8nUrl, payload, String.class);
+
+                JsonNode root    = mapper.readTree(responseStr);
+                generatedSubject = root.path("subject").asText();
+                generatedBody    = root.path("body").asText();
+            } catch (Exception e) {
+                throw new RuntimeException("Email generation failed: " + e.getMessage());
+            }
+        }
+
+        // ── WhatsApp branch ──
+        if (needsPhone) {
+            Lead lead = leadRepository.findByPhoneNumber(phone)
+                    .orElseThrow(() -> new RuntimeException("No lead found with phone: " + phone));
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("phoneNumber", phone);
+            payload.put("lead",        lead);
+            payload.put("userPrompt",  userPrompt);
+
+            try {
+                String n8nUrl      = n8n_public + "/webhook/generate_whatsap_msg1";
+                String responseStr = restTemplate.postForObject(n8nUrl, payload, String.class);
+
+                JsonNode root   = mapper.readTree(responseStr);
+                generatedWaBody = root.path("message").asText();
+            } catch (Exception e) {
+                throw new RuntimeException("WhatsApp generation failed: " + e.getMessage());
+            }
+        }
+
+        return new ClaudeGenerateDto(generatedSubject, generatedBody, generatedWaBody);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // GENERATE + SEND EMAIL
+    // ══════════════════════════════════════════════════════════════
+
     @Transactional
     public SimulatedEmailDto generateAndSendClaudeEmail(String email, String userPrompt) {
-        // 1. Fetch the lead
+
+        if (email == null || email.isBlank()) {
+            throw new RuntimeException("Email is required");
+        }
+
         Lead lead = leadRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Lead not found: " + email));
+                .orElseThrow(() -> new RuntimeException("No lead found with email: " + email));
 
-
-
-        // 3. Create the interaction (Starts as SENT)
         Interaction interaction = new Interaction();
         interaction.setLead(lead);
         interaction.setChannel("EMAIL");
         interaction.setType("AI_GENERATED");
         interaction.setStatus("SENT");
         interaction.setSentAt(LocalDateTime.now());
-
-        // Save to get the database ID for the pixel
         interaction = interactionRepository.save(interaction);
 
-        // 4. Generate the Tracking Pixel
         String trackingUrl = trackingBaseUrl + "/api/tracking/open/" + interaction.getId();
-        String pixelHtml = "<img src=\"" + trackingUrl + "\" width=\"1\" height=\"1\" alt=\"\" style=\"display:none;\"/>";
+        String pixelHtml   = "<img src=\"" + trackingUrl + "\" width=\"1\" height=\"1\" "
+                           + "alt=\"\" style=\"display:none;\"/>";
 
-        // 5. Prepare the payload for n8n
         Map<String, Object> payload = new HashMap<>();
-        payload.put("email", lead.getEmail()); // Explicitly pass email for the Gmail node
-        payload.put("lead", lead);
+        payload.put("email",      lead.getEmail());
+        payload.put("lead",       lead);
         payload.put("userPrompt", userPrompt);
-        payload.put("pixelHtml", pixelHtml);
+        payload.put("pixelHtml",  pixelHtml);
 
-        RestTemplate restTemplate = new RestTemplate();
-        String n8nWebhookUrl = "http://localhost:5678/webhook/generate_email";
+        RestTemplate restTemplate  = new RestTemplate();
+        String       n8nWebhookUrl = "http://localhost:5678/webhook/generate_email1";
 
         try {
-            // 6. Call n8n. Wait for the response.
-            String n8nResponseStr = restTemplate.postForObject(n8nWebhookUrl, payload, String.class);
+            String   responseStr      = restTemplate.postForObject(n8nWebhookUrl, payload, String.class);
+            JsonNode root             = new ObjectMapper().readTree(responseStr);
+            String   generatedSubject = root.path("subject").asText();
+            String   generatedBody    = root.path("body").asText();
 
-            // 7. Parse Claude's generated Subject and Body from n8n's JSON response
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode root = mapper.readTree(n8nResponseStr);
-            String generatedSubject = root.path("subject").asText();
-            String generatedBody = root.path("body").asText();
-
-            // 8. Update the interaction with actual generated content + pixel
             String finalBody = generatedBody + "<br>" + pixelHtml;
             interaction.setSubject(generatedSubject);
             interaction.setContent(finalBody);
             interactionRepository.save(interaction);
 
-            // 9. Update Lead Status (Only if not in sequence!)
             if (!"EN_SEQUENCE".equals(lead.getContactStatus())) {
                 lead.setContactStatus("AI_EMAIL_ENVOYE");
                 leadRepository.save(lead);
@@ -87,9 +164,59 @@ public class ClaudeService {
             return new SimulatedEmailDto(lead.getId(), lead.getEmail(), generatedSubject, finalBody);
 
         } catch (Exception e) {
-            // 10. n8n or Gmail failed -> Wipe the interaction to restore original state
             interactionRepository.delete(interaction);
             throw new RuntimeException("Failed to generate or send AI email: " + e.getMessage());
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // GENERATE + SEND WHATSAPP
+    // ══════════════════════════════════════════════════════════════
+
+    @Transactional
+    public SimulatedWhatsAppDto generateAndSendClaudeWhatsapp(String phoneNumber, String userPrompt) {
+
+        if (phoneNumber == null || phoneNumber.isBlank()) {
+            throw new RuntimeException("Phone number is required");
+        }
+
+        Lead lead = leadRepository.findByPhoneNumber(phoneNumber)
+                .orElseThrow(() -> new RuntimeException("No lead found with phone: " + phoneNumber));
+
+        Interaction interaction = new Interaction();
+        interaction.setLead(lead);
+        interaction.setChannel("WHATSAPP");
+        interaction.setType("AI_GENERATED");
+        interaction.setStatus("SENT");
+        interaction.setSentAt(LocalDateTime.now());
+        interaction = interactionRepository.save(interaction);
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("phoneNumber", phoneNumber);
+        payload.put("lead",        lead);
+        payload.put("userPrompt",  userPrompt);
+
+        RestTemplate restTemplate  = new RestTemplate();
+        String       n8nWebhookUrl = n8n_public + "/webhook/generate_whatsap_msg1";
+
+        try {
+            String   responseStr      = restTemplate.postForObject(n8nWebhookUrl, payload, String.class);
+            JsonNode root             = new ObjectMapper().readTree(responseStr);
+            String   generatedMessage = root.path("message").asText();
+
+            interaction.setContent(generatedMessage);
+            interactionRepository.save(interaction);
+
+            if (!"EN_SEQUENCE".equals(lead.getContactStatus())) {
+                lead.setContactStatus("AI_WHATSAPP_ENVOYE");
+                leadRepository.save(lead);
+            }
+
+            return new SimulatedWhatsAppDto(lead.getId(), lead.getPhoneNumber(), generatedMessage);
+
+        } catch (Exception e) {
+            interactionRepository.delete(interaction);
+            throw new RuntimeException("Failed to generate or send AI WhatsApp: " + e.getMessage());
         }
     }
 }

@@ -1,0 +1,155 @@
+{
+  "name": "claude_whatsap",
+  "nodes": [
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-3-haiku-20240307",
+          "mode": "list",
+          "cachedResultName": "claude-3-haiku-20240307"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an expert B2B sales development representative. Write a concise, highly personalized WhatsApp message. Keep it to 2-3 short sentences.\n\n<lead_data>\nCompany: {{ $('Webhook').item.json.body.lead.companyName }}\nRating: {{ $('Webhook').item.json.body.lead.googleRating }}\nIndustry/Type: {{ $('Webhook').item.json.body.lead.googleTypes }}\n</lead_data>\n\n<instructions>\n{{ $('Webhook').item.json.body.userPrompt }}\n</instructions>\n\nSTRICT RULES:\n1. MISSING DATA: If any data point in <lead_data> is blank, empty, \"null\", or missing, DO NOT bring it up.\n2. NO PLACEHOLDERS: Do not use bracketed placeholders like [Name].\n3. GREETING: Keep it casual but professional (e.g., \"Hi,\" or \"Hello,\").\n4. SIGN-OFF: Keep it very brief (e.g., \"Thanks,\"). No placeholder names.\n5. FORMAT: Use standard newline characters (\\n) for line breaks. Do not use HTML tags.\n\nOUTPUT EXACTLY THIS JSON AND NOTHING ELSE:\n{\n  \"message\": \"Your generated WhatsApp message here\"\n}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        -160
+      ],
+      "id": "7bbc20de-5920-491f-a9e4-303fa62ff393",
+      "name": "Message a model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "R7cZsIFwf0KEtVEl",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate_whatsap_msg",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        32,
+        80
+      ],
+      "id": "e419383f-ddb4-4910-b03d-8320532d95b5",
+      "name": "Webhook",
+      "webhookId": "bfe126ba-f270-458a-b403-9e8a20e96e1c"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "1010688965467631",
+        "recipientPhoneNumber": "={{ $('Webhook').item.json.body.phoneNumber }}",
+        "textBody": "={{ JSON.parse($('Message a model').item.json.content[0].text).message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        256,
+        -160
+      ],
+      "id": "c1053f8b-ae75-49aa-bdca-977fff552d36",
+      "name": "Send message",
+      "webhookId": "6df4b233-6759-4365-9e12-9747828fc31b",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "nyrFlHC7k3PfErGp",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "592cf0e9-c841-490f-b79b-1151cb41c454",
+              "name": "message",
+              "value": "={{ JSON.parse($('Message a model').item.json.content[0].text).message }}",
+              "type": "string"
+            },
+            {
+              "id": "59f06bc5-1cff-4e5f-8888-8849eb721928",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        512,
+        80
+      ],
+      "id": "70f30a0e-bd54-4b22-aa39-0630cbef05e2",
+      "name": "Edit Fields"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send message": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "1d4bb00a-8d7a-45e7-b503-5583db3851d2",
+  "meta": {
+    "instanceId": "19608886e3e17c7fa08aa6249e02f43d090f84b9e2f1863d8af8ff9691f099f7"
+  },
+  "id": "iZxEy80oTNNQzGax",
+  "tags": []
+}
