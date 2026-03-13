@@ -1,6 +1,7 @@
 package com.stage.leadintelligencesystem.services;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stage.leadintelligencesystem.dto.SimulatedEmailDto;
 import com.stage.leadintelligencesystem.entities.Interaction;
 import com.stage.leadintelligencesystem.entities.Lead;
@@ -12,12 +13,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class MassActionService {
@@ -83,7 +85,7 @@ public class MassActionService {
             // ---> MINIMAL FIX START <---
             try {
                 // Try to send to n8n FIRST using your existing helper
-                forwardToN8n(lead.getEmail(), personalizedSubject, finalBodyWithPixel);
+                forwardToN8n(lead.getEmail(), personalizedSubject, finalBodyWithPixel, null);
 
                 // If it succeeds, finalize the DB updates
                 interaction.setContent(finalBodyWithPixel);
@@ -113,17 +115,19 @@ public class MassActionService {
 
 
     @Transactional
-    public void sendManualEmail(SimulatedEmailDto request) {
+    public void sendManualEmail(String email, String subject, String body, List<MultipartFile> files) {
         // 1. Fetch the lead to ensure it exists and to link the interaction
-        Lead lead = leadRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Lead not found with email: " + request.getEmail()));
+        Lead lead = leadRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Lead not found with email: " + email));
 
         // 2. Create the Interaction record (MANUAL type)
         String companyName = (lead.getCompanyName() != null && !lead.getCompanyName().isEmpty())
                 ? lead.getCompanyName()
                 : "votre entreprise";
-        String personalizedSubject = request.getSubject().replace("{{company}}", companyName);
-        String personalizedBody = request.getBody().replace("{{company}}", companyName);
+
+        String personalizedSubject = subject.replace("{{company}}", companyName);
+        String personalizedBody    = body.replace("{{company}}", companyName);
+
         Interaction interaction = new Interaction();
         interaction.setLead(lead);
         interaction.setChannel("EMAIL");
@@ -134,6 +138,29 @@ public class MassActionService {
 
         // Save first to get the ID for the tracking pixel
         interaction = interactionRepository.save(interaction);
+
+        // Save attachments if provided
+        String attachmentUrlsJson = null;
+        if (files != null && !files.isEmpty()) {
+            try {
+                String uploadDir = System.getProperty("user.dir") + "/uploads/interactions/";                Files.createDirectories(Paths.get(uploadDir));
+                List<String> urls = new ArrayList<>();
+                for (MultipartFile file : files) {
+                    if (!file.isEmpty()) {
+                        String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
+                        Path filePath = Paths.get(uploadDir + fileName);
+                        Files.write(filePath, file.getBytes());
+                        urls.add("/uploads/interactions/" + fileName);
+                    }
+                }
+                if (!urls.isEmpty()) {
+                    attachmentUrlsJson = new ObjectMapper().writeValueAsString(urls);
+                    interaction.setAttachmentUrls(attachmentUrlsJson);
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to save attachments: " + e.getMessage());
+            }
+        }
 
         // 3. Inject the Spy Pixel
         //String trackingUrl = "https://info-contribution-aims-lightweight.trycloudflare.com/api/tracking/open/" + interaction.getId();
@@ -151,18 +178,20 @@ public class MassActionService {
         }
 
         // 4. Forward to the same n8n Webhook
-        forwardToN8n(request.getEmail(), request.getSubject(), finalBodyWithPixel);
-    }
+        forwardToN8n(email, subject, finalBodyWithPixel, attachmentUrlsJson);    }
 
     // Helper method to keep code clean
-    private void forwardToN8n(String email, String subject, String body) {
-        RestTemplate restTemplate = new RestTemplate();
-        String n8nWebhookUrl = "http://localhost:5678/webhook/send-email";
+    private void forwardToN8n(String email, String subject, String body, String attachmentUrlsJson) {
+        RestTemplate restTemplate  = new RestTemplate();
+        String       n8nWebhookUrl = "http://localhost:5678/webhook/send-email";
 
-        Map<String, String> payload = new HashMap<>();
-        payload.put("email", email);
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("email",   email);
         payload.put("subject", subject);
-        payload.put("body", body);
+        payload.put("body",    body);
+        if (attachmentUrlsJson != null) {
+            payload.put("attachmentUrls", attachmentUrlsJson);
+        }
 
         try {
             restTemplate.postForObject(n8nWebhookUrl, payload, String.class);

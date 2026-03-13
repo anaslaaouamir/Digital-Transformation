@@ -13,10 +13,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class ClaudeService {
@@ -115,7 +117,7 @@ public class ClaudeService {
     // ══════════════════════════════════════════════════════════════
 
     @Transactional
-    public SimulatedEmailDto generateAndSendClaudeEmail(String email, String userPrompt) {
+    public SimulatedEmailDto generateAndSendClaudeEmail(String email, String userPrompt, List<MultipartFile> files) {
 
         if (email == null || email.isBlank()) {
             throw new RuntimeException("Email is required");
@@ -132,6 +134,28 @@ public class ClaudeService {
         interaction.setSentAt(LocalDateTime.now());
         interaction = interactionRepository.save(interaction);
 
+        String attachmentUrlsJson = null;
+        if (files != null && !files.isEmpty()) {
+            try {
+                String uploadDir = System.getProperty("user.dir") + "/uploads/interactions/";
+                Files.createDirectories(Paths.get(uploadDir));
+                List<String> urls = new ArrayList<>();
+                for (MultipartFile file : files) {
+                    if (!file.isEmpty()) {
+                        String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
+                        Files.write(Paths.get(uploadDir + fileName), file.getBytes());
+                        urls.add("/uploads/interactions/" + fileName);
+                    }
+                }
+                if (!urls.isEmpty()) {
+                    attachmentUrlsJson = new ObjectMapper().writeValueAsString(urls);
+                    interaction.setAttachmentUrls(attachmentUrlsJson);
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to save attachments: " + e.getMessage());
+            }
+        }
+
         String trackingUrl = trackingBaseUrl + "/api/tracking/open/" + interaction.getId();
         String pixelHtml   = "<img src=\"" + trackingUrl + "\" width=\"1\" height=\"1\" "
                            + "alt=\"\" style=\"display:none;\"/>";
@@ -141,6 +165,10 @@ public class ClaudeService {
         payload.put("lead",       lead);
         payload.put("userPrompt", userPrompt);
         payload.put("pixelHtml",  pixelHtml);
+
+        if (attachmentUrlsJson != null) {
+            payload.put("attachmentUrls", attachmentUrlsJson);
+        }
 
         RestTemplate restTemplate  = new RestTemplate();
         String       n8nWebhookUrl = "http://localhost:5678/webhook/generate_email1";

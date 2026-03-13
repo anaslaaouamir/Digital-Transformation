@@ -4,9 +4,12 @@ import com.stage.leadintelligencesystem.dto.ClaudeGenerateDto;
 import com.stage.leadintelligencesystem.dto.SimulatedEmailDto;
 import com.stage.leadintelligencesystem.dto.SimulatedWhatsAppDto;
 import com.stage.leadintelligencesystem.services.ClaudeService;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -43,13 +46,13 @@ public class ClaudeController {
     /**
      * GENERATE + SEND email — saves interaction, appends pixel, fires Gmail via n8n.
      */
-    @PostMapping("/generate-and-send")
-    public ResponseEntity<?> generateAndSend(@RequestBody Map<String, Object> request) {
+    @PostMapping(value = "/generate-and-send", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> generateAndSend(
+            @RequestPart("email") String email,
+            @RequestPart("userPrompt") String userPrompt,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files) {
         try {
-            String email      = request.get("email").toString();
-            String userPrompt = request.get("userPrompt").toString();
-
-            SimulatedEmailDto result = claudeService.generateAndSendClaudeEmail(email, userPrompt);
+            SimulatedEmailDto result = claudeService.generateAndSendClaudeEmail(email, userPrompt, files);
             return ResponseEntity.ok(result);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest()

@@ -35,6 +35,9 @@ public class Interaction {
     @Column(columnDefinition = "TEXT")
     private String content;
 
+    @Column(name = "attachment_urls", columnDefinition = "TEXT")
+    private String attachmentUrls;
+
     private LocalDateTime scheduledAt;
     private LocalDateTime sentAt;
     private LocalDateTime openedAt;

@@ -29,4 +29,7 @@ public class SequenceEnrollment {
     private String status = "ACTIVE";
 
     private LocalDateTime nextExecutionDate;
+
+    @Column(name = "attachment_urls", columnDefinition = "TEXT")
+    private String attachmentUrls;
 }

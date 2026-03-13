@@ -1,5 +1,6 @@
 package com.stage.leadintelligencesystem.services;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stage.leadintelligencesystem.dto.IncomingReplyDto;
 import com.stage.leadintelligencesystem.dto.SimulatedEmailDto;
 import com.stage.leadintelligencesystem.entities.*;
@@ -7,11 +8,15 @@ import com.stage.leadintelligencesystem.repositories.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class SequenceService {
@@ -136,7 +141,12 @@ public class SequenceService {
 
             // 5. Add to the list for n8n
             // IMPORTANT CHANGE: Send finalBodyWithPixel to n8n, not the original body
-            emailsToSend.add(new SimulatedEmailDto(lead.getId(), lead.getEmail(), subject, finalBodyWithPixel));
+            String attachmentUrlsJson = enrollment.getAttachmentUrls();
+            if (attachmentUrlsJson != null) {
+                interaction.setAttachmentUrls(attachmentUrlsJson);
+                interactionRepository.save(interaction);
+            }
+            emailsToSend.add(new SimulatedEmailDto(lead.getId(), lead.getEmail(), subject, finalBodyWithPixel, attachmentUrlsJson));
 
             // 6. ADVANCE TO NEXT STEP (The "Move Forward" Logic)
             // Check if there is a next step (e.g. Step 1 -> Step 2)
@@ -302,5 +312,32 @@ public class SequenceService {
 
         lead.setContactStatus(newStatus);
         leadRepository.save(lead);
+    }
+
+
+
+    @Transactional
+    public void attachFilesToEnrollment(Long enrollmentId, List<MultipartFile> files) {
+        SequenceEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new RuntimeException("Enrollment not found: " + enrollmentId));
+
+        try {
+            String uploadDir = System.getProperty("user.dir") + "/uploads/interactions/";
+            Files.createDirectories(Paths.get(uploadDir));
+            List<String> urls = new ArrayList<>();
+            for (MultipartFile file : files) {
+                if (!file.isEmpty()) {
+                    String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
+                    Files.write(Paths.get(uploadDir + fileName), file.getBytes());
+                    urls.add("/uploads/interactions/" + fileName);
+                }
+            }
+            if (!urls.isEmpty()) {
+                enrollment.setAttachmentUrls(new ObjectMapper().writeValueAsString(urls));
+                enrollmentRepository.save(enrollment);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to save attachments: " + e.getMessage());
+        }
     }
 }
