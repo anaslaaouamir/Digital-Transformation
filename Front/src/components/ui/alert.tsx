@@ -61,7 +61,7 @@ const alertVariants = cva('flex items-stretch w-full gap-2 group-[.toaster]:w-(-
       variant: 'info',
       appearance: 'solid',
       className:
-        'bg-[var(--color-info,var(--color-violet-600))] text-[var(--color-info-foreground,var(--color-white))]',
+        'bg-[var(--color-info,rgb(15,23,42))] text-[var(--color-info-foreground,var(--color-white))]',
     },
     {
       variant: 'warning',
@@ -101,7 +101,7 @@ const alertVariants = cva('flex items-stretch w-full gap-2 group-[.toaster]:w-(-
       variant: 'info',
       appearance: 'outline',
       className:
-        'border border-border bg-background text-[var(--color-info,var(--color-violet-600))] [&_[data-slot=alert-close]]:text-foreground',
+        'border border-border bg-background text-[var(--color-info,rgb(15,23,42))] [&_[data-slot=alert-close]]:text-foreground',
     },
     {
       variant: 'warning',
@@ -143,7 +143,7 @@ const alertVariants = cva('flex items-stretch w-full gap-2 group-[.toaster]:w-(-
       variant: 'info',
       appearance: 'light',
       className:
-        'bg-[var(--color-info-soft,var(--color-violet-50))] border border-[var(--color-info-alpha,var(--color-violet-100))] text-foreground [&_[data-slot=alert-icon]]:text-[var(--color-info-foreground,var(--color-violet-600))] dark:bg-[var(--color-info-soft,var(--color-violet-950))] dark:border-[var(--color-info-alpha,var(--color-violet-900))]',
+        'bg-[var(--color-info-soft,var(--color-violet-50))] border border-[var(--color-info-alpha,var(--color-violet-100))] text-foreground [&_[data-slot=alert-icon]]:text-[var(--color-info-foreground,rgb(15,23,42))] dark:bg-[var(--color-info-soft,var(--color-violet-950))] dark:border-[var(--color-info-alpha,var(--color-violet-900))]',
     },
     {
       variant: 'warning',
@@ -176,7 +176,7 @@ const alertVariants = cva('flex items-stretch w-full gap-2 group-[.toaster]:w-(-
     {
       variant: 'mono',
       icon: 'info',
-      className: '[&_[data-slot=alert-icon]]:text-[var(--color-info-foreground,var(--color-violet-600))]',
+      className: '[&_[data-slot=alert-icon]]:text-[var(--color-info-foreground,rgb(15,23,42))]',
     },
   ],
   defaultVariants: {

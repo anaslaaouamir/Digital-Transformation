@@ -120,7 +120,18 @@ export const MENU_SIDEBAR: MenuConfig = [
           { title: 'User Profile', path: '/account/home/user-profile' },
           { title: 'Company Profile', path: '/account/home/company-profile' },
           { title: 'tiers', path: '/account/members/tiers' },
-          { title: 'Leads', path: '/account/crm/leads' },
+          {
+            title: 'Leads',
+            path: '/account/crm/leads',
+            children: [
+              { title: 'Dashboard',  path: '/account/crm/leads?v=dashboard' },
+              { title: 'Scan',       path: '/account/crm/leads?v=scan' },
+              { title: 'Prospects',  path: '/account/crm/leads?v=leads' },
+              { title: 'CRM',        path: '/account/crm/leads?v=crm' },
+              { title: 'Interactions', path: '/account/crm/leads?v=messenger' },
+              { title: 'Templates',  path: '/account/crm/leads?v=templates' },
+            ],
+          },
           {
             title: 'Settings - With Sidebar',
             path: '/account/home/settings-sidebar',

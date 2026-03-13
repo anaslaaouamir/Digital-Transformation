@@ -24,9 +24,26 @@ function ToolbarActions({ children }: { children?: ReactNode }) {
 }
 
 function ToolbarBreadcrumbs() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const { getBreadcrumb, isActive } = useMenu(pathname);
   const items: MenuItem[] = getBreadcrumb(MENU_SIDEBAR);
+
+  // Add Leads sub-view label when navigating with ?v=...
+  let extra: MenuItem[] = [];
+  try {
+    const v = new URLSearchParams(search).get('v') || '';
+    const map: Record<string, string> = {
+      dashboard: 'Dashboard',
+      scan: 'Scan',
+      leads: 'Prospects',
+      crm: 'CRM',
+      messenger: 'Interactions',
+      templates: 'Templates',
+    };
+    if (pathname.startsWith('/account/crm/leads') && v && map[v]) {
+      extra = [{ title: map[v] }];
+    }
+  } catch {}
 
   if (items.length === 0) {
     return null;
@@ -35,8 +52,8 @@ function ToolbarBreadcrumbs() {
   return (
     <div className="flex [.header_&]:below-lg:hidden items-center gap-1.25 text-xs lg:text-sm font-medium mb-2.5 lg:mb-0">
       <div className="breadcrumb flex items-center gap-1">
-        {items.map((item, index) => {
-          const isLast = index === items.length - 1;
+        {[...items, ...extra].map((item, index, arr) => {
+          const isLast = index === arr.length - 1;
           const active = item.path ? isActive(item.path) : false;
 
           return (

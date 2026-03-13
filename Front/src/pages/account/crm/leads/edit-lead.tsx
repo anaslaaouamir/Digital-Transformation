@@ -2,25 +2,18 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { cn } from '@/lib/utils';
 
 // ── FA helper ─────────────────────────────────────────────────────────────────
 const Fa = ({ icon, className = '' }: { icon: string; className?: string }) => (
   <i className={`${icon} ${className}`} aria-hidden="true" />
 );
 
-// ── API gateway (same pattern as all other pages) ─────────────────────────────
+// ── API gateway ───────────────────────────────────────────────────────────────
 const gateway = axios.create({
   baseURL: (import.meta as any).env?.VITE_GATEWAY_BASE_URL || 'http://localhost:8081/api',
 });
 
-// ── Moroccan cities (shared with account-basic-content) ───────────────────────
+// ── Moroccan cities ───────────────────────────────────────────────────────────
 const MOROCCAN_REGIONS: Record<string, string[]> = {
   'Casablanca-Settat':        ['Casablanca','Mohammedia','El Jadida','Settat','Berrechid','Benslimane'],
   'Rabat-Salé-Kénitra':       ['Rabat','Salé','Kénitra','Témara','Skhirat'],
@@ -31,10 +24,6 @@ const MOROCCAN_REGIONS: Record<string, string[]> = {
   'Oriental':                  ['Oujda','Nador','Berkane','Taourirt'],
   'Drâa-Tafilalet':            ['Ouarzazate','Errachidia','Zagora','Tinghir'],
 };
-// Flat sorted list for the dropdown
-const ALL_CITIES = Object.entries(MOROCCAN_REGIONS).flatMap(([region, cities]) =>
-  cities.map(city => ({ city, region }))
-);
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type DecisionMaker = {
@@ -81,12 +70,11 @@ type Enrollment = {
 };
 
 // ── Validation ────────────────────────────────────────────────────────────────
-const isValidEmail   = (v: string) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-const isValidUrl     = (v: string) => !v || /^https?:\/\/.+/.test(v);
+const isValidEmail    = (v: string) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+const isValidUrl      = (v: string) => !v || /^https?:\/\/.+/.test(v);
 const isValidLinkedIn = (v: string) => !v || v.includes('linkedin.com');
-// ADD this on line 87:
-const isValidPhone = (v: string) =>
-    !v || /^(2126\d{8}|2127\d{8}|05\d{8})$/.test(v.replace(/[\s\-\.]/g, ''));
+const isValidPhone    = (v: string) =>
+  !v || /^(2126\d{8}|2127\d{8}|05\d{8})$/.test(v.replace(/[\s\-\.]/g, ''));
 
 function normalizeUrl(v: string): string {
   if (!v) return v;
@@ -96,43 +84,39 @@ function normalizeUrl(v: string): string {
 
 // ── Temperature config ────────────────────────────────────────────────────────
 const TEMPERATURES = [
-  { k: 'hot',  label: 'Chaud', icon: 'fa-solid fa-fire',            badge: 'bg-red-50 text-red-700 border-red-200'       },
-  { k: 'warm', label: 'Tiède', icon: 'fa-solid fa-temperature-half', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
-  { k: 'cold', label: 'Froid', icon: 'fa-solid fa-snowflake',        badge: 'bg-slate-50 text-slate-600 border-slate-200' },
+  { k: 'hot',  label: 'Chaud', icon: 'fa-solid fa-fire',             color: 'text-rose-500',   bg: 'bg-rose-50 border-rose-200 text-rose-700'   },
+  { k: 'warm', label: 'Tiède', icon: 'fa-solid fa-temperature-half', color: 'text-amber-500',  bg: 'bg-amber-50 border-amber-200 text-amber-700' },
+  { k: 'cold', label: 'Froid', icon: 'fa-solid fa-snowflake',        color: 'text-sky-500',    bg: 'bg-sky-50 border-sky-200 text-sky-700'       },
 ];
 
-// ── Sequence step progress bar ────────────────────────────────────────────────
-function SequenceStepBar({ current, total }: { current: number; total: number }) {
+// ── Reusable UI primitives ────────────────────────────────────────────────────
+
+function SectionCard({ title, icon, badge, action, children }: {
+  title: string; icon: string; badge?: React.ReactNode; action?: React.ReactNode; children: React.ReactNode;
+}) {
   return (
-    <div className="flex items-center gap-1.5">
-      {Array.from({ length: total }, (_, i) => (
-        <div
-          key={i}
-          className={cn(
-            'h-2 flex-1 rounded-full transition-all',
-            i < current  ? 'bg-indigo-500' :
-            i === current - 1 ? 'bg-indigo-500' :
-            'bg-slate-200'
-          )}
-        />
-      ))}
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/60">
+        <div className="flex items-center gap-3">
+          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-100 text-[rgb(15,23,42)]">
+            <Fa icon={icon} className="text-xs" />
+          </span>
+          <h3 className="text-sm font-semibold text-gray-800 tracking-tight">{title}</h3>
+          {badge}
+        </div>
+        {action}
+      </div>
+      <div className="p-6">{children}</div>
     </div>
   );
 }
 
-// ── Field + input helpers ─────────────────────────────────────────────────────
-function Field({ label, icon, error, children }: {
-  label: string; icon: string; error?: string; children: React.ReactNode;
-}) {
+function FieldLabel({ icon, label }: { icon: string; label: string }) {
   return (
-    <div className="space-y-1.5">
-      <label className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-        <Fa icon={icon} className="text-[11px]" />
-        {label}
-      </label>
-      {children}
-      {error && <p className="text-[11px] font-medium text-red-500">{error}</p>}
-    </div>
+    <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+      <Fa icon={icon} className="text-[10px] text-gray-400" />
+      {label}
+    </label>
   );
 }
 
@@ -146,65 +130,133 @@ function TextInput({ value, onChange, placeholder = '', type = 'text', invalid =
       value={value ?? ''}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      className={cn(
-        'w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-300 outline-none transition focus:ring-2 focus:ring-slate-100',
-        invalid ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-slate-400'
-      )}
+      className={`
+        w-full h-10 rounded-xl border px-3.5 text-sm text-gray-800 placeholder-gray-300 bg-white outline-none
+        transition-all duration-150
+        focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400
+        ${invalid
+          ? 'border-rose-300 bg-rose-50/30 focus:border-rose-400 focus:ring-rose-500/20'
+          : 'border-gray-200 hover:border-gray-300'}
+      `}
     />
   );
 }
 
-// ── Decision maker card ───────────────────────────────────────────────────────
+function SelectInput({ value, onChange, children }: {
+  value: string | number | null; onChange: (v: string) => void; children: React.ReactNode;
+}) {
+  return (
+    <div className="relative">
+      <select
+        value={value ?? ''}
+        onChange={e => onChange(e.target.value)}
+        className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3.5 pr-9 text-sm text-gray-800 outline-none appearance-none
+          transition-all duration-150 hover:border-gray-300
+          focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+      >
+        {children}
+      </select>
+      <Fa icon="fa-solid fa-chevron-down" className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none" />
+    </div>
+  );
+}
+
+function ValidationError({ msg }: { msg?: string }) {
+  if (!msg) return null;
+  return (
+    <p className="flex items-center gap-1 mt-1.5 text-[11px] font-medium text-rose-500">
+      <Fa icon="fa-solid fa-circle-exclamation" className="text-[10px]" />
+      {msg}
+    </p>
+  );
+}
+
+function ReadOnlyRow({ icon, label, value, valueClass = '' }: {
+  icon: string; label: string; value: React.ReactNode; valueClass?: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 h-10 px-3.5 rounded-xl bg-gray-50 border border-gray-100">
+      <Fa icon={icon} className="text-[11px] text-gray-400 shrink-0" />
+      <span className="text-xs text-gray-400 w-28 shrink-0">{label}</span>
+      <span className={`text-sm font-semibold text-gray-700 ${valueClass}`}>{value}</span>
+    </div>
+  );
+}
+
+// ── Sequence step progress ────────────────────────────────────────────────────
+function SequenceProgress({ current, total }: { current: number; total: number }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-1.5">
+        {Array.from({ length: total }, (_, i) => (
+          <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${i < current ? 'bg-violet-500' : 'bg-gray-200'}`} />
+        ))}
+      </div>
+      <div className="flex justify-between text-[10px] text-gray-400 font-medium">
+        <span>Début</span>
+        <span className="text-violet-500 font-semibold">{current}/{total} étapes</span>
+        <span>Fin</span>
+      </div>
+    </div>
+  );
+}
+
+// ── Decision Maker Card ───────────────────────────────────────────────────────
 function DecisionMakerCard({ dm, index, onChange, onDelete }: {
   dm: DecisionMaker; index: number;
   onChange: (field: keyof DecisionMaker, value: string) => void;
   onDelete: () => void;
 }) {
   return (
-    <div className="relative rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-600">
+    <div className="rounded-xl border border-gray-200 bg-gray-50/50 overflow-hidden group">
+      {/* Card header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-violet-100 text-[rgb(15,23,42)] text-xs font-bold">
             {index + 1}
-          </span>
-          <span className="text-sm font-semibold text-slate-700">
-            {dm.fullName || 'Nouveau contact'}
-          </span>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-800">{dm.fullName || 'Nouveau contact'}</p>
+            {dm.title && <p className="text-[11px] text-gray-400">{dm.title}</p>}
+          </div>
           {dm.isNew && (
-            <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold text-teal-700">
+            <span className="rounded-full bg-teal-100 px-2.5 py-0.5 text-[10px] font-bold text-teal-700 uppercase tracking-wide">
               Nouveau
             </span>
           )}
         </div>
         <button
           onClick={onDelete}
-          className="flex size-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+          className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-300 transition-all hover:bg-rose-50 hover:text-rose-500 opacity-0 group-hover:opacity-100"
         >
-          <Fa icon="fa-solid fa-trash-can" className="text-[12px]" />
+          <Fa icon="fa-solid fa-trash-can" className="text-xs" />
         </button>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Nom complet" icon="fa-solid fa-user">
+
+      {/* Card body */}
+      <div className="p-4 grid gap-4 sm:grid-cols-2">
+        <div>
+          <FieldLabel icon="fa-solid fa-user" label="Nom complet" />
           <TextInput value={dm.fullName} onChange={v => onChange('fullName', v)} placeholder="Prénom Nom" />
-        </Field>
-        <Field label="Poste / Titre" icon="fa-solid fa-briefcase">
+        </div>
+        <div>
+          <FieldLabel icon="fa-solid fa-briefcase" label="Poste / Titre" />
           <TextInput value={dm.title} onChange={v => onChange('title', v)} placeholder="Directeur, CEO..." />
-        </Field>
-        <Field label="Email" icon="fa-solid fa-envelope"
-          error={dm.email && !isValidEmail(dm.email) ? 'Email invalide' : undefined}>
-          <TextInput value={dm.email} onChange={v => onChange('email', v)}
-            placeholder="contact@entreprise.ma" type="email"
-            invalid={!!dm.email && !isValidEmail(dm.email)} />
-        </Field>
-        <Field label="Téléphone direct" icon="fa-solid fa-phone">
+        </div>
+        <div>
+          <FieldLabel icon="fa-solid fa-envelope" label="Email" />
+          <TextInput value={dm.email} onChange={v => onChange('email', v)} placeholder="contact@entreprise.ma" type="email" invalid={!!dm.email && !isValidEmail(dm.email)} />
+          <ValidationError msg={dm.email && !isValidEmail(dm.email) ? 'Email invalide' : undefined} />
+        </div>
+        <div>
+          <FieldLabel icon="fa-solid fa-phone" label="Téléphone direct" />
           <TextInput value={dm.directPhone} onChange={v => onChange('directPhone', v)} placeholder="+212 6XX XXX XXX" />
-        </Field>
-        <Field label="LinkedIn" icon="fa-brands fa-linkedin"
-          error={dm.linkedinUrl && !isValidLinkedIn(dm.linkedinUrl) ? 'URL LinkedIn invalide' : undefined}>
-          <TextInput value={dm.linkedinUrl} onChange={v => onChange('linkedinUrl', v)}
-            placeholder="https://linkedin.com/in/..."
-            invalid={!!dm.linkedinUrl && !isValidLinkedIn(dm.linkedinUrl)} />
-        </Field>
+        </div>
+        <div className="sm:col-span-2">
+          <FieldLabel icon="fa-brands fa-linkedin" label="LinkedIn" />
+          <TextInput value={dm.linkedinUrl} onChange={v => onChange('linkedinUrl', v)} placeholder="https://linkedin.com/in/..." invalid={!!dm.linkedinUrl && !isValidLinkedIn(dm.linkedinUrl)} />
+          <ValidationError msg={dm.linkedinUrl && !isValidLinkedIn(dm.linkedinUrl) ? 'URL LinkedIn invalide' : undefined} />
+        </div>
       </div>
     </div>
   );
@@ -224,85 +276,58 @@ export function LeadEditView({ leadId, onClose, onSaved }: {
   const [cancelling, setCancelling] = useState(false);
   const [error,      setError]      = useState<string | null>(null);
   const [saved,      setSaved]      = useState(false);
-
-  // ── Validation errors state ────────────────────────────────────────────────
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     try {
       const [leadResp, secteursResp, enrollmentResp] = await Promise.all([
         gateway.get(`/leads/${leadId}`),
         gateway.get('/leads/secteurs'),
         gateway.get(`/leads/${leadId}/enrollment`).catch(e => {
-          // 204 No Content means no active enrollment — that's fine
-          if (e?.response?.status === 204 || e?.response?.status === 404) return { data: null, status: 204 };
-          return { data: null, status: 204 };
+          if (e?.response?.status === 204 || e?.response?.status === 404) return { data: null };
+          return { data: null };
         }),
       ]);
-
       const l = leadResp.data;
       setLead({
-        id:             l.id,
-        companyName:    l.companyName    ?? '',
-        address:        l.address        ?? '',
-        city:           l.city           ?? '',
-        phoneNumber:    l.phoneNumber    ?? '',
-        email:          l.email          ?? '',
-        website:        l.website        ?? '',
-        linkedinUrl:    l.linkedinUrl    ?? '',
-        employeeCount:  l.employeeCount  ?? '',
-        revenueCapital: l.revenueCapital ?? '',
-        googleRating:   l.googleRating   ?? null,
-        googleReviews:  l.googleReviews  ?? null,
-        aiScore:        l.aiScore        ?? null,
-        temperature:    (l.temperature   ?? 'cold').toLowerCase(),
-        contactStatus:  l.contactStatus  ?? 'NON_CONTACTE',
-        secteurId:      l.secteurId      ?? null,
-        secteurName:    l.secteurName    ?? '',
+        id: l.id, companyName: l.companyName ?? '', address: l.address ?? '',
+        city: l.city ?? '', phoneNumber: l.phoneNumber ?? '', email: l.email ?? '',
+        website: l.website ?? '', linkedinUrl: l.linkedinUrl ?? '',
+        employeeCount: l.employeeCount ?? '', revenueCapital: l.revenueCapital ?? '',
+        googleRating: l.googleRating ?? null, googleReviews: l.googleReviews ?? null,
+        aiScore: l.aiScore ?? null, temperature: (l.temperature ?? 'cold').toLowerCase(),
+        contactStatus: l.contactStatus ?? 'NON_CONTACTE', secteurId: l.secteurId ?? null,
+        secteurName: l.secteurName ?? '',
         decisionMakers: (l.decisionMakers ?? []).map((dm: any) => ({
           id: dm.id, fullName: dm.fullName ?? '', title: dm.title ?? '',
           email: dm.email ?? '', directPhone: dm.directPhone ?? '', linkedinUrl: dm.linkedinUrl ?? '',
         })),
       });
-
       setSecteurs(secteursResp.data ?? []);
       setEnrollment(enrollmentResp?.data ?? null);
     } catch (err: any) {
-      console.error('[LeadEdit] fetch failed', err);
       setError('Impossible de charger les données du prospect.');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, [leadId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // ── Validate before save ───────────────────────────────────────────────────
   const validate = (): boolean => {
     if (!lead) return false;
     const errs: Record<string, string> = {};
-    if (lead.email && !isValidEmail(lead.email))
-      errs.email = 'Adresse email invalide';
-    if (lead.website && !isValidUrl(normalizeUrl(lead.website)))
-      errs.website = 'URL invalide (doit commencer par http:// ou https://)';
-    if (lead.phoneNumber && !isValidPhone(lead.phoneNumber))
-        errs.phoneNumber = 'Format invalide — ex: 2126XXXXXXXX, 2127XXXXXXXX ou 05XXXXXXXX';
-    if (lead.linkedinUrl && !isValidLinkedIn(lead.linkedinUrl))
-      errs.linkedinUrl = 'URL LinkedIn invalide';
+    if (lead.email && !isValidEmail(lead.email)) errs.email = 'Adresse email invalide';
+    if (lead.website && !isValidUrl(normalizeUrl(lead.website))) errs.website = 'URL invalide';
+    if (lead.phoneNumber && !isValidPhone(lead.phoneNumber)) errs.phoneNumber = 'Format invalide — ex: 2126XXXXXXXX';
+    if (lead.linkedinUrl && !isValidLinkedIn(lead.linkedinUrl)) errs.linkedinUrl = 'URL LinkedIn invalide';
     lead.decisionMakers.forEach((dm, i) => {
-      if (dm.email && !isValidEmail(dm.email))
-        errs[`dm_email_${i}`] = 'Email invalide';
-      if (dm.linkedinUrl && !isValidLinkedIn(dm.linkedinUrl))
-        errs[`dm_linkedin_${i}`] = 'URL LinkedIn invalide';
+      if (dm.email && !isValidEmail(dm.email)) errs[`dm_email_${i}`] = 'Email invalide';
+      if (dm.linkedinUrl && !isValidLinkedIn(dm.linkedinUrl)) errs[`dm_linkedin_${i}`] = 'URL LinkedIn invalide';
     });
     setValidationErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  // ── Field updaters ─────────────────────────────────────────────────────────
   const setField = (field: keyof LeadDetail, value: any) => {
     setLead(prev => prev ? { ...prev, [field]: value } : prev);
     setValidationErrors(prev => { const n = { ...prev }; delete n[field as string]; return n; });
@@ -311,8 +336,7 @@ export function LeadEditView({ leadId, onClose, onSaved }: {
   const addDecisionMaker = () =>
     setLead(prev => prev ? {
       ...prev,
-      decisionMakers: [...prev.decisionMakers,
-        { fullName: '', title: '', email: '', directPhone: '', linkedinUrl: '', isNew: true }],
+      decisionMakers: [...prev.decisionMakers, { fullName: '', title: '', email: '', directPhone: '', linkedinUrl: '', isNew: true }],
     } : prev);
 
   const updateDecisionMaker = (index: number, field: keyof DecisionMaker, value: string) =>
@@ -331,102 +355,65 @@ export function LeadEditView({ leadId, onClose, onSaved }: {
       return { ...prev, decisionMakers: dms };
     });
 
-  // ── Save ───────────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!lead || !validate()) return;
-    setSaving(true);
-    setError(null);
+    setSaving(true); setError(null);
     try {
-      // Normalize URLs before sending
-      const website    = normalizeUrl(lead.website);
-      const linkedinUrl = lead.linkedinUrl;
-
+      const website = normalizeUrl(lead.website);
       await gateway.put(`/leads/${lead.id}`, {
-        companyName:    lead.companyName,
-        address:        lead.address,
-        city:           lead.city,
-        phoneNumber:    lead.phoneNumber,
-        email:          lead.email,
-        website,
-        linkedinUrl,
-        employeeCount:  lead.employeeCount,
-        revenueCapital: lead.revenueCapital,
-        temperature:    lead.temperature.toUpperCase(),
-        secteurId:      lead.secteurId,
+        companyName: lead.companyName, address: lead.address, city: lead.city,
+        phoneNumber: lead.phoneNumber, email: lead.email, website, linkedinUrl: lead.linkedinUrl,
+        employeeCount: lead.employeeCount, revenueCapital: lead.revenueCapital,
+        temperature: lead.temperature.toUpperCase(), secteurId: lead.secteurId,
       });
-
-      // Decision makers: sync against fresh server state
       const freshResp = await gateway.get(`/leads/${lead.id}`);
       const existingIds: number[] = (freshResp.data.decisionMakers ?? []).map((d: any) => d.id);
       const currentIds = lead.decisionMakers.filter(d => d.id).map(d => d.id as number);
-
       await Promise.all([
-        // Delete removed ones
-        ...existingIds.filter(id => !currentIds.includes(id)).map(dmId =>
-          gateway.delete(`/leads/${lead.id}/decision-makers/${dmId}`)
-        ),
-        // Create new ones
-        ...lead.decisionMakers.filter(d => !d.id).map(dm =>
-          gateway.post(`/leads/${lead.id}/decision-makers`, {
-            fullName: dm.fullName, title: dm.title, email: dm.email,
-            directPhone: dm.directPhone, linkedinUrl: dm.linkedinUrl,
-          })
-        ),
-        // Update existing ones
-        ...lead.decisionMakers.filter(d => d.id).map(dm =>
-          gateway.put(`/leads/${lead.id}/decision-makers/${dm.id}`, {
-            fullName: dm.fullName, title: dm.title, email: dm.email,
-            directPhone: dm.directPhone, linkedinUrl: dm.linkedinUrl,
-          })
-        ),
+        ...existingIds.filter(id => !currentIds.includes(id)).map(dmId => gateway.delete(`/leads/${lead.id}/decision-makers/${dmId}`)),
+        ...lead.decisionMakers.filter(d => !d.id).map(dm => gateway.post(`/leads/${lead.id}/decision-makers`, { fullName: dm.fullName, title: dm.title, email: dm.email, directPhone: dm.directPhone, linkedinUrl: dm.linkedinUrl })),
+        ...lead.decisionMakers.filter(d => d.id).map(dm => gateway.put(`/leads/${lead.id}/decision-makers/${dm.id}`, { fullName: dm.fullName, title: dm.title, email: dm.email, directPhone: dm.directPhone, linkedinUrl: dm.linkedinUrl })),
       ]);
-
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
       onSaved?.();
-    } catch (err: any) {
-      console.error('[LeadEdit] save failed', err);
-      setError('Erreur lors de la sauvegarde.');
-    } finally {
-      setSaving(false);
-    }
+    } catch { setError('Erreur lors de la sauvegarde.'); }
+    finally { setSaving(false); }
   };
 
-  // ── Cancel sequence ────────────────────────────────────────────────────────
   const handleCancelSequence = async () => {
-    if (!lead) return;
-    if (!window.confirm('Annuler la séquence pour ce prospect ?')) return;
+    if (!lead || !window.confirm('Annuler la séquence pour ce prospect ?')) return;
     setCancelling(true);
     try {
       await gateway.post(`/sequences/cancel/${lead.id}`);
       setEnrollment(null);
       setLead(prev => prev ? { ...prev, contactStatus: 'NON_CONTACTE' } : prev);
-    } catch (err: any) {
-      console.error('[LeadEdit] cancel sequence failed', err);
-      setError('Impossible d\'annuler la séquence.');
-    } finally {
-      setCancelling(false);
-    }
+    } catch { setError("Impossible d'annuler la séquence."); }
+    finally { setCancelling(false); }
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-sm text-slate-400">
-        <Fa icon="fa-solid fa-spinner fa-spin" className="mr-2 text-base" />
-        Chargement du prospect...
+      <div className="flex flex-col items-center justify-center py-24 gap-3">
+        <div className="w-10 h-10 rounded-full border-2 border-violet-200 border-t-violet-500 animate-spin" />
+        <p className="text-sm text-gray-400 font-medium">Chargement du prospect...</p>
       </div>
     );
   }
 
   if (error && !lead) {
     return (
-      <div className="flex flex-col items-center gap-3 py-20 text-center">
-        <Fa icon="fa-solid fa-circle-exclamation" className="text-2xl text-red-400" />
-        <p className="text-sm font-medium text-red-600">{error}</p>
-        <button onClick={fetchData}
-          className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-400">
-          <Fa icon="fa-solid fa-rotate-right" className="mr-1.5" /> Réessayer
+      <div className="flex flex-col items-center gap-4 py-24 text-center">
+        <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center">
+          <Fa icon="fa-solid fa-circle-exclamation" className="text-xl text-rose-500" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-gray-800">Erreur de chargement</p>
+          <p className="text-xs text-gray-400 mt-0.5">{error}</p>
+        </div>
+        <button onClick={fetchData} className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:border-gray-400 transition-colors">
+          <Fa icon="fa-solid fa-rotate-right" /> Réessayer
         </button>
       </div>
     );
@@ -434,311 +421,257 @@ export function LeadEditView({ leadId, onClose, onSaved }: {
 
   if (!lead) return null;
 
-  return (
-    <div className="grid gap-5">
+  const tempConfig = TEMPERATURES.find(t => t.k === lead.temperature);
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <button onClick={onClose}
-            className="flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-400 hover:text-slate-700">
-            <Fa icon="fa-solid fa-arrow-left" className="text-sm" />
-          </button>
-          <div>
-            <h2 className="text-base font-bold text-slate-900">{lead.companyName || '—'}</h2>
-            <p className="text-xs text-slate-400">{lead.secteurName} · {lead.city}</p>
+  return (
+    <div className="space-y-5 max-w-4xl mx-auto">
+
+      {/* ── Sticky Header ─────────────────────────────────────────────────── */}
+      <div className="sticky top-0 z-[5] bg-white/90 backdrop-blur-sm border border-gray-100 rounded-2xl shadow-sm px-5 py-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <button onClick={onClose}
+              className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-700 transition-all">
+              <Fa icon="fa-solid fa-arrow-left" className="text-xs" />
+            </button>
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold text-gray-900 truncate">{lead.companyName || '—'}</h2>
+              <p className="text-xs text-gray-400 truncate">{lead.secteurName}{lead.secteurName && lead.city ? ' · ' : ''}{lead.city}</p>
+            </div>
+            {/* Temperature badge */}
+            {tempConfig && (
+              <span className={`hidden sm:flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${tempConfig.bg}`}>
+                <Fa icon={tempConfig.icon} className="text-[11px]" />
+                {tempConfig.label}
+              </span>
+            )}
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {saved && (
-            <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
-              <Fa icon="fa-solid fa-circle-check" /> Enregistré
-            </span>
-          )}
-          {error && <span className="text-xs font-medium text-red-600">{error}</span>}
-          <button onClick={onClose}
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-400">
-            Annuler
-          </button>
-          <button onClick={handleSave} disabled={saving}
-            className={cn(
-              'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition',
-              saving ? 'cursor-not-allowed bg-slate-400' : 'bg-slate-900 hover:bg-slate-700'
-            )}>
-            <Fa icon={saving ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-floppy-disk'} />
-            {saving ? 'Enregistrement...' : 'Enregistrer'}
-          </button>
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {saved && (
+              <span className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1.5">
+                <Fa icon="fa-solid fa-circle-check" /> Enregistré
+              </span>
+            )}
+            {error && (
+              <span className="text-xs font-medium text-rose-600 bg-rose-50 border border-rose-200 rounded-full px-3 py-1.5">
+                {error}
+              </span>
+            )}
+            <button onClick={onClose}
+              className="h-9 px-4 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:border-gray-400 transition-all">
+              Annuler
+            </button>
+            <button onClick={handleSave} disabled={saving}
+              className={`flex items-center gap-2 h-9 px-5 rounded-xl text-sm font-semibold text-white transition-all
+                ${saving ? 'bg-gray-400 cursor-not-allowed' : 'bg-[rgb(15,23,42)] hover:bg-[rgb(15,23,42)]/90 shadow-sm shadow-gray-200'}`}>
+              <Fa icon={saving ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-floppy-disk'} className="text-xs" />
+              {saving ? 'Enregistrement...' : 'Enregistrer'}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ── Active sequence card (only shown if enrolled) ───────────────────── */}
+      {/* ── Active Sequence ────────────────────────────────────────────────── */}
       {enrollment && (
-        <Card className="border-indigo-200 bg-indigo-50">
-          <CardHeader className="border-b border-indigo-100 pb-3 pt-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-sm font-semibold text-indigo-900">
-                <Fa icon="fa-solid fa-paper-plane" className="text-indigo-500" />
-                Séquence en cours
-              </CardTitle>
-              <span className={cn(
-                'rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide',
-                enrollment.status === 'ACTIVE'
-                  ? 'border-indigo-300 bg-indigo-100 text-indigo-700'
-                  : 'border-amber-300 bg-amber-100 text-amber-700'
-              )}>
-                {enrollment.status}
+        <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-indigo-50 overflow-hidden shadow-sm">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-violet-100">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-500 text-white">
+                <Fa icon="fa-solid fa-paper-plane" className="text-xs" />
               </span>
+              <h3 className="text-sm font-semibold text-violet-900">Séquence en cours</h3>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4 p-5">
-            {/* Sequence name + step names */}
+            <span className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider
+              ${enrollment.status === 'ACTIVE'
+                ? 'border-violet-300 bg-violet-100 text-violet-700'
+                : 'border-amber-300 bg-amber-100 text-amber-700'}`}>
+              {enrollment.status}
+            </span>
+          </div>
+          <div className="p-6 space-y-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs text-indigo-500 font-medium">{enrollment.sequenceName}</p>
-                <p className="mt-0.5 text-sm font-semibold text-indigo-900">
+                <p className="text-xs font-medium text-violet-400 uppercase tracking-wide">{enrollment.sequenceName}</p>
+                <p className="mt-1 text-sm font-bold text-violet-900">
                   Étape {enrollment.currentStepOrder}/{enrollment.totalSteps} — {enrollment.currentStepName}
                 </p>
               </div>
               {enrollment.nextExecutionDate && (
-                <div className="shrink-0 text-right">
-                  <p className="text-[10px] text-indigo-400">Prochain envoi</p>
-                  <p className="text-xs font-semibold text-indigo-700">
-                    {new Date(enrollment.nextExecutionDate).toLocaleDateString('fr-MA', {
-                      day: '2-digit', month: 'short', year: 'numeric',
-                    })}
+                <div className="text-right flex-shrink-0">
+                  <p className="text-[10px] text-violet-400 uppercase tracking-wide font-medium">Prochain envoi</p>
+                  <p className="text-sm font-bold text-violet-700 mt-0.5">
+                    {new Date(enrollment.nextExecutionDate).toLocaleDateString('fr-MA', { day: '2-digit', month: 'short', year: 'numeric' })}
                   </p>
                 </div>
               )}
             </div>
-
-            {/* Progress bar */}
-            <SequenceStepBar
-              current={enrollment.currentStepOrder}
-              total={enrollment.totalSteps}
-            />
-
-            {/* Step labels */}
-            <div className="flex justify-between text-[10px] text-indigo-400">
-              <span>Étape 1</span>
-              <span>Étape {enrollment.totalSteps}</span>
-            </div>
-
-            {/* Cancel button */}
-            <div className="pt-1">
-              <button
-                onClick={handleCancelSequence}
-                disabled={cancelling}
-                className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:border-red-400 hover:bg-red-50 disabled:opacity-50"
-              >
-                <Fa icon={cancelling ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-ban'} className="text-[11px]" />
-                {cancelling ? 'Annulation...' : 'Annuler la séquence'}
-              </button>
-            </div>
-          </CardContent>
-        </Card>
+            <SequenceProgress current={enrollment.currentStepOrder} total={enrollment.totalSteps} />
+            <button onClick={handleCancelSequence} disabled={cancelling}
+              className="flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-xs font-semibold text-rose-600 transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50">
+              <Fa icon={cancelling ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-ban'} className="text-[11px]" />
+              {cancelling ? 'Annulation...' : 'Annuler la séquence'}
+            </button>
+          </div>
+        </div>
       )}
 
-      {/* ── Company info ───────────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="border-b border-slate-100 bg-slate-50 pb-3 pt-4">
-          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-            <Fa icon="fa-solid fa-building" className="text-slate-500" />
-            Informations de l'entreprise
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 p-5 sm:grid-cols-2">
+      {/* ── Company Info ───────────────────────────────────────────────────── */}
+      <SectionCard title="Informations de l'entreprise" icon="fa-solid fa-building">
+        <div className="grid gap-5 sm:grid-cols-2">
 
-          <Field label="Nom de l'entreprise" icon="fa-solid fa-building">
-            <TextInput value={lead.companyName} onChange={v => setField('companyName', v)}
-              placeholder="Nom de l'entreprise" />
-          </Field>
+          <div>
+            <FieldLabel icon="fa-solid fa-building" label="Nom de l'entreprise" />
+            <TextInput value={lead.companyName} onChange={v => setField('companyName', v)} placeholder="Nom de l'entreprise" />
+          </div>
 
-          <Field label="Secteur" icon="fa-solid fa-tag">
-            <select
-              value={lead.secteurId ?? ''}
-              onChange={e => setField('secteurId', e.target.value ? Number(e.target.value) : null)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-            >
+          <div>
+            <FieldLabel icon="fa-solid fa-tag" label="Secteur" />
+            <SelectInput value={lead.secteurId} onChange={v => setField('secteurId', v ? Number(v) : null)}>
               <option value="">— Sélectionner un secteur —</option>
-              {secteurs.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </Field>
+              {secteurs.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </SelectInput>
+          </div>
 
-          {/* City: grouped by region */}
-          <Field label="Ville" icon="fa-solid fa-location-dot">
-            <select
-              value={lead.city}
-              onChange={e => setField('city', e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-            >
+          <div>
+            <FieldLabel icon="fa-solid fa-location-dot" label="Ville" />
+            <SelectInput value={lead.city} onChange={v => setField('city', v)}>
               <option value="">— Sélectionner une ville —</option>
               {Object.entries(MOROCCAN_REGIONS).map(([region, cities]) => (
                 <optgroup key={region} label={region}>
-                  {cities.map(city => (
-                    <option key={city} value={city}>{city}</option>
-                  ))}
+                  {cities.map(city => <option key={city} value={city}>{city}</option>)}
                 </optgroup>
               ))}
-            </select>
-          </Field>
+            </SelectInput>
+          </div>
 
-          <Field label="Adresse" icon="fa-solid fa-map-pin">
-            <TextInput value={lead.address} onChange={v => setField('address', v)}
-              placeholder="Adresse complète" />
-          </Field>
+          <div>
+            <FieldLabel icon="fa-solid fa-map-pin" label="Adresse" />
+            <TextInput value={lead.address} onChange={v => setField('address', v)} placeholder="Adresse complète" />
+          </div>
 
-            <Field label="Téléphone" icon="fa-solid fa-phone"
-            error={validationErrors.phoneNumber}>
+          <div>
+            <FieldLabel icon="fa-solid fa-phone" label="Téléphone" />
             <TextInput value={lead.phoneNumber} onChange={v => setField('phoneNumber', v)}
-                placeholder="2126XXXXXXXX / 2127XXXXXXXX / 05XXXXXXXX"
-                invalid={!!validationErrors.phoneNumber} />
-            </Field>
+              placeholder="2126XXXXXXXX / 2127XXXXXXXX"
+              invalid={!!validationErrors.phoneNumber} />
+            <ValidationError msg={validationErrors.phoneNumber} />
+          </div>
 
-          <Field label="Email" icon="fa-solid fa-envelope"
-            error={validationErrors.email}>
+          <div>
+            <FieldLabel icon="fa-solid fa-envelope" label="Email" />
             <TextInput value={lead.email} onChange={v => setField('email', v)}
               placeholder="contact@entreprise.ma" type="email"
               invalid={!!validationErrors.email} />
-          </Field>
+            <ValidationError msg={validationErrors.email} />
+          </div>
 
-          <Field label="Site web" icon="fa-solid fa-globe"
-            error={validationErrors.website}>
+          <div>
+            <FieldLabel icon="fa-solid fa-globe" label="Site web" />
             <TextInput value={lead.website} onChange={v => setField('website', v)}
               placeholder="www.entreprise.ma"
               invalid={!!validationErrors.website} />
-          </Field>
+            <ValidationError msg={validationErrors.website} />
+          </div>
 
-          <Field label="LinkedIn" icon="fa-brands fa-linkedin"
-            error={validationErrors.linkedinUrl}>
+          <div>
+            <FieldLabel icon="fa-brands fa-linkedin" label="LinkedIn" />
             <TextInput value={lead.linkedinUrl} onChange={v => setField('linkedinUrl', v)}
               placeholder="https://linkedin.com/company/..."
               invalid={!!validationErrors.linkedinUrl} />
-          </Field>
+            <ValidationError msg={validationErrors.linkedinUrl} />
+          </div>
 
-          <Field label="Effectif" icon="fa-solid fa-users">
-            <TextInput value={lead.employeeCount} onChange={v => setField('employeeCount', v)}
-              placeholder="1-10, 11-50, 51-200..." />
-          </Field>
+          <div>
+            <FieldLabel icon="fa-solid fa-users" label="Effectif" />
+            <TextInput value={lead.employeeCount} onChange={v => setField('employeeCount', v)} placeholder="1–10, 11–50, 51–200..." />
+          </div>
 
-          <Field label="CA / Capital" icon="fa-solid fa-coins">
-            <TextInput value={lead.revenueCapital} onChange={v => setField('revenueCapital', v)}
-              placeholder="ex: 500K MAD" />
-          </Field>
+          <div>
+            <FieldLabel icon="fa-solid fa-coins" label="CA / Capital" />
+            <TextInput value={lead.revenueCapital} onChange={v => setField('revenueCapital', v)} placeholder="ex: 500K MAD" />
+          </div>
 
-        </CardContent>
-      </Card>
+        </div>
+      </SectionCard>
 
       {/* ── Qualification ──────────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="border-b border-slate-100 bg-slate-50 pb-3 pt-4">
-          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-            <Fa icon="fa-solid fa-chart-simple" className="text-slate-500" />
-            Qualification
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 p-5 sm:grid-cols-2">
+      <SectionCard title="Qualification" icon="fa-solid fa-chart-simple">
+        <div className="grid gap-5 sm:grid-cols-2">
 
           {/* Temperature picker */}
-          <Field label="Température" icon="fa-solid fa-thermometer-half">
+          <div className="sm:col-span-2">
+            <FieldLabel icon="fa-solid fa-thermometer-half" label="Température" />
             <div className="flex gap-2">
               {TEMPERATURES.map(t => (
-                <button
-                  key={t.k}
-                  onClick={() => setField('temperature', t.k)}
-                  className={cn(
-                    'flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition',
-                    lead.temperature === t.k
-                      ? t.badge + ' shadow-sm'
-                      : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-                  )}
-                >
-                  <Fa icon={t.icon} className="text-[11px]" />
+                <button key={t.k} onClick={() => setField('temperature', t.k)}
+                  className={`flex flex-1 items-center justify-center gap-2 h-10 rounded-xl border text-xs font-semibold transition-all
+                    ${lead.temperature === t.k
+                      ? t.bg + ' shadow-sm'
+                      : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 hover:text-gray-600'}`}>
+                  <Fa icon={t.icon} className={`text-[11px] ${lead.temperature === t.k ? '' : 'opacity-50'}`} />
                   {t.label}
                 </button>
               ))}
             </div>
-          </Field>
-
-          {/* Contact status — read-only display */}
-          <div className="flex items-center gap-3 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5">
-            <Fa icon="fa-solid fa-flag" className="text-[12px] text-slate-400" />
-            <span className="text-xs text-slate-400 w-24 shrink-0">Statut contact</span>
-            <span className="text-xs font-semibold text-slate-700">
-              {lead.contactStatus.replace(/_/g, ' ')}
-            </span>
           </div>
 
-          {/* Read-only Google data */}
-          <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-            <Fa icon="fa-brands fa-google" className="text-[12px] text-slate-400" />
-            <span className="text-xs text-slate-400 w-24 shrink-0">Note Google</span>
-            <span className="text-sm font-semibold text-slate-700">
-              {lead.googleRating != null ? `${lead.googleRating} ★` : '—'}
-              {lead.googleReviews != null ? ` · ${lead.googleReviews} avis` : ''}
-            </span>
-          </div>
+          <ReadOnlyRow icon="fa-solid fa-flag" label="Statut contact" value={lead.contactStatus.replace(/_/g, ' ')} />
 
-          {/* Read-only AI score */}
-          <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-            <Fa icon="fa-solid fa-brain" className="text-[12px] text-slate-400" />
-            <span className="text-xs text-slate-400 w-24 shrink-0">Score IA</span>
-            <span className={cn(
-              'text-sm font-bold tabular-nums',
-              (lead.aiScore ?? 0) >= 80 ? 'text-emerald-600' :
-              (lead.aiScore ?? 0) >= 60 ? 'text-amber-600' : 'text-slate-500'
-            )}>
-              {lead.aiScore ?? '—'}
-            </span>
-          </div>
+          <ReadOnlyRow icon="fa-brands fa-google" label="Note Google"
+            value={lead.googleRating != null
+              ? `${lead.googleRating} ★${lead.googleReviews != null ? ` · ${lead.googleReviews} avis` : ''}`
+              : '—'} />
 
-        </CardContent>
-      </Card>
+          <ReadOnlyRow icon="fa-solid fa-brain" label="Score IA"
+            value={lead.aiScore ?? '—'}
+            valueClass={(lead.aiScore ?? 0) >= 80 ? 'text-emerald-600' : (lead.aiScore ?? 0) >= 60 ? 'text-amber-600' : ''} />
 
-      {/* ── Decision makers ────────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="border-b border-slate-100 bg-slate-50 pb-3 pt-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <Fa icon="fa-solid fa-id-card" className="text-slate-500" />
-              Décideurs
-              {lead.decisionMakers.length > 0 && (
-                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                  {lead.decisionMakers.length}
-                </span>
-              )}
-            </CardTitle>
+        </div>
+      </SectionCard>
+
+      {/* ── Decision Makers ────────────────────────────────────────────────── */}
+      <SectionCard
+        title="Décideurs"
+        icon="fa-solid fa-id-card"
+        badge={lead.decisionMakers.length > 0
+          ? <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-[rgb(15,23,42)]">{lead.decisionMakers.length}</span>
+          : undefined}
+        action={
+          <button onClick={addDecisionMaker}
+            className="flex items-center gap-1.5 rounded-xl bg-[rgb(15,23,42)] hover:bg-[rgb(15,23,42)]/90 px-3.5 py-2 text-xs font-semibold text-white transition-all shadow-sm shadow-gray-200">
+            <Fa icon="fa-solid fa-plus" className="text-[10px]" />
+            Ajouter
+          </button>
+        }
+      >
+        {lead.decisionMakers.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 py-12 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center">
+              <Fa icon="fa-solid fa-user-plus" className="text-2xl text-gray-300" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-600">Aucun décideur enregistré</p>
+              <p className="text-xs text-gray-400 mt-0.5">Ajoutez les contacts clés de cette entreprise</p>
+            </div>
             <button onClick={addDecisionMaker}
-              className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700">
-              <Fa icon="fa-solid fa-plus" className="text-[10px]" />
-              Ajouter
+              className="flex items-center gap-2 rounded-xl bg-[rgb(15,23,42)] hover:bg-[rgb(15,23,42)]/90 px-4 py-2.5 text-xs font-semibold text-white transition-all mt-1">
+              <Fa icon="fa-solid fa-plus" /> Ajouter le premier décideur
             </button>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-3 p-5">
-          {lead.decisionMakers.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-8 text-center">
-              <Fa icon="fa-solid fa-user-slash" className="text-2xl text-slate-300" />
-              <p className="text-sm text-slate-400">Aucun décideur enregistré</p>
-              <button onClick={addDecisionMaker}
-                className="mt-1 text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700">
-                + Ajouter le premier décideur
-              </button>
-            </div>
-          ) : (
-            lead.decisionMakers.map((dm, i) => (
+        ) : (
+          <div className="space-y-3">
+            {lead.decisionMakers.map((dm, i) => (
               <DecisionMakerCard
                 key={dm.id ?? `new-${i}`}
-                dm={dm}
-                index={i}
+                dm={dm} index={i}
                 onChange={(field, value) => updateDecisionMaker(i, field, value)}
                 onDelete={() => removeDecisionMaker(i)}
               />
-            ))
-          )}
-        </CardContent>
-      </Card>
+            ))}
+          </div>
+        )}
+      </SectionCard>
 
     </div>
   );
