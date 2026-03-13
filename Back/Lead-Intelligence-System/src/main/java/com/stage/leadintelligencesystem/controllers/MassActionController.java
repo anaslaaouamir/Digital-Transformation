@@ -4,8 +4,10 @@ import com.stage.leadintelligencesystem.dto.SimulatedEmailDto;
 import com.stage.leadintelligencesystem.services.MassActionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
-
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,13 +35,16 @@ public class MassActionController {
     }
 
 
-    @PostMapping("/send-manual-email")
-    public ResponseEntity<String> sendManualEmail(@RequestBody SimulatedEmailDto request) {
+    @PostMapping(value = "/send-manual-email", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> sendManualEmail(
+            @RequestPart("email")   String email,
+            @RequestPart("subject") String subject,
+            @RequestPart("body")    String body,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files) {
         try {
-            massActionService.sendManualEmail(request);
+            massActionService.sendManualEmail(email, subject, body, files);
             return ResponseEntity.ok("Manual email sent and tracked successfully.");
         } catch (RuntimeException e) {
-            // Returns a clean 400 error if n8n is down, so your frontend knows exactly what happened
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }

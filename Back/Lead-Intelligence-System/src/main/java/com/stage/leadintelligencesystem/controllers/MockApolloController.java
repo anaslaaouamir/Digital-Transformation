@@ -16,7 +16,7 @@ public class MockApolloController {
             @RequestParam(required = false) String domain,
             @RequestParam(required = false) String name) {
 
-        String resolvedDomain = (domain != null && !domain.isBlank()) ? domain : "temp-lead.com";
+        String resolvedDomain = (domain != null && !domain.isBlank()) ? domain : name+".com";
 
         ApolloOrganizationResponse.ContactEmail contactEmail = new ApolloOrganizationResponse.ContactEmail();
         contactEmail.setEmail("contact@" + resolvedDomain);

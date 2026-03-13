@@ -1,0 +1,265 @@
+{
+  "name": "send_emails_with_attached_files",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-email",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -672,
+        128
+      ],
+      "id": "fd2b102d-220f-46ab-b80f-00632741dedc",
+      "name": "Webhook",
+      "webhookId": "7c01862c-efed-43ac-b9f4-21e5a0037997",
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\n\n// Parse attachmentUrls if present (comes as JSON string from Java)\nlet urls = [];\nif (body.attachmentUrls) {\n  try {\n    urls = JSON.parse(body.attachmentUrls);\n  } catch(e) {\n    urls = [];\n  }\n}\n\n// Base URL of your Spring Boot server (Cloudflare tunnel or localhost)\nconst baseUrl = 'https://buys-therapist-music-assistant.trycloudflare.com';\n\nreturn [{\n  json: {\n    email: body.email,\n    subject: body.subject,\n    body: body.body,\n    hasAttachments: urls.length > 0,\n    attachmentUrls: urls.map(u => baseUrl + u)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        128
+      ],
+      "id": "5570dbac-1778-4cc0-b7e0-a05616b1a50b",
+      "name": "Parse Body"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-has-attachments",
+              "leftValue": "={{ $json.hasAttachments }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -224,
+        128
+      ],
+      "id": "fc31f034-767f-4d2b-af8e-ed323fb1dde8",
+      "name": "Has Attachments?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split each attachment URL into its own item so HTTP Request loops over them\nconst item = $input.first().json;\nreturn item.attachmentUrls.map(url => ({\n  json: {\n    email: item.email,\n    subject: item.subject,\n    body: item.body,\n    attachmentUrl: url,\n    fileName: url.split('/').pop()\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "ebb7af0a-719a-4a51-9a7e-0399583eb998",
+      "name": "Split URLs"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.attachmentUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "f868d431-b51a-4167-9895-033ebd2ad1d9",
+      "name": "Download File"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst first = items[0].json;\n\nconst binaryData = {};\nitems.forEach((item, index) => {\n  if (item.binary) {\n    Object.keys(item.binary).forEach(key => {\n      binaryData[`attachment_${index}`] = item.binary[key];\n    });\n  }\n});\n\nreturn [{\n  json: {\n    email: first.email,\n    subject: first.subject,\n    body: first.body\n  },\n  binary: binaryData\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "8b0003ed-e30b-4ae4-846f-117430b1817e",
+      "name": "Merge Files"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.body }}",
+        "options": {
+          "appendAttribution": false,
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "={{ Object.keys($binary).join(',') }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "14319fa3-313f-42f2-819e-daf0f6fe10f2",
+      "name": "Send with Attachments",
+      "webhookId": "4318cf63-562d-490f-973c-091996cb3520",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "hPuYr8AaUYn3ruRO",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        240
+      ],
+      "id": "032a93d3-951c-46ba-b038-e55456f230fe",
+      "name": "Send without Attachments",
+      "webhookId": "2cac6f63-0de3-4e1b-8e07-4e3647e53a39",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "hPuYr8AaUYn3ruRO",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Body": {
+      "main": [
+        [
+          {
+            "node": "Has Attachments?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Attachments?": {
+      "main": [
+        [
+          {
+            "node": "Split URLs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send without Attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split URLs": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Merge Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Files": {
+      "main": [
+        [
+          {
+            "node": "Send with Attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send with Attachments": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "d02ed16a-50b5-4140-b1dd-bebcf9027cc4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "19608886e3e17c7fa08aa6249e02f43d090f84b9e2f1863d8af8ff9691f099f7"
+  },
+  "id": "kbdGuML79jBzjNCA",
+  "tags": []
+}

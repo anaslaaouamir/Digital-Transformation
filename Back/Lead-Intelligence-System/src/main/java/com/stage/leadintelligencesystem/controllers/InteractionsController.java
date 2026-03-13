@@ -43,6 +43,8 @@ public class InteractionsController {
         public String sentAt;
         public String openedAt;
         public String repliedAt;
+        public String attachmentUrls;
+
 
         InteractionDTO(Interaction i) {
             this.id = i.getId();
@@ -62,6 +64,8 @@ public class InteractionsController {
             this.sentAt = i.getSentAt() != null ? i.getSentAt().toString() : null;
             this.openedAt = i.getOpenedAt() != null ? i.getOpenedAt().toString() : null;
             this.repliedAt = i.getRepliedAt() != null ? i.getRepliedAt().toString() : null;
+            this.attachmentUrls= i.getAttachmentUrls() != null ? i.getAttachmentUrls() : null;
+
         }
     }
 

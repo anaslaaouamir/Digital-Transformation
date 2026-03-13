@@ -1,0 +1,380 @@
+{
+  "name": "groq_email_with_attached_files",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate_email1",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -688,
+        384
+      ],
+      "id": "ccab8ef5-df8f-4db6-98d0-0855894f9294",
+      "name": "Webhook",
+      "webhookId": "bfe126ba-f270-458a-b403-9e8a20e96e1c"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are an expert B2B sales development representative. Write a concise, highly personalized email.\\n\\n<lead_data>\\nCompany: {{ $('Webhook').item.json.body.lead.companyName }}\\nRating: {{ $('Webhook').item.json.body.lead.googleRating }}\\nIndustry/Type: {{ $('Webhook').item.json.body.lead.googleTypes }}\\n</lead_data>\\n\\n<instructions>\\n{{ $('Webhook').item.json.body.userPrompt }}\\n</instructions>\\n\\nSTRICT RULES:\\n1. MISSING DATA: If any data point in <lead_data> is blank, empty, \\\"null\\\", or missing (like the rating or industry), DO NOT bring it up. Do not guess it. Ignore it completely.\\n2. NO PLACEHOLDERS: You are strictly forbidden from using bracketed placeholders like [Name], [Lead Name], [Company], or [Your Name].\\n3. GREETING: If you do not have a specific contact name, use a general professional greeting like \\\"Dear Team at {{ $('Webhook').item.json.body.lead.companyName }},\\\" or just \\\"Hello,\\\".\\n4. SIGN-OFF: End the email professionally, but do not use a placeholder for the sender's name. Just end it with \\\"Best regards,\\\" or similar.\\n5. FORMAT: Use HTML <br> tags for line breaks.\\n\\nOUTPUT EXACTLY THIS JSON AND NOTHING ELSE:\\n{\\n  \\\"subject\\\": \\\"Your generated subject\\\",\\n  \\\"body\\\": \\\"Your generated body\\\"\\n}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -960,
+        128
+      ],
+      "id": "b54eda6e-c292-42cd-aab3-8fed80c72885",
+      "name": "Message a model",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "0GUgkiHGicus4KvZ",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aaa00001-0000-0000-0000-000000000001",
+              "name": "content",
+              "value": "={{ [{ text: $json.choices[0].message.content }] }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -672,
+        128
+      ],
+      "id": "549f6fb5-5787-413e-a338-6beae6fb4fc5",
+      "name": "Normalize Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Webhook').item.json.body;\nconst content = $input.first().json.content;\nconst pixelHtml = body.pixelHtml || '';\n\n// Parse the AI generated body and append pixel\nconst parsed = JSON.parse(content[0].text);\nconst finalBody = parsed.body + '<br>' + pixelHtml;\n\n// Rebuild content with pixel injected\nconst finalContent = [{ text: JSON.stringify({ subject: parsed.subject, body: finalBody }) }];\n\nlet urls = [];\nif (body.attachmentUrls) {\n  try { urls = JSON.parse(body.attachmentUrls); } catch(e) { urls = []; }\n}\n\nconst baseUrl = 'https://buys-therapist-music-assistant.trycloudflare.com';\n\nreturn [{\n  json: {\n    email: body.email,\n    content: finalContent,\n    hasAttachments: urls.length > 0,\n    attachmentUrls: urls.map(u => baseUrl + u)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        128
+      ],
+      "id": "c0af6fef-9c6e-4ea3-9e0b-0a2125fc353e",
+      "name": "Parse Attachments"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-has-attachments",
+              "leftValue": "={{ $json.hasAttachments }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -224,
+        128
+      ],
+      "id": "e52ac1d7-182c-4596-b933-86365dbe57ed",
+      "name": "Has Attachments?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nreturn item.attachmentUrls.map(url => ({\n  json: {\n    email: item.email,\n    content: item.content,\n    attachmentUrl: url,\n    fileName: url.split('/').pop()\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "84702610-46da-4b8b-86c4-287c37ccbd72",
+      "name": "Split URLs"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.attachmentUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "3d163f53-5fad-4470-a20d-44176374162d",
+      "name": "Download File"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst first = items[0].json;\n\nconst binaryData = {};\nitems.forEach((item, index) => {\n  if (item.binary) {\n    Object.keys(item.binary).forEach(key => {\n      binaryData[`attachment_${index}`] = item.binary[key];\n    });\n  }\n});\n\nreturn [{\n  json: {\n    email: first.email,\n    content: first.content\n  },\n  binary: binaryData\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "d3a08377-954f-44c9-b0a4-1bab3e5784bd",
+      "name": "Merge Files"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ JSON.parse($json.content[0].text).subject }}",
+        "message": "={{ JSON.parse($json.content[0].text).body }}",
+        "options": {
+          "appendAttribution": false,
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "={{ Object.keys($binary).join(',') }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "3f39ecc8-20d6-40bd-a2b2-96a4fa2de4d4",
+      "name": "Send with Attachments",
+      "webhookId": "07519885-8eae-4b43-827b-1ef3cabde781",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "hPuYr8AaUYn3ruRO",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ JSON.parse($json.content[0].text).subject }}",
+        "message": "={{ JSON.parse($json.content[0].text).body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        464,
+        352
+      ],
+      "id": "e6303914-1001-4412-94b7-f9d83f645689",
+      "name": "Send without Attachments",
+      "webhookId": "9bd90411-ceba-4fae-a274-378c9870cc94",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "hPuYr8AaUYn3ruRO",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "592cf0e9-c841-490f-b79b-1151cb41c454",
+              "name": "subject",
+              "value": "={{ JSON.parse($('Message a model').item.json.choices[0].message.content).subject }}",
+              "type": "string"
+            },
+            {
+              "id": "e6073caa-4edf-4598-ab8b-ee902e729643",
+              "name": "body",
+              "value": "={{ JSON.parse($('Message a model').item.json.choices[0].message.content).body }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        896,
+        128
+      ],
+      "id": "2b490c4f-c9c0-4670-9942-611d236cbc82",
+      "name": "Edit Fields"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Normalize Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Response": {
+      "main": [
+        [
+          {
+            "node": "Parse Attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Attachments": {
+      "main": [
+        [
+          {
+            "node": "Has Attachments?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Attachments?": {
+      "main": [
+        [
+          {
+            "node": "Split URLs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send without Attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split URLs": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Merge Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Files": {
+      "main": [
+        [
+          {
+            "node": "Send with Attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send with Attachments": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send without Attachments": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "46ea36d8-a64e-4642-bbee-0ce2c09a5a4c",
+  "meta": {
+    "instanceId": "19608886e3e17c7fa08aa6249e02f43d090f84b9e2f1863d8af8ff9691f099f7"
+  },
+  "id": "YkoFlUsMP3D3H5BK",
+  "tags": []
+}

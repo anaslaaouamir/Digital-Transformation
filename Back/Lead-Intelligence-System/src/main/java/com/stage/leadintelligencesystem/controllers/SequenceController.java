@@ -7,8 +7,10 @@ import com.stage.leadintelligencesystem.repositories.LeadRepository;
 import com.stage.leadintelligencesystem.repositories.SequenceEnrollmentRepository;
 import com.stage.leadintelligencesystem.services.SequenceService;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -59,6 +61,18 @@ public class SequenceController {
         try {
             sequenceService.cancelSequenceForLead(leadId);
             return ResponseEntity.ok("Sequence cancelled for lead " + leadId);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
+    }
+
+    @PostMapping(value = "/{enrollmentId}/attach-files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> attachFiles(
+            @PathVariable Long enrollmentId,
+            @RequestPart("files") List<MultipartFile> files) {
+        try {
+            sequenceService.attachFilesToEnrollment(enrollmentId, files);
+            return ResponseEntity.ok("Files attached to enrollment " + enrollmentId);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         }
